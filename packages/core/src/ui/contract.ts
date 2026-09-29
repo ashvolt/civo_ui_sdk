@@ -32,12 +32,18 @@ export type ChildrenPolicy = "none" | "optional" | "required";
 export interface ComponentSpec<TProps extends Record<string, unknown> = Record<string, unknown>> {
   /** Shown to the model. The single biggest lever on output quality. */
   description?: string;
-  props: z.ZodType<TProps>;
+  /**
+   * `unknown` as the *input* type is what lets a concrete `z.object({...})` be
+   * stored in a heterogeneous registry without widening its output type to
+   * `any`: the map stays assignable, and `safeParse` still returns the precise
+   * props type at the point of use.
+   */
+  props: z.ZodType<TProps, z.ZodTypeDef, unknown>;
   /** Default `"none"`: leaf unless the application says otherwise. */
   children?: ChildrenPolicy;
 }
 
-export type ComponentSpecMap = Record<string, ComponentSpec<never>>;
+export type ComponentSpecMap = Record<string, ComponentSpec>;
 
 export interface UIRegistryOptions {
   /** Ceiling on total nodes in one document. Default 500. */
@@ -58,7 +64,7 @@ export interface UIRegistry<M extends ComponentSpecMap> {
   readonly limits: Required<Pick<UIRegistryOptions, "maxNodes" | "maxDepth">>;
   /** Ready to hand to `generateObject` / `streamObject`. */
   structuredSchema(name?: string, description?: string): StructuredSchema<{ root: UINode }>;
-  spec(type: string): ComponentSpec<never> | undefined;
+  spec(type: string): ComponentSpec | undefined;
 }
 
 /**
@@ -116,13 +122,13 @@ export function createUIRegistry<M extends ComponentSpecMap>(
   // emitter recognise the cycle and emit a `$ref` instead of recursing forever.
   const nodeSchema: z.ZodType<UINode> = z.lazy(() => {
     const variants = names.map((name) => {
-      const spec = specs[name] as ComponentSpec<never>;
+      const spec = specs[name] as ComponentSpec;
       const policy: ChildrenPolicy = spec.children ?? "none";
 
       const base = {
         type: z.literal(name),
         key: KEY_SCHEMA,
-        props: spec.props as z.ZodType<Record<string, unknown>>,
+        props: spec.props,
       };
 
       const shape =
@@ -178,7 +184,7 @@ export function createUIRegistry<M extends ComponentSpecMap>(
     nodeSchema,
     documentSchema,
     limits,
-    spec: (type: string) => specs[type] as ComponentSpec<never> | undefined,
+    spec: (type: string) => specs[type] as ComponentSpec | undefined,
     structuredSchema(name = "GenerativeUIDocument", description?: string) {
       return defineStructuredSchema<{ root: UINode }>({
         name,

@@ -1,0 +1,35 @@
+:root {
+  --bg: #fbfbfd;
+  --card: #ffffff;
+  --border: #e3e3ea;
+  --muted: #5b5b6b;
+  --accent: #1a73c7;
+  --bar-track: #ececf2;
+  --bar-fill: #1a73c7;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101014;
+    --card: #17171d;
+    --border: #2a2a34;
+    --muted: #9a9aab;
+    --accent: #3d8fdd;
+    --bar-track: #23232c;
+    --bar-fill: #3d8fdd;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: light-dark(#14141a, #ececf2);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+input, select, button { font: inherit; }
+a { color: var(--accent); }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
