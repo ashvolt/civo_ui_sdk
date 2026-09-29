@@ -1,0 +1,19 @@
+{
+  "name": "@civo/relax-ui-core",
+  "version": "0.1.0",
+  "description": "Runtime-agnostic core for the relaxAI Generative UI SDK: schema-enforced structured generation, streaming partial objects, and a sovereign-by-default transport.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "require": "./dist/index.cjs" }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "scripts": { "build": "tsup" },
+  "peerDependencies": { "zod": "^3.23.0 || ^4.0.0" },
+  "devDependencies": { "tsup": "^8.3.5", "typescript": "^5.7.2", "zod": "^3.24.1" },
+  "publishConfig": { "access": "public" }
+}

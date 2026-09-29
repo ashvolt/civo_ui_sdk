@@ -1,0 +1,7 @@
+packages:
+  - "packages/*"
+  - "examples/*"
+
+# esbuild ships a platform-specific binary via its postinstall script; tsup needs it.
+onlyBuiltDependencies:
+  - esbuild

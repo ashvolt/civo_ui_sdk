@@ -1,0 +1,28 @@
+{
+  "name": "relax-ui-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generative UI SDK for Civo relaxAI — schema-enforced, streaming, sovereign-by-default.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": { "node": ">=20.11" },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit -p tsconfig.json --pretty false",
+    "verify": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "zod": "^3.24.1"
+  }
+}
