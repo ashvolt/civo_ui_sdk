@@ -49,7 +49,7 @@ no request was made against the live API. The design is therefore built to
 - the floor strategy needs no server feature at all, so an entirely wrong table
   costs one wasted request per model per process, never a failure.
 
-Before publishing, `scripts/probe-models.ts` (see `tasks.md` T-046) should be run
+Before publishing, `scripts/probe-models.ts` (see `tasks.md` T-056) should be run
 against a live key to replace the priors with measurements.
 
 ---

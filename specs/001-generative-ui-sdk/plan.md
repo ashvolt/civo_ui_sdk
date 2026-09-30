@@ -149,7 +149,8 @@ lines of application code".
 
 ### Phase 2 — Tasks → [tasks.md](./tasks.md)
 
-46 dependency-ordered tasks, tests before implementation per Principle VII.
+60 dependency-ordered tasks — 57 complete, 3 outstanding — tests before implementation
+per Principle VII.
 
 ### Phase 3 — Implementation
 
@@ -205,7 +206,7 @@ Stated because a plan that claims no limitations is not a plan.
 1. **Capability priors are unverified against the live API.** This environment's
    egress policy blocks `relax.ai`, so the table is built from Civo's published
    documentation. The architecture is designed so that a wrong prior costs one
-   wasted request per model per process, never a failure — but T-046
+   wasted request per model per process, never a failure — but T-056
    (`scripts/probe-models.ts`) should replace priors with measurements before
    publication.
 2. **`toJsonSchema` covers a subset of Zod.** Objects, arrays, tuples, records,

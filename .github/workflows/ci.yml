@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "claude/**", "[0-9][0-9][0-9]-**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # esbuild's postinstall fetches a platform binary; tsup needs it.
+  PNPM_VERSION: "10.33.0"
+
+jobs:
+  verify:
+    name: Typecheck · test · build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20.11", "22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Assert published entry points exist
+        run: |
+          for pkg in core react next; do
+            for f in dist/index.js dist/index.cjs dist/index.d.ts; do
+              test -f "packages/$pkg/$f" || { echo "missing packages/$pkg/$f"; exit 1; }
+            done
+          done
+
+  constitution:
+    name: Constitutional invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Each check below enforces a principle from .specify/memory/constitution.md.
+      # They are greps rather than prose because a principle nobody can verify is
+      # a principle that decays.
+
+      - name: "V — core imports no node: module"
+        run: |
+          if grep -rn 'from "node:' packages/core/src packages/react/src; then
+            echo "::error::A node: import breaks Edge and Workers compatibility (Principle V)."
+            exit 1
+          fi
+
+      - name: "V — core has no runtime dependencies"
+        run: |
+          if node -e 'const p=require("./packages/core/package.json"); process.exit(p.dependencies && Object.keys(p.dependencies).length ? 1 : 0)'; then
+            echo "core has no runtime dependencies"
+          else
+            echo "::error::Principle V: core must have zero runtime dependencies (Zod is a peer)."
+            exit 1
+          fi
+
+      - name: "IV — no raw-HTML sink anywhere"
+        run: |
+          # Matches real usage (an assignment or a JSX prop), not the comments that
+          # explain why the sink is absent.
+          hits=$(grep -rnE 'dangerouslySetInnerHTML[[:space:]]*[:=]|\.innerHTML[[:space:]]*=|insertAdjacentHTML' \
+                 packages examples --include='*.ts' --include='*.tsx' \
+                 | grep -v '/dist/' || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::error::Principle IV: model output must never reach a raw-HTML sink."
+            exit 1
+          fi
+
+      - name: "IV — the depth guard must not be recursive"
+        run: |
+          # measureTree walks a model-supplied tree. A recursive walk overflows the
+          # stack while measuring, i.e. the guard fails before it can fire.
+          if ! grep -q 'const stack:' packages/core/src/ui/contract.ts; then
+            echo "::error::measureTree must use an explicit stack (Principle IV)."
+            exit 1
+          fi
+
+      - name: "I — the SDK contacts no host but the configured endpoint"
+        run: |
+          # Any absolute URL in core outside the sovereignty default is suspicious:
+          # the SDK must make no network call the application did not ask for.
+          hits=$(grep -rnoE 'https?://[a-zA-Z0-9.-]+' packages/core/src \
+                 | grep -vE 'api\.relax\.ai|json-schema\.org|localhost|127\.0\.0\.1' || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::error::Principle I: no SDK-initiated egress beyond the configured relaxAI endpoint."
+            exit 1
+          fi
+
+      - name: "VI — every feature has its Spec Kit chain"
+        run: |
+          test -f .specify/memory/constitution.md || { echo "::error::missing constitution"; exit 1; }
+          for d in specs/*/; do
+            for f in spec.md plan.md tasks.md research.md data-model.md; do
+              test -f "$d$f" || { echo "::error::$d is missing $f (Principle VI)."; exit 1; }
+            done
+          done
+
+      - name: "VI — no unresolved clarification markers"
+        run: |
+          if grep -rn 'NEEDS CLARIFICATION' specs/ --include='*.md' | grep -v 'template\|marker\|Mark every ambiguity\|no markers remain\|rather than guessing'; then
+            echo "::error::Principle VI: resolve every [NEEDS CLARIFICATION] before planning."
+            exit 1
+          fi
+
+  diagrams:
+    name: Mermaid diagrams render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # A diagram that does not render is worse than no diagram: it looks like
+      # documentation and conveys nothing. Every fenced mermaid block in docs/ is
+      # extracted and rendered, and a parse error fails the build.
+      - name: Render every fenced mermaid block
+        run: |
+          npm i --no-fund --no-audit @mermaid-js/mermaid-cli@11
+          printf '{ "args": ["--no-sandbox", "--disable-dev-shm-usage"] }' > puppeteer.json
+          mkdir -p .mermaid-out
+          node - <<'JS'
+          import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
+          import { join } from "node:path";
+          mkdirSync(".mermaid-blocks", { recursive: true });
+          let n = 0;
+          const walk = (dir) => {
+            for (const entry of readdirSync(dir)) {
+              const p = join(dir, entry);
+              if (statSync(p).isDirectory()) { walk(p); continue; }
+              if (!p.endsWith(".md")) continue;
+              const re = /```mermaid\n([\s\S]*?)```/g;
+              let m;
+              while ((m = re.exec(readFileSync(p, "utf8")))) {
+                writeFileSync(`.mermaid-blocks/${String(++n).padStart(3, "0")}.mmd`, m[1]);
+              }
+            }
+          };
+          walk("docs");
+          console.log(`extracted ${n} mermaid blocks`);
+          JS
+          fail=0
+          for f in .mermaid-blocks/*.mmd; do
+            if ! npx mmdc -p puppeteer.json -i "$f" -o ".mermaid-out/$(basename "$f" .mmd).svg" >/dev/null 2>mmdc-err.txt; then
+              echo "::error file=$f::mermaid parse error"
+              sed -n '1,12p' mmdc-err.txt
+              fail=1
+            fi
+          done
+          exit $fail
