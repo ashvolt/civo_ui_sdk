@@ -140,6 +140,46 @@ jobs:
             exit 1
           fi
 
+  e2e:
+    name: Browser integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The workspace packages are consumed by the example through `workspace:`
+      # links, so the example cannot start until they are built.
+      - name: Build packages
+        run: pnpm build
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Drives the reference app in a real browser against a local stand-in
+      # endpoint: the route's frames reach the hook, the hook's patches reach the
+      # renderer, and a failed generation says what failed. No relaxAI account and
+      # no model involved — the stand-in makes the document deterministic.
+      - name: Browser tests
+        run: pnpm test:e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: examples/next-app/playwright-report/
+          retention-days: 7
+
   diagrams:
     name: Mermaid diagrams render
     runs-on: ubuntu-latest

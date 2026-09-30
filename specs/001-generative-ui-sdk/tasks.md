@@ -178,10 +178,23 @@ as an unactionable `schema_violation`.
   but this should land before a 1.0 publish.
 - [ ] **T-057** Publish workflow (`changesets` + npm provenance). Deliberately
   deferred: nothing should be published until T-056 has run.
-- [ ] **T-058** Browser-level integration test of the reference app
-  (Playwright: submit, observe frames arrive, assert a rejected node renders
-  nothing). The renderer's refusal paths are unit-tested; this would cover the
-  wiring end to end.
+- [x] **T-058** Browser-level integration test of the reference app.
+  `examples/next-app/e2e/` — seven Playwright tests driving the real app in
+  Chromium against `e2e/stub-endpoint.mjs`, a committed OpenAI-compatible
+  stand-in. Covers the joins that unit tests cannot: the route's SSE frames
+  reaching the hook, the hook's patches reaching the renderer, the ladder
+  downgrading visibly to `tool_call` after the endpoint refuses `json_schema`,
+  `truncated` surfacing as a budget failure, and a schema violation naming the
+  offending path in the browser with the value absent. Runs in CI as its own job.
+
+  The stand-in is deliberate: a real model returns a different document every
+  run, so asserting on its output would test the model. One thing is *not*
+  covered here — the renderer's own refusals (`unknown_type`, `invalid_props`,
+  `depth_exceeded`). They are unreachable through a correct server, because the
+  schema rejects those documents before a frame is sent; reaching them from a
+  browser would need a route that emits unvalidated documents, which is not
+  something this example should contain. They stay covered by T-043's
+  `react-dom/server` tests, which is the right level for them.
 
 ---
 

@@ -98,8 +98,42 @@ wrong.
 - **Try a reasoning model.** Set `RELAX_MODEL=DeepSeek-V31-Terminus` and note that
   the `<think>` preamble never reaches the parser.
 
+## Run it with no model at all
+
+`e2e/stub-endpoint.mjs` is a committed OpenAI-compatible stand-in. It serves one
+model, streams a document that satisfies the registry, and refuses
+`response_format: json_schema` the way Ollama does, so a run still exercises a
+real downgrade to tool calling:
+
+```bash
+node e2e/stub-endpoint.mjs 11437
+RELAX_UI_PROVIDER=ollama OLLAMA_BASE_URL=http://127.0.0.1:11437/v1 pnpm dev
+```
+
+Set `MODE=truncate` or `MODE=badtype` to watch the two failure paths instead: the
+first stops mid-document with `finish_reason: length` and the page reports
+`truncated`; the second sends a `Metric` whose `value` is a number and the page
+names the offending path.
+
+## Browser tests
+
+```bash
+pnpm test:e2e          # from the repository root, or `playwright test` here
+```
+
+Seven tests drive this app in Chromium against that stand-in. They cover the
+joins the unit tests cannot: SSE frames reaching the hook, patches reaching the
+renderer, the negotiated tier appearing in the footer, and both failure paths
+reporting what failed. The endpoint is a stand-in on purpose — a real model
+returns a different document every run, and a test that asserts on model output
+is a test of the model.
+
+If your container ships its own Chromium rather than Playwright's, point at it
+with `PLAYWRIGHT_CHROMIUM_PATH=/path/to/chromium`.
+
 ## Notes
 
 `export const runtime = "edge"` works because the SDK's core requires nothing
-beyond `fetch`, `ReadableStream` and `AbortController`. Verified with a real
-`next build`.
+beyond `fetch`, `ReadableStream` and `AbortController` — verified with a real
+`next build`. This route ships as `nodejs` only because local mode has to reach
+Ollama on `127.0.0.1`, which an Edge deployment has no loopback for.

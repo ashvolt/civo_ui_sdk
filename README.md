@@ -198,7 +198,7 @@ spec would have stated in a page.
 | [Plan](./specs/001-generative-ui-sdk/plan.md) | Constitution checks, design decisions, known limitations |
 | [Data model](./specs/001-generative-ui-sdk/data-model.md) | Nine entities with their invariants |
 | [Contracts](./specs/001-generative-ui-sdk/contracts/) | Wire protocol, upstream assumptions, public API |
-| [Tasks](./specs/001-generative-ui-sdk/tasks.md) | 70 dependency-ordered tasks (67 complete, 3 outstanding), tests before implementation |
+| [Tasks](./specs/001-generative-ui-sdk/tasks.md) | 70 dependency-ordered tasks (68 complete, 2 outstanding), tests before implementation |
 
 ### Design documentation
 

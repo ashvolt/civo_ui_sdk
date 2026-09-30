@@ -149,7 +149,7 @@ lines of application code".
 
 ### Phase 2 — Tasks → [tasks.md](./tasks.md)
 
-70 dependency-ordered tasks — 67 complete, 3 outstanding — tests before implementation
+70 dependency-ordered tasks — 68 complete, 2 outstanding — tests before implementation
 per Principle VII.
 
 ### Phase 3 — Implementation
