@@ -149,7 +149,7 @@ lines of application code".
 
 ### Phase 2 — Tasks → [tasks.md](./tasks.md)
 
-60 dependency-ordered tasks — 57 complete, 3 outstanding — tests before implementation
+70 dependency-ordered tasks — 68 complete, 2 outstanding — tests before implementation
 per Principle VII.
 
 ### Phase 3 — Implementation
@@ -169,7 +169,7 @@ Executed in task order. Verification gate: `pnpm verify`
 | IV | Closed discriminated union; `.strict()` objects; `urlString()` fails validation not render; no `dangerouslySetInnerHTML` anywhere; `measureTree` iterative; renderer re-validates | PASS |
 | V | `packages/core` has zero `dependencies`; no `node:` import; `fetch`, `sleep` and `now` all injectable; example app runs `export const runtime = "edge"` | PASS |
 | VI | This document, gated both ends | PASS |
-| VII | 128 tests: 21 partial-parser (incl. every prefix of a realistic document), 12 patch round-trip, 14 JSON Schema, 19 guard (incl. every refusal), 15 UI contract, 17 orchestrator (incl. full ladder walk), 20 React, 10 route | PASS |
+| VII | 154 tests: 21 partial-parser (incl. every prefix of a realistic document), 12 patch round-trip, 14 JSON Schema, 19 guard (incl. every refusal), 15 UI contract, 25 orchestrator (incl. full ladder walk and the truncation path), 20 React, 13 route, 15 model selection | PASS |
 
 ### Complexity Tracking
 
@@ -203,12 +203,13 @@ it fails safe — and it is confined to one exported, tested function.
 
 Stated because a plan that claims no limitations is not a plan.
 
-1. **Capability priors are unverified against the live API.** This environment's
-   egress policy blocks `relax.ai`, so the table is built from Civo's published
-   documentation. The architecture is designed so that a wrong prior costs one
-   wasted request per model per process, never a failure — but T-056
-   (`scripts/probe-models.ts`) should replace priors with measurements before
-   publication.
+1. **Capability priors are not yet measured against the live API.** This
+   environment's egress policy blocks `relax.ai`, so the table is built from
+   Civo's published documentation and each entry carries its provenance. A wrong
+   prior costs one wasted request per model per process, never a failure.
+   `scripts/probe-models.ts` closes it in one command (`pnpm probe`) and is itself
+   verified against a stub in CI; running it against a live key is T-056c and
+   should land before publication.
 2. **`toJsonSchema` covers a subset of Zod.** Objects, arrays, tuples, records,
    unions, discriminated unions, literals, enums, optional/nullable/default,
    lazy recursion, and string/number constraints. `z.map`, `z.set`, `z.promise`

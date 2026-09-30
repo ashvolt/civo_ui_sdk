@@ -7,5 +7,5 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: "es2022",
-  external: ["zod", "@civo/relax-ui-core", "next"],
+  external: ["zod", "relax-ui-core", "next"],
 });

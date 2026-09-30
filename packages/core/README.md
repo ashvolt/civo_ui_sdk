@@ -1,4 +1,4 @@
-# @civo/relax-ui-core
+# relax-ui-core
 
 Runtime-agnostic core of the [relaxAI Generative UI SDK](../../README.md):
 schema-enforced structured generation, streaming partial objects, and a
@@ -12,7 +12,7 @@ and CI asserts it.
 ## Install
 
 ```bash
-pnpm add @civo/relax-ui-core zod
+pnpm add relax-ui-core zod
 ```
 
 ## What is in here
@@ -33,7 +33,7 @@ pnpm add @civo/relax-ui-core zod
 ## Minimal use
 
 ```ts
-import { defineStructuredSchema, generateObject, RelaxClient } from "@civo/relax-ui-core";
+import { defineStructuredSchema, generateObject, RelaxClient } from "relax-ui-core";
 import { z } from "zod";
 
 const client = new RelaxClient();   // reads RELAX_API_KEY; validates the endpoint host

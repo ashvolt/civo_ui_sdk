@@ -210,8 +210,14 @@ async function toHttpError(response: Response): Promise<RelaxUIError> {
 
   const message = `relaxAI returned ${response.status} ${response.statusText}${detail ? `: ${detail}` : ""}`;
 
+  // 402 is worth its own code rather than a generic http_error: it is not a bad
+  // request, retrying never helps, and the fix is a human adding a payment
+  // method. A caller should be able to branch on that without matching text.
+  const code =
+    response.status === 429 ? "rate_limited" : response.status === 402 ? "payment_required" : "http_error";
+
   return new RelaxUIError({
-    code: response.status === 429 ? "rate_limited" : "http_error",
+    code,
     message,
     status: response.status,
     retryable: RETRYABLE_STATUS.has(response.status),

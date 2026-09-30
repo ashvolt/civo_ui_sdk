@@ -129,6 +129,10 @@ export async function generateObject<T>(
 
         const response = await options.client.chatCompletion(request, requestOptions(options));
         usage = response.usage ?? usage;
+        // A model that ran out of budget will run out again on the identical
+        // re-ask, so a repair round here buys a second truncated document at
+        // full price. Say what actually happened instead.
+        const stoppedAtLimit = response.choices[0]?.finish_reason === "length";
 
         const rawText = strategy.finalOf(response);
         const accumulator = new JsonTextAccumulator({
@@ -139,6 +143,10 @@ export async function generateObject<T>(
 
         const parsed = parsePartialJson(jsonText);
         if (parsed.state === "invalid" || parsed.state === "empty") {
+          if (stoppedAtLimit) {
+            lastFailure = truncationError(options.schema.name, strategyName, requestId);
+            break;
+          }
           lastFailure = new RelaxUIError({
             code: "schema_violation",
             message: "Model response contained no parseable JSON document.",
@@ -161,6 +169,10 @@ export async function generateObject<T>(
                 ...(usage ? { usage } : {}),
               },
             };
+          }
+          if (stoppedAtLimit) {
+            lastFailure = truncationError(options.schema.name, strategyName, requestId);
+            break;
           }
           lastFailure = new RelaxUIError({
             code: "schema_violation",
@@ -283,6 +295,7 @@ export async function* streamObject<T>(
       let emitted: JsonValue | undefined;
       let lastFrameAt = -Infinity;
       let usage: CompletionUsage | undefined;
+      let finishReason: string | null = null;
 
       for await (const chunk of chunks) {
         if (!opened) {
@@ -290,6 +303,7 @@ export async function* streamObject<T>(
           yield metaEvent(requestId, options, strategyName);
         }
         usage = chunk.usage ?? usage;
+        finishReason = chunk.choices[0]?.finish_reason ?? finishReason;
         accumulator.push(strategy.deltaOf(chunk));
 
         const now = clock();
@@ -346,6 +360,15 @@ export async function* streamObject<T>(
           },
         };
         return;
+      }
+
+      // Ran out of tokens rather than out of things to say. The off-stream
+      // repair below would send the identical request with the identical
+      // budget and truncate at the identical place, so it is a full generation
+      // spent to arrive back here — and it would report the symptom (a document
+      // that fails the schema) rather than the cause.
+      if (finishReason === "length") {
+        throw truncationError(attempt.schema.name, strategyName, requestId);
       }
 
       // The stream ended short or wrong. Repair off-stream, then replace the
@@ -486,6 +509,33 @@ function metaEvent<T>(
   };
 }
 
+/**
+ * The model hit its token ceiling mid-document.
+ *
+ * Distinct from `schema_violation` because the remedy is different and the
+ * caller can act on it without reading the model's output: raise the budget, or
+ * ask for less. Conflating the two sends people looking for a bug in a schema
+ * that was never the problem — which is precisely what happens when a small
+ * local model meets a large component registry.
+ */
+function truncationError(
+  schemaName: string,
+  strategy: StructuringStrategyName,
+  requestId: string,
+): RelaxUIError {
+  return new RelaxUIError({
+    code: "truncated",
+    message:
+      `The model stopped at its token limit before finishing a valid "${schemaName}" ` +
+      `document (finish_reason=length). Raise sampling.max_tokens, or ask for a smaller document.`,
+    // Retrying the same request unchanged truncates again; the caller has to
+    // change something first.
+    retryable: false,
+    strategy,
+    requestId,
+  });
+}
+
 function errorEvent(error: unknown, requestId: string): UIStreamEvent<never> {
   if (error instanceof RelaxUIError) {
     return {
@@ -495,6 +545,7 @@ function errorEvent(error: unknown, requestId: string): UIStreamEvent<never> {
         message: error.message,
         retryable: error.retryable,
         requestId: error.requestId ?? requestId,
+        ...(error.details !== undefined ? { details: error.details } : {}),
       },
     };
   }

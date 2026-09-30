@@ -1,7 +1,7 @@
 "use client";
 
-import type { GenerativeComponentProps } from "@civo/relax-ui-react";
-import { createGenerativeRenderer } from "@civo/relax-ui-react";
+import type { GenerativeComponentProps } from "relax-ui-react";
+import { createGenerativeRenderer } from "relax-ui-react";
 import { dashboardRegistry } from "./ui-registry";
 
 /**

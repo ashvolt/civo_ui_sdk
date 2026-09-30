@@ -5,7 +5,7 @@ Anything reachable only by a deep import is internal and may change in a patch.
 
 ---
 
-## `@civo/relax-ui-core`
+## `relax-ui-core`
 
 ### Client
 
@@ -109,7 +109,7 @@ isRelaxUIError(value): boolean
 
 ---
 
-## `@civo/relax-ui-react`
+## `relax-ui-react`
 
 ```ts
 useGenerativeObject<T>({ api, schema?, headers?, credentials?, onComplete?, onError? })
@@ -135,7 +135,7 @@ HTML.
 
 ---
 
-## `@civo/relax-ui-next`
+## `relax-ui-next`
 
 ```ts
 createGenerativeUIRoute<TInput, TObject>(config): (request: Request) => Promise<Response>

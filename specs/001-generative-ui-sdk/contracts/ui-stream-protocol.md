@@ -136,13 +136,20 @@ a client may treat it as trusted-shape data and stop showing loading affordances
     "code": "schema_violation",
     "message": "Streamed object violates schema \"Dashboard\" and cannot recover.",
     "retryable": false,
-    "requestId": "b7c1e0f2-..."
+    "requestId": "b7c1e0f2-...",
+    "details": [{ "code": "invalid_type", "path": "root.children.0.props.value" }]
   }
 }
 ```
 
 `code` is from the `RelaxUIError` set. `message` is SDK-authored and MUST NOT
 contain prompt or completion text.
+
+`details` is OPTIONAL and, where the failure is a schema violation, carries the
+redacted issue list: a dotted path and a Zod issue code per entry, and nothing
+else. It MUST NOT carry the offending value — that value is model output, and
+this frame crosses into the browser. A client MUST treat an absent or
+unrecognised `details` as "no further information" rather than as an error.
 
 ---
 
@@ -170,7 +177,7 @@ for each frame:
   error    → mark failed
 ```
 
-`UIStreamAccumulator` in `@civo/relax-ui-core` is the reference implementation,
+`UIStreamAccumulator` in `relax-ui-core` is the reference implementation,
 used by both the React hook and the server's own tests, so client and server
 cannot disagree about what the document is.
 

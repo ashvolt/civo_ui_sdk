@@ -6,7 +6,7 @@ what bumps which version — see
 
 ---
 
-## `@civo/relax-ui-core`
+## `relax-ui-core`
 
 ### `new RelaxClient(options?)`
 
@@ -224,14 +224,21 @@ catch (e) {
 ```
 
 Codes: `config_invalid`, `sovereignty_violation`, `transport_error`, `http_error`,
-`rate_limited`, `timeout`, `aborted`, `stream_malformed`, `no_content`,
+`rate_limited`, `payment_required`, `timeout`, `aborted`, `stream_malformed`,
+`no_content`, `truncated`,
 `schema_violation`, `unrepairable`, `capability_unsupported`, `guard_rejected`.
+
+`truncated` is kept separate from `schema_violation` on purpose: the model ran
+out of tokens rather than misunderstanding the schema, so the remedy is a larger
+`max_tokens` or a smaller document, and re-asking unchanged cannot help. The SDK
+detects it from `finish_reason: "length"` and skips the repair round it would
+otherwise spend arriving at the identical truncation.
 
 Branch on `code`, never on message text. `toJSON()` is safe in an HTTP response.
 
 ---
 
-## `@civo/relax-ui-react`
+## `relax-ui-react`
 
 ### `useGenerativeObject(options)`
 
@@ -284,7 +291,7 @@ definition of "what the document is".
 
 ---
 
-## `@civo/relax-ui-next`
+## `relax-ui-next`
 
 ### `createGenerativeUIRoute(config)`
 
@@ -317,7 +324,7 @@ short-circuits.
 
 Same config, returns `{ object, metadata }` as JSON. Status mapping:
 `rate_limited` → 429, `timeout` → 504, `aborted` → 499,
-`schema_violation`/`unrepairable` → 502, `config_invalid` → 500.
+`schema_violation`/`unrepairable`/`truncated` → 502, `config_invalid` → 500.
 
 ---
 

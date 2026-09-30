@@ -1,5 +1,5 @@
 {
-  "name": "@civo/relax-ui-example-next",
+  "name": "relax-ui-example-next",
   "version": "0.1.0",
   "private": true,
   "description": "Reference Next.js App Router application for the relaxAI Generative UI SDK.",
@@ -7,12 +7,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@civo/relax-ui-core": "workspace:^",
-    "@civo/relax-ui-next": "workspace:^",
-    "@civo/relax-ui-react": "workspace:^",
+    "relax-ui-core": "workspace:^",
+    "relax-ui-next": "workspace:^",
+    "relax-ui-react": "workspace:^",
     "next": "^15.1.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -33,9 +33,9 @@ Three TypeScript packages that close that gap:
 
 | Package | Responsibility | Depends on |
 |---|---|---|
-| `@civo/relax-ui-core` | Transport, capability negotiation, structuring strategies, streaming parse + validate, guards, wire protocol | nothing at runtime (Zod is a peer) |
-| `@civo/relax-ui-react` | Streaming object hook, allowlist-only renderer | core, React |
-| `@civo/relax-ui-next` | App Router handler factories | core |
+| `relax-ui-core` | Transport, capability negotiation, structuring strategies, streaming parse + validate, guards, wire protocol | nothing at runtime (Zod is a peer) |
+| `relax-ui-react` | Streaming object hook, allowlist-only renderer | core, React |
+| `relax-ui-next` | App Router handler factories | core |
 
 ### 1.3 Out of scope
 
@@ -77,7 +77,7 @@ graph LR
     end
 
     subgraph sdk["relaxAI Generative UI SDK"]
-        Core["@civo/relax-ui-core"]
+        Core["relax-ui-core"]
     end
 
     Relax[("relaxAI<br/>api.relax.ai/v1<br/>UK data centres")]
@@ -109,7 +109,7 @@ Two facts the diagram is drawn to make obvious:
 
 ```mermaid
 graph TB
-    subgraph core["@civo/relax-ui-core"]
+    subgraph core["relax-ui-core"]
         direction TB
 
         subgraph orch["Orchestration"]
@@ -156,8 +156,8 @@ graph TB
         UI["ui/contract.ts<br/>registry · urlString · budgets"]
     end
 
-    React["@civo/relax-ui-react<br/>hook · renderer"]
-    Next["@civo/relax-ui-next<br/>route factories"]
+    React["relax-ui-react<br/>hook · renderer"]
+    Next["relax-ui-next<br/>route factories"]
 
     Gen --> Neg --> Reg
     Gen --> S1 & S2 & S3
@@ -383,7 +383,7 @@ buys a boundary that an attacker cannot edit — see
 
 | Attribute | Target | How it is achieved | How it is verified |
 |---|---|---|---|
-| **Correctness** | A returned object always satisfies its schema | Validation is the only exit from `generateObject`; no `any` in exported signatures | 128 tests; unrepairable path asserted to throw |
+| **Correctness** | A returned object always satisfies its schema | Validation is the only exit from `generateObject`; no `any` in exported signatures | 154 unit tests, 7 browser tests; unrepairable path asserted to throw |
 | **Portability** | Node, Edge, Workers, Bun, Deno | `fetch`-only core; no `node:` imports; zero runtime deps | CI grep; example runs `runtime = "edge"` |
 | **Security** | No path from model output to script execution | Closed vocabulary, validation-time URL guard, no raw-HTML sink, iterative budgets | CI grep for `dangerouslySetInnerHTML`; refusal tests |
 | **Data residency** | Prompts reach only allowlisted hosts | Constructor-time check; zero SDK-initiated egress | Sovereignty tests incl. the opt-in-must-not-widen case |
@@ -457,7 +457,7 @@ graph LR
 
 | Risk | Impact | Mitigation | Residual |
 |---|---|---|---|
-| Capability priors unverified against live API | Wasted first request per model | Ladder absorbs it; floor needs no server feature; each claim carries provenance | Low — T-056 replaces priors with measurements |
+| Capability priors unverified against live API | Wasted first request per model | Ladder absorbs it; floor needs no server feature; each claim carries provenance | Low — `pnpm probe` measures them; T-056c is the live run |
 | relaxAI diverges from OpenAI shape | Requests fail | Assumptions isolated in one contract document and one client | Low; compatibility is Civo's stated commitment |
 | Model writes plausible-but-wrong content | Misleading UI | Out of scope: a schema constrains shape, not truth. Documented, and the reference app's system prompt instructs the model to say when it cannot justify a figure | Accepted |
 | `isCapabilityRejection` misses a phrasing | No downgrade; error surfaces | Fails safe — worst case is a normal error, not a wrong result | Low; one tested function to extend |
@@ -476,4 +476,4 @@ graph LR
 | IV Untrusted output | `ui/contract.ts`, `guard/url.ts`, `renderer.tsx` | `ui-contract.test.ts`, `renderer.test.tsx` |
 | V Edge is a target | `client/http.ts`, zero deps | CI greps; `next build` on Edge |
 | VI Spec first | `specs/001-generative-ui-sdk/` | This artefact chain |
-| VII Tested behaviour | 128 tests | `pnpm test` |
+| VII Tested behaviour | 154 tests | `pnpm test` |

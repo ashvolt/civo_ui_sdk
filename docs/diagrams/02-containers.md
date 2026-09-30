@@ -2,17 +2,17 @@
 
 ```mermaid
 graph TB
-    subgraph next["@civo/relax-ui-next"]
+    subgraph next["relax-ui-next"]
         Route["route.ts<br/>handler factories"]
     end
 
-    subgraph react["@civo/relax-ui-react"]
+    subgraph react["relax-ui-react"]
         Hook["use-generative-object.ts"]
         Rend["renderer.tsx"]
         RStream["stream.ts"]
     end
 
-    subgraph core["@civo/relax-ui-core"]
+    subgraph core["relax-ui-core"]
         Gen["generate.ts<br/><b>orchestration</b>"]
         Proto["protocol.ts"]
         UI["ui/contract.ts"]

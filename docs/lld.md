@@ -417,6 +417,8 @@ validation ← safeParsePartial(schema, final, finished = true)
 if ok:
     if final ≠ last emitted:  emit flush frame     # throttle may have held it back
     emit complete
+else if lastFinishReason = "length":
+    raise truncated                                # a repair would truncate identically
 else:
     repaired ← generateObject({ ...options, forceStrategy: currentTier })
     emit snapshot(repaired) ; emit complete
@@ -424,6 +426,15 @@ else:
 
 The off-stream repair emits a **snapshot**, never a patch: patching a repaired
 document against a broken one is not meaningful.
+
+The `finish_reason = "length"` branch exists because the repair is worthless
+there: the same request with the same budget stops at the same token, so the
+round costs a full generation to reach the same failure — and reports the symptom
+(a document that fails the schema) rather than the cause. `truncated` is a
+separate code because the remedy is separate: raise `max_tokens`, or ask for a
+smaller document. `generateObject` makes the same check before each repair round.
+A document that is *valid* when the ceiling is hit is still a success; the check
+only runs once validation has already failed.
 
 ### 8.6 `toSSEStream`
 

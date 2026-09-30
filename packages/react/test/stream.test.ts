@@ -1,4 +1,4 @@
-import { UIStreamAccumulator, type UIStreamEvent } from "@civo/relax-ui-core";
+import { UIStreamAccumulator, type UIStreamEvent } from "relax-ui-core";
 import { describe, expect, it } from "vitest";
 import { readUIStream } from "../src/stream.js";
 

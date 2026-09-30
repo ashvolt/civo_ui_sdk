@@ -1,4 +1,4 @@
-import { createUIRegistry, displayText, urlString, type UINode } from "@civo/relax-ui-core";
+import { createUIRegistry, displayText, urlString, type UINode } from "relax-ui-core";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";

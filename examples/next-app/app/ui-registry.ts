@@ -1,4 +1,4 @@
-import { createUIRegistry, displayText, urlString } from "@civo/relax-ui-core";
+import { createUIRegistry, displayText, urlString } from "relax-ui-core";
 import { z } from "zod";
 
 /**

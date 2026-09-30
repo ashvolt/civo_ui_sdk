@@ -61,11 +61,14 @@ interface CapabilityRule {
  */
 const RULES: readonly CapabilityRule[] = [
   {
-    match: /embedding/i,
+    // `embed` rather than `embedding`, so Ollama-style names (nomic-embed-text,
+    // mxbai-embed-large) are caught too — they are the ones most likely to turn
+    // up in a `/models` listing next to chat models.
+    match: /embed|rerank/i,
     capabilities: {
       jsonSchema: false, jsonObject: false, toolCalling: false, streaming: false,
       reasoningTrace: false, chatCapable: false,
-      note: "Embedding model: not valid for /chat/completions.",
+      note: "Embedding or rerank model: not valid for /chat/completions.",
     },
   },
   {
@@ -138,6 +141,45 @@ const RULES: readonly CapabilityRule[] = [
       jsonSchema: false, jsonObject: true, toolCalling: true, streaming: true,
       reasoningTrace: false, contextWindow: 128_000, chatCapable: true,
       note: "Kimi family default.",
+    },
+  },
+  // --- families as named by local runtimes (Ollama tags like `qwen2.5:7b`) ----
+  // These are priors, not measurements, exactly like the relaxAI entries above:
+  // a local runtime's tool support depends on both the model's template and the
+  // server version. `pnpm probe --base-url http://localhost:11434/v1
+  // --allow-insecure-loopback` measures them and prints a seed to paste back.
+  {
+    match: /^qwen3/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: true, streaming: true,
+      reasoningTrace: true, contextWindow: 32_000, chatCapable: true,
+      note: "Qwen3: ships tool templates and a thinking mode. Prior, unverified.",
+    },
+  },
+  {
+    match: /^qwen/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: true, streaming: true,
+      reasoningTrace: false, contextWindow: 32_000, chatCapable: true,
+      note: "Qwen2.x: tool templates present. Prior, unverified.",
+    },
+  },
+  {
+    // Ollama-style tag (`llama3.2:3b`); the hyphenated `llama-3` rule above
+    // covers hosted naming.
+    match: /^llama3[.:]/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: true, streaming: true,
+      reasoningTrace: false, contextWindow: 128_000, chatCapable: true,
+      note: "Llama 3.x served locally. Tool support from 3.1 onward. Prior, unverified.",
+    },
+  },
+  {
+    match: /^gemma/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: false, streaming: true,
+      reasoningTrace: false, contextWindow: 8_000, chatCapable: true,
+      note: "Gemma: most builds ship no tool template, so the prompted floor applies.",
     },
   },
   {
