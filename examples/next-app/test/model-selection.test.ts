@@ -47,7 +47,8 @@ describe("rankOllamaModels", () => {
   });
 
   it("prefers the smaller of two models inside the usable band", () => {
-    expect(pick(["qwen2.5:7b", "qwen3:4b"])).toBe("qwen3:4b");
+    // Both straight-answering and tool-capable, so only size separates them.
+    expect(pick(["qwen2.5:7b", "qwen2.5:3b"])).toBe("qwen2.5:3b");
     expect(pick(["nomic-embed-text:latest", "qwen2.5:7b", "llama3.2:3b"])).toBe("llama3.2:3b");
   });
 
@@ -62,6 +63,20 @@ describe("rankOllamaModels", () => {
     // gemma ships no tool template in most builds.
     expect(pick(["gemma2:2b", "qwen2.5:7b"])).toBe("qwen2.5:7b");
     expect(pick(["gemma2:4b", "qwen3:4b"])).toBe("qwen3:4b");
+  });
+
+  it("prefers a straight-answering model over a reasoning one of the same size", () => {
+    // qwen3 thinks before answering; qwen2.5 does not. Same band, both
+    // tool-capable, so the only difference is how long the demo takes —
+    // measured at nine minutes versus seconds on the same machine.
+    expect(pick(["qwen3:4b", "qwen2.5:7b"])).toBe("qwen2.5:7b");
+    expect(pick(["qwen3:4b", "llama3.2:3b"])).toBe("llama3.2:3b");
+  });
+
+  it("still takes a reasoning model over one that cannot call tools", () => {
+    // Tool capability decides which tier the demo shows; reasoning only how
+    // long it takes to show it.
+    expect(pick(["qwen3:4b", "gemma2:4b"])).toBe("qwen3:4b");
   });
 
   it("falls back rather than refusing when only awkward options exist", () => {

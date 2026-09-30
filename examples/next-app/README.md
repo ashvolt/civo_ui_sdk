@@ -32,6 +32,22 @@ Two things that catch people out: the file must live in **`examples/next-app/`**
 **restart the dev server** after editing it — a running server will keep serving
 the old provider, banner and all.
 
+### Prefer a model that does not think
+
+    ollama pull qwen2.5:3b      # or llama3.2:3b
+
+A reasoning model (qwen3, deepseek-r1) spends hundreds of tokens inside
+`<think>` before the first character of the answer. Measured here on qwen3:4b
+at 13 tok/s: a two-field probe burned ~430 completion tokens thinking, and the
+full Dashboard schema ran for nine minutes before failing. Ollama's
+OpenAI-compatible route gives no way to turn it off — `think: false`,
+`chat_template_kwargs.enable_thinking` and Qwen's own `/no_think` were each
+tested against it and each ignored. (`think: false` does work on Ollama's
+native `/api/chat`, which this SDK does not speak.)
+
+The auto-pick deprioritises reasoning models for that reason, but it can only
+choose among what you have pulled.
+
 No API key needed. The model is **auto-discovered** from whatever you have
 pulled — it asks Ollama's `/v1/models` and picks the smallest one that can still
 do the job:

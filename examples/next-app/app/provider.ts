@@ -1,4 +1,4 @@
-import { RelaxClient, type SovereigntyPolicy } from "relax-ui-core";
+import { CapabilityRegistry, RelaxClient, type SovereigntyPolicy } from "relax-ui-core";
 
 /**
  * Which inference endpoint this demo talks to.
@@ -146,6 +146,24 @@ function toolRank(id: string): number {
  * term is what stops a 3b model with no tool template beating a 7b that has
  * one: a smaller model is only better if it can still reach the same tier.
  */
+/**
+ * Prefer a model that answers straight away over one that thinks first.
+ *
+ * Reasoning is a latency cost here, not a capability gain. Measured against
+ * qwen3:4b on a 13 tok/s machine: a two-field probe spent ~430 completion
+ * tokens inside <think> before the tool call, and the full Dashboard schema ran
+ * for nine minutes. Ollama's OpenAI-compatible route offers no way to switch it
+ * off — `think: false`, `chat_template_kwargs.enable_thinking` and Qwen's own
+ * `/no_think` were all tested against it and all ignored (`think: false` does
+ * work on the native /api/chat route, which this SDK does not speak).
+ *
+ * Read from the SDK's own capability table so there is one list of which
+ * families reason, not two.
+ */
+function reasoningRank(id: string): number {
+  return CapabilityRegistry.baseline(id).reasoningTrace ? 1 : 0;
+}
+
 export function rankOllamaModels(ids: readonly string[]): string[] {
   return [...ids].sort((a, b) => {
     const pa = parseParamCount(a);
@@ -153,6 +171,9 @@ export function rankOllamaModels(ids: readonly string[]): string[] {
     return (
       sizeRank(pa) - sizeRank(pb) ||
       toolRank(a) - toolRank(b) ||
+      // Tool capability outranks latency because it decides which tier of the
+      // ladder the demo shows; reasoning only decides how long that takes.
+      reasoningRank(a) - reasoningRank(b) ||
       (pa ?? Number.POSITIVE_INFINITY) - (pb ?? Number.POSITIVE_INFINITY) ||
       a.localeCompare(b)
     );
