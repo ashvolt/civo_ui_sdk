@@ -55,14 +55,85 @@ const LOOPBACK_ONLY: SovereigntyPolicy = {
 };
 
 /**
- * Models we would rather pick, best first.
+ * Families that ship tool templates, best first.
  *
- * Not a hard requirement — the resolver falls back to whatever is installed —
- * but tool calling is the tier most local models can actually manage, and these
- * families ship with tool templates. A model without one lands on the prompted
- * floor, which still works, just more expensively.
+ * Only a tiebreak. Tool calling is the strongest tier most local models can
+ * manage, and a model without a template lands on the prompted floor — which
+ * still works, just more expensively.
  */
-const PREFERRED = [/^qwen3/i, /^qwen2\.5/i, /^llama3\.[23]/i, /^llama3\.1/i, /^mistral/i, /^gemma[23]/i];
+const TOOL_CAPABLE_FAMILIES = [/^qwen3/i, /^qwen2/i, /^llama3\.[123]/i, /^mistral/i];
+
+/**
+ * Parameter count in billions, read from an Ollama tag.
+ *
+ * Handles `qwen2.5:7b`, `llama3.2:3b-instruct-q4_K_M`, `qwen3:30b-a3b` (takes
+ * the total, not the active experts) and `mixtral:8x7b` (multiplies out — a
+ * "7b" that is really 56b would otherwise look like a laptop-friendly pick).
+ * Returns undefined for `:latest` and anything else unlabelled.
+ */
+export function parseParamCount(id: string): number | undefined {
+  const tag = id.slice(id.indexOf(":") + 1);
+  if (tag === id) return undefined; // no tag at all
+
+  const mixture = /(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*b\b/i.exec(tag);
+  if (mixture) return Number(mixture[1]) * Number(mixture[2]);
+
+  const plain = /(\d+(?:\.\d+)?)\s*b\b/i.exec(tag);
+  return plain ? Number(plain[1]) : undefined;
+}
+
+/**
+ * How much we want a model of this size, lower being better.
+ *
+ * Tuned for a demo on a developer's own machine, so the goal is the *smallest*
+ * model that can still do the job — not the most capable one installed. Someone
+ * with both `qwen3:32b` and `qwen2.5:7b` wants the 7b: it fits in memory,
+ * answers in seconds, and the point of the demo is the SDK, not the model.
+ *
+ * The floor matters as much as the ceiling. Sub-1B models cannot reliably
+ * produce a nested component tree through a tool call, so picking one by
+ * default would make the SDK look broken when the model is what fell over.
+ */
+function sizeRank(params: number | undefined): number {
+  if (params === undefined) return 3; // unlabelled (`:latest`) — middling guess
+  if (params >= 3 && params <= 9) return 0; // the sweet spot: 3b, 4b, 7b, 8b
+  if (params >= 1 && params < 3) return 1; // quick, occasionally shaky on nesting
+  if (params > 9 && params <= 14) return 2; // usable, noticeably slower
+  if (params > 14) return 4; // last resort: slow, and may not fit
+  return 5; // under 1b — not up to a nested schema
+}
+
+/**
+ * Binary, not a league table: can this family call tools, or not?
+ *
+ * Ranking *within* tool-capable families would let a 7b outrank a 3b for no
+ * reason a demo cares about. What genuinely matters is the cliff between a
+ * model that can use the tool-call tier and one that drops to the prompted
+ * floor — so that is the only distinction drawn, and size decides the rest.
+ */
+function toolRank(id: string): number {
+  return TOOL_CAPABLE_FAMILIES.some((pattern) => pattern.test(id)) ? 0 : 1;
+}
+
+/**
+ * Orders installed models by how well they suit the demo.
+ *
+ * Size band first, then tool capability, then smaller before larger. The middle
+ * term is what stops a 3b model with no tool template beating a 7b that has
+ * one: a smaller model is only better if it can still reach the same tier.
+ */
+export function rankOllamaModels(ids: readonly string[]): string[] {
+  return [...ids].sort((a, b) => {
+    const pa = parseParamCount(a);
+    const pb = parseParamCount(b);
+    return (
+      sizeRank(pa) - sizeRank(pb) ||
+      toolRank(a) - toolRank(b) ||
+      (pa ?? Number.POSITIVE_INFINITY) - (pb ?? Number.POSITIVE_INFINITY) ||
+      a.localeCompare(b)
+    );
+  });
+}
 
 let cachedModel: Promise<string> | undefined;
 
@@ -86,11 +157,7 @@ async function resolveOllamaModel(client: RelaxClient): Promise<string> {
           `or set OLLAMA_MODEL to one you have.`,
       );
     }
-    for (const pattern of PREFERRED) {
-      const match = ids.find((id) => pattern.test(id));
-      if (match) return match;
-    }
-    return ids[0] as string;
+    return rankOllamaModels(ids)[0] as string;
   })();
 
   try {

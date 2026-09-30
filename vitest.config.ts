@@ -13,7 +13,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["packages/*/test/**/*.test.ts", "packages/*/test/**/*.test.tsx"],
+    include: [
+      "packages/*/test/**/*.test.ts",
+      "packages/*/test/**/*.test.tsx",
+      // The example's model-selection ordering decides what a reviewer sees on
+      // first run, so it is covered here rather than left to a manual check.
+      "examples/*/test/**/*.test.ts",
+    ],
     globals: false,
   },
 });

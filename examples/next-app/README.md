@@ -21,8 +21,19 @@ RELAX_UI_PROVIDER=ollama pnpm dev
 ```
 
 No API key needed. The model is **auto-discovered** from whatever you have
-pulled — it asks Ollama's `/v1/models` and prefers families that ship tool
-templates, so the ladder starts above the floor. Pin one with `OLLAMA_MODEL`.
+pulled — it asks Ollama's `/v1/models` and picks the smallest one that can still
+do the job:
+
+| Preference | Why |
+|---|---|
+| ~3b–9b band first (a 4b or 7b beats a 32b) | the demo should stream in seconds on a laptop, not swap for two minutes |
+| tool-capable families next | the ladder starts at tool calling rather than the prompted floor |
+| smaller before larger within the band | same reason as the first row |
+| nothing under ~1b unless it is all you have | a 0.6b model cannot reliably emit a nested component tree, and the SDK would wear the blame |
+
+Sizes are read from the Ollama tag, including the traps: `qwen3:30b-a3b` counts
+as 30b rather than its 3b active experts, and `mixtral:8x7b` as 56b rather than
+7b. Pin a specific model with `OLLAMA_MODEL`.
 
 This exists for two reasons. It lets anyone run and review the demo without an
 account. And pointing the same code at a second, only-partly-compatible
