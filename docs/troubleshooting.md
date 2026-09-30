@@ -8,9 +8,15 @@ Symptoms first, because that is what you have when something breaks.
 
 ### `config_invalid: Missing relaxAI API key`
 
-`RELAX_API_KEY` is not visible to the process. In Next.js, put it in
-`.env.local` and restart the dev server — Next reads env files at boot, not per
-request. In a Worker, set it as a binding and pass `apiKey` explicitly.
+`RELAX_API_KEY` is not visible to the process.
+
+- **Running `pnpm probe`**: put it in a `.env` at the repository root (copy
+  `.env.example`). `pnpm probe` loads it via Node's `--env-file-if-exists`, so no
+  `export` is needed — but the file must be at the root, since the flag resolves
+  relative to the working directory. An exported shell variable works too.
+- **In Next.js**: `.env.local`, then restart the dev server — Next reads env
+  files at boot, not per request.
+- **In a Worker**: set it as a binding and pass `apiKey` explicitly.
 
 ### `sovereignty_violation: Host "…" is not in the sovereignty allowlist`
 

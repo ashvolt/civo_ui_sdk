@@ -224,8 +224,9 @@ pnpm probe:selftest   # verifies scripts/probe-models.ts against a stub
 cd examples/next-app && pnpm dev
 ```
 
-`pnpm probe` needs Node ≥ 22.6 (it runs TypeScript directly via
-`--experimental-strip-types`); everything else needs Node ≥ 20.11.
+`pnpm probe` needs Node ≥ 22.9 (it runs TypeScript directly via
+`--experimental-strip-types`, and loads `.env` via `--env-file-if-exists`);
+everything else needs Node ≥ 20.11.
 
 pnpm is required, not a preference: the workspace uses the `workspace:` protocol,
 which plain `npm install` rejects. The `packageManager` field pins the version, so
@@ -260,10 +261,12 @@ know:
    per model per process, never a failure, because the floor strategy needs no
    server feature at all.
 
-   Closing it is one command with a key:
+   Closing it is one command with a key. Put it in `.env` (gitignored, and
+   loaded automatically) so it never reaches a command line or shell history:
 
    ```bash
-   pnpm build && RELAX_API_KEY=... pnpm probe
+   cp .env.example .env    # then fill in RELAX_API_KEY
+   pnpm build && pnpm probe
    ```
 
    `scripts/probe-models.ts` probes every catalogue model for constrained

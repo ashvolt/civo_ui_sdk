@@ -14,9 +14,13 @@
  * Requires a build first (`pnpm build`): it imports `relax-ui-core` by name, so
  * it exercises the published artifact rather than the sources.
  *
+ * The key comes from `RELAX_API_KEY`, which `pnpm probe` loads from a gitignored
+ * `.env` (see `.env.example`) so it never has to reach a command line or shell
+ * history. An exported shell variable works too.
+ *
  * Usage:
  *   pnpm build
- *   RELAX_API_KEY=... pnpm probe
+ *   pnpm probe
  *   pnpm probe -- --models Llama-4-Maverick-17B-128E,GLM-46
  *   pnpm probe -- --out capabilities.json
  *
