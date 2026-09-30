@@ -2,7 +2,7 @@
   "name": "relax-ui-sdk",
   "version": "0.1.0",
   "private": true,
-  "description": "Generative UI SDK for Civo relaxAI \u2014 schema-enforced, streaming, sovereign-by-default.",
+  "description": "Generative UI SDK for Civo relaxAI — schema-enforced, streaming, sovereign-by-default.",
   "license": "Apache-2.0",
   "type": "module",
   "engines": {
@@ -15,7 +15,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit -p tsconfig.json --pretty false",
-    "verify": "pnpm typecheck && pnpm test && pnpm build"
+    "verify": "pnpm typecheck && pnpm test && pnpm build",
+    "probe": "node --experimental-strip-types scripts/probe-models.ts",
+    "probe:selftest": "node scripts/probe-selftest.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -23,6 +25,7 @@
     "@types/react-dom": "^19.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "relax-ui-core": "workspace:*",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8",

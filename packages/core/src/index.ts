@@ -1,5 +1,5 @@
 /**
- * @civo/relax-ui-core — Generative UI for Civo relaxAI.
+ * relax-ui-core — Generative UI for Civo relaxAI.
  *
  * Runtime-agnostic: Node, Bun, Deno, Cloudflare Workers, the Vercel Edge
  * runtime and a Next.js route handler all run this same build. The only

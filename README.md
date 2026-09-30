@@ -4,7 +4,7 @@
 
 **Stream schema-validated, model-designed interfaces from [Civo relaxAI](https://www.civo.com/ai/relaxai) — safely, on the edge, without leaving UK jurisdiction.**
 
-`@civo/relax-ui-core` · `@civo/relax-ui-react` · `@civo/relax-ui-next`
+`relax-ui-core` · `relax-ui-react` · `relax-ui-next`
 
 TypeScript · Zod 3 & 4 · Next.js App Router · zero runtime dependencies in core
 
@@ -166,13 +166,20 @@ relaxAI's reason to exist is jurisdictional. An SDK that quietly accepts any
 
 | Package | Responsibility | Runtime deps |
 |---|---|---|
-| [`@civo/relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards, wire protocol | none (Zod is a peer) |
-| [`@civo/relax-ui-react`](./packages/react) | Streaming object hook, allowlist-only renderer | core, React |
-| [`@civo/relax-ui-next`](./packages/next) | App Router handler factories | core |
+| [`relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards, wire protocol | none (Zod is a peer) |
+| [`relax-ui-react`](./packages/react) | Streaming object hook, allowlist-only renderer | core, React |
+| [`relax-ui-next`](./packages/next) | App Router handler factories | core |
 
 Core runs unchanged on **Node ≥ 20, Vercel Edge, Cloudflare Workers, Bun and
 Deno**: `fetch` is the only platform API it requires, and it imports nothing from
 `node:`.
+
+### On the package names
+
+The packages are unscoped on purpose. `@civo/*` is Civo's npm namespace, and
+publishing into a namespace you do not own is not a thing to do quietly — so
+those names are left free in case Civo adopts this work. If they do, the rename
+is a find-and-replace.
 
 ---
 
@@ -211,10 +218,14 @@ spec would have stated in a page.
 
 ```bash
 pnpm install
-pnpm verify      # typecheck + 128 tests + build
+pnpm verify           # typecheck + 128 tests + build
+pnpm probe:selftest   # verifies scripts/probe-models.ts against a stub
 
 cd examples/next-app && pnpm dev
 ```
+
+`pnpm probe` needs Node ≥ 22.6 (it runs TypeScript directly via
+`--experimental-strip-types`); everything else needs Node ≥ 20.11.
 
 The test suite runs entirely against injected `fetch`, `sleep`, `random` and `now`,
 so it exercises real code paths — the actual client, the actual retry loop — with
@@ -238,14 +249,28 @@ no network and no wall-clock waiting. There are no module mocks.
 Feature-complete and tested, **not yet published**. Two things a reviewer should
 know:
 
-1. **The capability priors are not verified against the live API.** This was built
-   in an environment whose egress policy blocks `relax.ai`, so the per-model table
-   is assembled from Civo's published documentation and each entry carries a `note`
-   saying so. The architecture is designed to absorb a wrong prior — one wasted
-   request per model per process, never a failure, because the floor strategy needs
-   no server feature at all — but
-   [T-056](./specs/001-generative-ui-sdk/tasks.md#outstanding) exists to replace
-   priors with measurements, and it should land before a 1.0.
+1. **The capability priors are not yet verified against the live API.** This was
+   built in an environment whose egress policy blocks `relax.ai`, so the per-model
+   table is assembled from Civo's published documentation and each entry carries a
+   `note` saying so. The architecture absorbs a wrong prior — one wasted request
+   per model per process, never a failure, because the floor strategy needs no
+   server feature at all.
+
+   Closing it is one command with a key:
+
+   ```bash
+   pnpm build && RELAX_API_KEY=... pnpm probe
+   ```
+
+   `scripts/probe-models.ts` probes every catalogue model for constrained
+   decoding, tool calling, `json_object`, streaming and reasoning traces, prints
+   where reality disagrees with the shipped priors, and emits a paste-ready
+   `CapabilityRegistry` seed. It drives the SDK's own client, so a run also
+   exercises the transport and the rejection classifier against the live API.
+
+   The probe itself is verified: `pnpm probe:selftest` runs it against four stub
+   models with deliberately awkward behaviour and asserts its conclusions. That
+   self-test caught two real bugs the first time it ran.
 2. **Other known limitations** — the Zod → JSON Schema subset, positional array
    diffing, no built-in rate limiting — are listed in
    [plan.md](./specs/001-generative-ui-sdk/plan.md#known-limitations) rather than
@@ -255,7 +280,8 @@ know:
 
 ## Licence
 
-Apache-2.0.
+[Apache-2.0](./LICENSE).
 
-Not an official Civo project. Built as a proof-of-work prototype against relaxAI's
-public API surface.
+Not an official Civo project, and not affiliated with or endorsed by Civo. Built
+as a proof-of-work prototype against relaxAI's public API surface. "Civo" and
+"relaxAI" are Civo's marks, used here only to say what this integrates with.

@@ -117,12 +117,24 @@ and must fail before that implementation exists.
 
 ## Outstanding
 
-- [ ] **T-056** `scripts/probe-models.ts` — call a live relaxAI key across the
-  catalogue and emit a measured capability table, replacing the documented
-  priors. **Blocked**: this build environment's egress policy denies `relax.ai`.
-  Until it runs, every capability claim in `capability/registry.ts` is sourced
-  from Civo's published documentation and carries a `note` saying so. The
-  architecture absorbs a wrong prior — one wasted request per model per process —
+- [x] **T-056a** `scripts/probe-models.ts` — probes each catalogue model for
+  `json_schema`, tool calling, `json_object`, streaming and reasoning traces,
+  reports where measurement disagrees with the shipped prior, and emits a
+  paste-ready `CapabilityRegistry` seed. Drives the SDK's own `RelaxClient`, so a
+  run also exercises the transport and the rejection classifier.
+- [x] **T-056b** `scripts/stub-relax.mjs` + `scripts/probe-selftest.mjs` — four
+  stub models with deliberately awkward behaviour, and assertions on the probe's
+  conclusions about each. Runs in CI. It caught two real bugs on first execution:
+  a streaming rejection recorded as an error rather than a capability fact, and a
+  model failing every probe as "not a chat model" still being written back as
+  `chatCapable: true`.
+- [ ] **T-056c** Run the probe against a live key and replace the priors in
+  `capability/registry.ts` with measurements. **Blocked here, not blocked for
+  you**: this build environment's egress policy denies `relax.ai`, so it needs to
+  be run somewhere with network access — `pnpm build && RELAX_API_KEY=... pnpm
+  probe`. Until then every capability claim in `capability/registry.ts` is
+  sourced from Civo's published documentation and carries a `note` saying so. The
+  architecture absorbs a wrong prior (one wasted request per model per process),
   but this should land before a 1.0 publish.
 - [ ] **T-057** Publish workflow (`changesets` + npm provenance). Deliberately
   deferred: nothing should be published until T-056 has run.

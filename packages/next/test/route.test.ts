@@ -1,5 +1,5 @@
-import { defineStructuredSchema, UIStreamAccumulator, type UIStreamEvent } from "@civo/relax-ui-core";
-import { CapabilityRegistry } from "@civo/relax-ui-core";
+import { defineStructuredSchema, UIStreamAccumulator, type UIStreamEvent } from "relax-ui-core";
+import { CapabilityRegistry } from "relax-ui-core";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { completion, contentChunks, stubFetch, testClient } from "../../core/test/helpers.js";

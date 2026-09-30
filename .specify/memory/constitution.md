@@ -29,10 +29,14 @@ Follow-up TODOs: none
 
 ## Purpose
 
-This repository builds `@civo/relax-ui-*`: a TypeScript SDK that turns Civo's
-relaxAI into a safe, plug-and-play backend for **Generative UI** — interfaces
-whose structure is decided at request time by a model rather than at build time
-by a developer.
+This repository builds `relax-ui-core`, `relax-ui-react` and `relax-ui-next`: a
+TypeScript SDK that turns Civo's relaxAI into a safe, plug-and-play backend for
+**Generative UI** — interfaces whose structure is decided at request time by a
+model rather than at build time by a developer.
+
+The packages are deliberately *unscoped*. The `@civo/*` namespace belongs to
+Civo, and publishing into a namespace you do not own is not ours to do; the
+names are left free in case Civo adopts this work.
 
 The constitution binds every specification, plan, task and line of code in this
 repository. Where a downstream document disagrees with it, the constitution

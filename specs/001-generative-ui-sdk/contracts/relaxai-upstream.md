@@ -10,7 +10,8 @@ about; every "relied upon" row is load-bearing.
 
 > Verified against Civo's published documentation, not against live calls: this
 > build environment's egress policy blocks `relax.ai`. `scripts/probe-models.ts`
-> (task T-056) turns each assumption into a measurement once a key is available.
+> turns each assumption below into a measurement — `pnpm build && RELAX_API_KEY=...
+> pnpm probe` — and prints where reality disagrees with the priors.
 
 ---
 

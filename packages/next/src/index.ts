@@ -1,5 +1,5 @@
 /**
- * @civo/relax-ui-next — Next.js App Router adapter for the relaxAI
+ * relax-ui-next — Next.js App Router adapter for the relaxAI
  * Generative UI SDK.
  *
  * Imports nothing from `next` itself: the handlers are `(Request) => Response`,

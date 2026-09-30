@@ -170,7 +170,7 @@ for each frame:
   error    → mark failed
 ```
 
-`UIStreamAccumulator` in `@civo/relax-ui-core` is the reference implementation,
+`UIStreamAccumulator` in `relax-ui-core` is the reference implementation,
 used by both the React hook and the server's own tests, so client and server
 cannot disagree about what the document is.
 

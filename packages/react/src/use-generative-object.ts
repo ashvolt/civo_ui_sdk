@@ -7,7 +7,7 @@ import {
   type SchemaLike,
   type StructuringStrategyName,
   type UIStreamEvent,
-} from "@civo/relax-ui-core";
+} from "relax-ui-core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readUIStream } from "./stream.js";
 

@@ -23,6 +23,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.0(react@19.3.0)
+      relax-ui-core:
+        specifier: workspace:*
+        version: link:packages/core
       tsup:
         specifier: ^8.3.5
         version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
@@ -38,15 +41,6 @@ importers:
 
   examples/next-app:
     dependencies:
-      '@civo/relax-ui-core':
-        specifier: workspace:^
-        version: link:../../packages/core
-      '@civo/relax-ui-next':
-        specifier: workspace:^
-        version: link:../../packages/next
-      '@civo/relax-ui-react':
-        specifier: workspace:^
-        version: link:../../packages/react
       next:
         specifier: ^15.1.3
         version: 15.5.26(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -56,6 +50,15 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.0(react@19.3.0)
+      relax-ui-core:
+        specifier: workspace:^
+        version: link:../../packages/core
+      relax-ui-next:
+        specifier: workspace:^
+        version: link:../../packages/next
+      relax-ui-react:
+        specifier: workspace:^
+        version: link:../../packages/react
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -87,7 +90,7 @@ importers:
 
   packages/next:
     dependencies:
-      '@civo/relax-ui-core':
+      relax-ui-core:
         specifier: workspace:^
         version: link:../core
     devDependencies:
@@ -103,7 +106,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@civo/relax-ui-core':
+      relax-ui-core:
         specifier: workspace:^
         version: link:../core
     devDependencies:

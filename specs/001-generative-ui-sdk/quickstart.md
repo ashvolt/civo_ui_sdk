@@ -10,7 +10,7 @@ This file doubles as the acceptance test for one of the spec's success criteria:
 ## 0. Install
 
 ```bash
-pnpm add @civo/relax-ui-core @civo/relax-ui-react @civo/relax-ui-next zod
+pnpm add relax-ui-core relax-ui-react relax-ui-next zod
 ```
 
 ```bash
@@ -29,7 +29,7 @@ This is the only place components are declared. It feeds the JSON Schema sent to
 relaxAI, the server-side validator, and the client renderer's lookup table.
 
 ```ts
-import { createUIRegistry, displayText, urlString } from "@civo/relax-ui-core";
+import { createUIRegistry, displayText, urlString } from "relax-ui-core";
 import { z } from "zod";
 
 export const registry = createUIRegistry({
@@ -56,8 +56,8 @@ quality, because it is what the model actually reads.
 ## 2. Expose the route — `app/api/ui/route.ts`
 
 ```ts
-import { RelaxClient } from "@civo/relax-ui-core";
-import { createGenerativeUIRoute } from "@civo/relax-ui-next";
+import { RelaxClient } from "relax-ui-core";
+import { createGenerativeUIRoute } from "relax-ui-next";
 import { z } from "zod";
 import { schema } from "../../ui-registry";
 
@@ -88,8 +88,8 @@ that lets it supply the system prompt is a jailbreak with a REST interface.
 
 ```tsx
 "use client";
-import type { UINode } from "@civo/relax-ui-core";
-import { createGenerativeRenderer, useGenerativeObject } from "@civo/relax-ui-react";
+import type { UINode } from "relax-ui-core";
+import { createGenerativeRenderer, useGenerativeObject } from "relax-ui-react";
 import { registry } from "./ui-registry";
 
 const Dashboard = createGenerativeRenderer(registry, {
@@ -140,7 +140,7 @@ required/optional rules are only enforced at completion.
 ## Batch instead of streaming
 
 ```ts
-import { generateObject, RelaxClient } from "@civo/relax-ui-core";
+import { generateObject, RelaxClient } from "relax-ui-core";
 
 const { object, metadata } = await generateObject({
   client: new RelaxClient(),
@@ -161,7 +161,7 @@ console.log(metadata.strategy, metadata.downgradedFrom, metadata.repairAttempts)
 Generative UI is the headline use case, not the only one.
 
 ```ts
-import { defineStructuredSchema, generateObject } from "@civo/relax-ui-core";
+import { defineStructuredSchema, generateObject } from "relax-ui-core";
 import { z } from "zod";
 
 const Triage = defineStructuredSchema({
@@ -195,7 +195,7 @@ model is broken.
 ### Counters without a transport
 
 ```ts
-import { MetricsCollector } from "@civo/relax-ui-core";
+import { MetricsCollector } from "relax-ui-core";
 const metrics = new MetricsCollector();
 // pass metrics.handler as onEvent; read metrics.snapshot() from your own /metrics
 ```

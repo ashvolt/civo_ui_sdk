@@ -1,4 +1,4 @@
-# @civo/relax-ui-next
+# relax-ui-next
 
 Next.js App Router adapter for the [relaxAI Generative UI SDK](../../README.md):
 one-line streaming route handlers with server-side schema enforcement.
@@ -10,15 +10,15 @@ and a plain `fetch` test all accept unchanged.
 ## Install
 
 ```bash
-pnpm add @civo/relax-ui-next @civo/relax-ui-core zod
+pnpm add relax-ui-next relax-ui-core zod
 ```
 
 ## Use
 
 ```ts
 // app/api/ui/route.ts
-import { RelaxClient } from "@civo/relax-ui-core";
-import { createGenerativeUIRoute } from "@civo/relax-ui-next";
+import { RelaxClient } from "relax-ui-core";
+import { createGenerativeUIRoute } from "relax-ui-next";
 import { z } from "zod";
 import { dashboardSchema } from "../../ui-registry";
 

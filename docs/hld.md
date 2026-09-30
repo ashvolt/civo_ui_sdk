@@ -33,9 +33,9 @@ Three TypeScript packages that close that gap:
 
 | Package | Responsibility | Depends on |
 |---|---|---|
-| `@civo/relax-ui-core` | Transport, capability negotiation, structuring strategies, streaming parse + validate, guards, wire protocol | nothing at runtime (Zod is a peer) |
-| `@civo/relax-ui-react` | Streaming object hook, allowlist-only renderer | core, React |
-| `@civo/relax-ui-next` | App Router handler factories | core |
+| `relax-ui-core` | Transport, capability negotiation, structuring strategies, streaming parse + validate, guards, wire protocol | nothing at runtime (Zod is a peer) |
+| `relax-ui-react` | Streaming object hook, allowlist-only renderer | core, React |
+| `relax-ui-next` | App Router handler factories | core |
 
 ### 1.3 Out of scope
 
@@ -77,7 +77,7 @@ graph LR
     end
 
     subgraph sdk["relaxAI Generative UI SDK"]
-        Core["@civo/relax-ui-core"]
+        Core["relax-ui-core"]
     end
 
     Relax[("relaxAI<br/>api.relax.ai/v1<br/>UK data centres")]
@@ -109,7 +109,7 @@ Two facts the diagram is drawn to make obvious:
 
 ```mermaid
 graph TB
-    subgraph core["@civo/relax-ui-core"]
+    subgraph core["relax-ui-core"]
         direction TB
 
         subgraph orch["Orchestration"]
@@ -156,8 +156,8 @@ graph TB
         UI["ui/contract.ts<br/>registry · urlString · budgets"]
     end
 
-    React["@civo/relax-ui-react<br/>hook · renderer"]
-    Next["@civo/relax-ui-next<br/>route factories"]
+    React["relax-ui-react<br/>hook · renderer"]
+    Next["relax-ui-next<br/>route factories"]
 
     Gen --> Neg --> Reg
     Gen --> S1 & S2 & S3
@@ -457,7 +457,7 @@ graph LR
 
 | Risk | Impact | Mitigation | Residual |
 |---|---|---|---|
-| Capability priors unverified against live API | Wasted first request per model | Ladder absorbs it; floor needs no server feature; each claim carries provenance | Low — T-056 replaces priors with measurements |
+| Capability priors unverified against live API | Wasted first request per model | Ladder absorbs it; floor needs no server feature; each claim carries provenance | Low — `pnpm probe` measures them; T-056c is the live run |
 | relaxAI diverges from OpenAI shape | Requests fail | Assumptions isolated in one contract document and one client | Low; compatibility is Civo's stated commitment |
 | Model writes plausible-but-wrong content | Misleading UI | Out of scope: a schema constrains shape, not truth. Documented, and the reference app's system prompt instructs the model to say when it cannot justify a figure | Accepted |
 | `isCapabilityRejection` misses a phrasing | No downgrade; error surfaces | Fails safe — worst case is a normal error, not a wrong result | Low; one tested function to extend |

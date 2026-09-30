@@ -1,9 +1,9 @@
 "use client";
 
-import { useGenerativeObject } from "@civo/relax-ui-react";
+import { useGenerativeObject } from "relax-ui-react";
 import { useState } from "react";
 import { Dashboard } from "./components";
-import type { UINode } from "@civo/relax-ui-core";
+import type { UINode } from "relax-ui-core";
 
 /**
  * The entire client side of the feature.

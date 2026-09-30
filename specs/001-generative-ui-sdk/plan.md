@@ -203,12 +203,13 @@ it fails safe — and it is confined to one exported, tested function.
 
 Stated because a plan that claims no limitations is not a plan.
 
-1. **Capability priors are unverified against the live API.** This environment's
-   egress policy blocks `relax.ai`, so the table is built from Civo's published
-   documentation. The architecture is designed so that a wrong prior costs one
-   wasted request per model per process, never a failure — but T-056
-   (`scripts/probe-models.ts`) should replace priors with measurements before
-   publication.
+1. **Capability priors are not yet measured against the live API.** This
+   environment's egress policy blocks `relax.ai`, so the table is built from
+   Civo's published documentation and each entry carries its provenance. A wrong
+   prior costs one wasted request per model per process, never a failure.
+   `scripts/probe-models.ts` closes it in one command (`pnpm probe`) and is itself
+   verified against a stub in CI; running it against a live key is T-056c and
+   should land before publication.
 2. **`toJsonSchema` covers a subset of Zod.** Objects, arrays, tuples, records,
    unions, discriminated unions, literals, enums, optional/nullable/default,
    lazy recursion, and string/number constraints. `z.map`, `z.set`, `z.promise`

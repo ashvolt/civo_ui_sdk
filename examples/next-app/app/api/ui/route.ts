@@ -1,5 +1,5 @@
-import { RelaxClient } from "@civo/relax-ui-core";
-import { createGenerativeUIRoute } from "@civo/relax-ui-next";
+import { RelaxClient } from "relax-ui-core";
+import { createGenerativeUIRoute } from "relax-ui-next";
 import { z } from "zod";
 import { dashboardSchema } from "../../ui-registry";
 

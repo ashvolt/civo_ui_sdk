@@ -49,8 +49,11 @@ no request was made against the live API. The design is therefore built to
 - the floor strategy needs no server feature at all, so an entirely wrong table
   costs one wasted request per model per process, never a failure.
 
-Before publishing, `scripts/probe-models.ts` (see `tasks.md` T-056) should be run
-against a live key to replace the priors with measurements.
+`scripts/probe-models.ts` exists for exactly this: `pnpm build && RELAX_API_KEY=...
+pnpm probe` measures each catalogue model and prints where reality disagrees with
+the table above, plus a paste-ready registry seed. It is itself verified against a
+stub in CI (`pnpm probe:selftest`). It has not been run against the live API from
+here — that is T-056c, and it should land before a 1.0 publish.
 
 ---
 

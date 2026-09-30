@@ -20,13 +20,14 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@civo/relax-ui-core": ["packages/core/src/index.ts"],
-      "@civo/relax-ui-core/*": ["packages/core/src/*"],
-      "@civo/relax-ui-react": ["packages/react/src/index.ts"],
-      "@civo/relax-ui-next": ["packages/next/src/index.ts"]
+      "relax-ui-core": ["packages/core/src/index.ts"],
+      "relax-ui-core/*": ["packages/core/src/*"],
+      "relax-ui-react": ["packages/react/src/index.ts"],
+      "relax-ui-next": ["packages/next/src/index.ts"]
     }
   },
   "include": [
+    "scripts/**/*.ts",
     "packages/*/src/**/*.ts",
     "packages/*/src/**/*.tsx",
     "packages/*/test/**/*.ts",

@@ -6,7 +6,7 @@ what bumps which version — see
 
 ---
 
-## `@civo/relax-ui-core`
+## `relax-ui-core`
 
 ### `new RelaxClient(options?)`
 
@@ -231,7 +231,7 @@ Branch on `code`, never on message text. `toJSON()` is safe in an HTTP response.
 
 ---
 
-## `@civo/relax-ui-react`
+## `relax-ui-react`
 
 ### `useGenerativeObject(options)`
 
@@ -284,7 +284,7 @@ definition of "what the document is".
 
 ---
 
-## `@civo/relax-ui-next`
+## `relax-ui-next`
 
 ### `createGenerativeUIRoute(config)`
 

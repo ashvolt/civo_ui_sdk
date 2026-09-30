@@ -48,6 +48,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The probe script needs a live relaxAI key, which CI has none of. It is
+      # still verified: a stub impersonates four models with deliberately awkward
+      # behaviour and the self-test asserts the probe's conclusions about each.
+      # Needs Node >= 22.6 for --experimental-strip-types.
+      - name: Probe script self-test
+        if: matrix.node == '22'
+        run: pnpm probe:selftest
+
       - name: Assert published entry points exist
         run: |
           for pkg in core react next; do

@@ -10,7 +10,7 @@ import {
   type SchemaLike,
   type StructuredSchema,
   type StructuringStrategyName,
-} from "@civo/relax-ui-core";
+} from "relax-ui-core";
 
 /**
  * Next.js App Router adapter.
