@@ -140,13 +140,6 @@ function toolRank(id: string): number {
 }
 
 /**
- * Orders installed models by how well they suit the demo.
- *
- * Size band first, then tool capability, then smaller before larger. The middle
- * term is what stops a 3b model with no tool template beating a 7b that has
- * one: a smaller model is only better if it can still reach the same tier.
- */
-/**
  * Prefer a model that answers straight away over one that thinks first.
  *
  * Reasoning is a latency cost here, not a capability gain. Measured against
@@ -164,6 +157,15 @@ function reasoningRank(id: string): number {
   return CapabilityRegistry.baseline(id).reasoningTrace ? 1 : 0;
 }
 
+/**
+ * Orders installed models by how well they suit the demo.
+ *
+ * Size band, then tool capability, then straight-answering before reasoning,
+ * then smaller before larger. The two middle terms are what stop a 3b model with
+ * no tool template beating a 7b that has one, and a 4b that thinks for nine
+ * minutes beating a 7b that answers in seconds: a smaller model is only better
+ * if it can still reach the same tier, in a time someone will wait for.
+ */
 export function rankOllamaModels(ids: readonly string[]): string[] {
   return [...ids].sort((a, b) => {
     const pa = parseParamCount(a);
