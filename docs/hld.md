@@ -383,7 +383,7 @@ buys a boundary that an attacker cannot edit — see
 
 | Attribute | Target | How it is achieved | How it is verified |
 |---|---|---|---|
-| **Correctness** | A returned object always satisfies its schema | Validation is the only exit from `generateObject`; no `any` in exported signatures | 128 tests; unrepairable path asserted to throw |
+| **Correctness** | A returned object always satisfies its schema | Validation is the only exit from `generateObject`; no `any` in exported signatures | 154 tests; unrepairable path asserted to throw |
 | **Portability** | Node, Edge, Workers, Bun, Deno | `fetch`-only core; no `node:` imports; zero runtime deps | CI grep; example runs `runtime = "edge"` |
 | **Security** | No path from model output to script execution | Closed vocabulary, validation-time URL guard, no raw-HTML sink, iterative budgets | CI grep for `dangerouslySetInnerHTML`; refusal tests |
 | **Data residency** | Prompts reach only allowlisted hosts | Constructor-time check; zero SDK-initiated egress | Sovereignty tests incl. the opt-in-must-not-widen case |
@@ -476,4 +476,4 @@ graph LR
 | IV Untrusted output | `ui/contract.ts`, `guard/url.ts`, `renderer.tsx` | `ui-contract.test.ts`, `renderer.test.tsx` |
 | V Edge is a target | `client/http.ts`, zero deps | CI greps; `next build` on Edge |
 | VI Spec first | `specs/001-generative-ui-sdk/` | This artefact chain |
-| VII Tested behaviour | 128 tests | `pnpm test` |
+| VII Tested behaviour | 154 tests | `pnpm test` |

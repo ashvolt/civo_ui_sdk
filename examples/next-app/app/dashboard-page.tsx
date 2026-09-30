@@ -106,6 +106,21 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
         <div role="alert" style={{ padding: "0.9rem 1rem", borderRadius: 10, border: "1px solid #c53030" }}>
           <strong>{error.code}</strong> — {error.message}
           {error.retryable ? " (retrying may help)" : null}
+          {/*
+            Which field broke, when the server knew. The SDK redacts these to a
+            path and an issue code before they leave the server, so nothing here
+            can carry model output — but the path alone is the difference
+            between "the model got it wrong" and knowing where to look.
+          */}
+          {violations(error.details).length > 0 ? (
+            <ul style={{ margin: "0.6rem 0 0", paddingLeft: "1.1rem" }}>
+              {violations(error.details).map((issue) => (
+                <li key={`${issue.path}:${issue.code}`}>
+                  <code>{issue.path === "" ? "(root)" : issue.path}</code> — {issue.code}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 
@@ -165,3 +180,22 @@ const button: React.CSSProperties = {
   color: "#fff",
   cursor: "pointer",
 };
+
+
+/**
+ * Reads the redacted schema issues off an error, defensively.
+ *
+ * `details` is typed as arbitrary JSON because the protocol carries it verbatim
+ * from the server, so the shape is checked here rather than asserted — an
+ * endpoint that is not the one this page expects should render nothing, not
+ * throw inside an error handler.
+ */
+function violations(details: unknown): { path: string; code: string }[] {
+  if (!Array.isArray(details)) return [];
+  return details.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) return [];
+    const { path, code } = entry as { path?: unknown; code?: unknown };
+    if (typeof path !== "string" || typeof code !== "string") return [];
+    return [{ path, code }];
+  });
+}

@@ -201,6 +201,9 @@ function applyToState<T>(
         message: event.error.message,
         retryable: event.error.retryable,
         ...(event.error.requestId ? { requestId: event.error.requestId } : {}),
+        // Carried through so a caller can say *which* field broke. Already
+        // redacted to pointers and issue codes upstream.
+        ...(event.error.details !== undefined ? { details: event.error.details } : {}),
       });
       setState((previous) => ({ ...previous, isStreaming: false, error }));
       options.onError?.(error);

@@ -15,6 +15,7 @@ export type RelaxUIErrorCode =
   | "aborted"
   | "stream_malformed"
   | "no_content"
+  | "truncated"
   | "schema_violation"
   | "unrepairable"
   | "capability_unsupported"

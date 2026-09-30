@@ -63,7 +63,21 @@ export interface UIStreamCompleteEvent<T = unknown> {
 /** Terminal failure frame. Deliberately carries no prompt or model text. */
 export interface UIStreamErrorEvent {
   type: "error";
-  error: { code: string; message: string; retryable: boolean; requestId?: string };
+  error: {
+    code: string;
+    message: string;
+    retryable: boolean;
+    requestId?: string;
+    /**
+     * Redacted schema issues: JSON pointer and Zod issue code, never a value.
+     *
+     * Without this the browser is told "the document violates the schema" and
+     * nothing else, which is unactionable — the field that broke is the single
+     * most useful fact, and `redactIssues` has already stripped everything that
+     * could carry prompt or completion text.
+     */
+    details?: JsonValue;
+  };
 }
 
 /** Serialises one event as an SSE frame. */

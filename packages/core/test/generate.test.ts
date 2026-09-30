@@ -437,3 +437,126 @@ describe("strategy ladder", () => {
     expect(stub.requests).toHaveLength(1);
   });
 });
+
+/**
+ * Running out of budget, as distinct from getting it wrong.
+ *
+ * Both end with a document that fails the schema, and before this they were
+ * reported identically — which sent people auditing a schema that was never the
+ * problem. It is the failure a small local model hits first: a 4b model and a
+ * seven-component registry will meet the token ceiling long before they meet a
+ * type error.
+ */
+describe("truncation", () => {
+  /** Marks the last chunk of a stream the way a model out of budget does. */
+  function stoppedAtLimit(chunks: unknown[]): unknown[] {
+    const last = chunks[chunks.length - 1] as { choices: { finish_reason: string | null }[] };
+    last.choices[0]!.finish_reason = "length";
+    return chunks;
+  }
+
+  it("names the cause instead of repairing into the same wall", async () => {
+    // Half a document, cut off mid-value.
+    const half = '{"title":"Quarterly report on cloud spen';
+    const stub = stubFetch([{ sse: stoppedAtLimit(toolChunks("Report", half)) }]);
+
+    const events: UIStreamEvent<unknown>[] = [];
+    for await (const event of streamObject({
+      client: testClient(stub, ALL_TIERS),
+      model: "test-model",
+      schema: Report,
+      prompt: "summarise",
+      forceStrategy: "tool_call",
+    })) {
+      events.push(event);
+    }
+
+    const last = events.at(-1);
+    expect(last?.type).toBe("error");
+    if (last?.type !== "error") throw new Error("expected an error frame");
+    expect(last.error.code).toBe("truncated");
+    expect(last.error.message).toMatch(/max_tokens/);
+    // The point of detecting it: no second full generation that would truncate
+    // at exactly the same place.
+    expect(stub.requests).toHaveLength(1);
+  });
+
+  it("does not spend a repair round on the batch path either", async () => {
+    const stub = stubFetch([
+      {
+        json: {
+          id: "cmpl_1",
+          object: "chat.completion",
+          created: 0,
+          model: "test-model",
+          choices: [
+            { index: 0, finish_reason: "length", message: { role: "assistant", content: '{"title":"Quarterly rep' } },
+          ],
+        },
+      },
+    ]);
+
+    await expect(
+      generateObject({
+        client: testClient(stub, ALL_TIERS),
+        model: "test-model",
+        schema: Report,
+        prompt: "summarise",
+        maxRepairAttempts: 2,
+      }),
+    ).rejects.toMatchObject({ code: "truncated", retryable: false });
+    expect(stub.requests).toHaveLength(1);
+  });
+
+  it("ignores the token limit when the document is valid anyway", async () => {
+    // A model can stop at the ceiling having already said everything required.
+    // Failing that would turn a good generation into an error.
+    const stub = stubFetch([
+      {
+        json: {
+          id: "cmpl_1",
+          object: "chat.completion",
+          created: 0,
+          model: "test-model",
+          choices: [
+            { index: 0, finish_reason: "length", message: { role: "assistant", content: '{"title":"Q1","score":9}' } },
+          ],
+        },
+      },
+    ]);
+
+    const result = await generateObject({
+      client: testClient(stub, ALL_TIERS),
+      model: "test-model",
+      schema: Report,
+      prompt: "summarise",
+    });
+    expect(result.object).toEqual({ title: "Q1", score: 9 });
+  });
+});
+
+describe("error frames", () => {
+  it("carry the offending path and issue code, and no values", async () => {
+    // "The document violates the schema" is not something a frontend developer
+    // can act on. The path is; the value would be model output, so it stays out.
+    const wrong = '{"title":"Q1","score":"ninety-nine-and-a-half"}';
+    const stub = stubFetch([{ sse: toolChunks("Report", wrong) }]);
+
+    const events: UIStreamEvent<unknown>[] = [];
+    for await (const event of streamObject({
+      client: testClient(stub, ALL_TIERS),
+      model: "test-model",
+      schema: Report,
+      prompt: "summarise",
+      forceStrategy: "tool_call",
+    })) {
+      events.push(event);
+    }
+
+    const last = events.at(-1);
+    if (last?.type !== "error") throw new Error("expected an error frame");
+    expect(last.error.code).toBe("schema_violation");
+    expect(last.error.details).toEqual([{ code: "invalid_type", path: "score" }]);
+    expect(JSON.stringify(last.error.details)).not.toContain("ninety-nine");
+  });
+});

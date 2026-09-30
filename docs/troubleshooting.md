@@ -69,6 +69,24 @@ Inspect what actually failed:
 onEvent: (e) => { if (e.type === "repair_attempt") console.warn(e.issues); }
 ```
 
+### `truncated: The model stopped at its token limit`
+
+`finish_reason` came back as `length` and the document was incomplete. This is a
+budget problem, not a schema problem, and the SDK reports it separately because
+the remedies are different — re-asking the identical request cannot help, so no
+repair round is spent on it.
+
+1. **Raise `sampling.max_tokens`.** A nested component tree is expensive; a dense
+   dashboard runs to well over a thousand tokens on its own.
+2. **Account for reasoning traces.** A model that thinks before it answers
+   (qwen3, and the reasoning families generally) spends that budget first. The
+   SDK strips the trace from the output; it cannot strip it from the bill.
+3. **Ask for less.** Fewer components, or a shallower tree.
+
+The local demo in `examples/next-app` hits all three at once: a small model, a
+seven-component registry and a reasoning trace. Its budget is set accordingly in
+`app/provider.ts`.
+
 ### `metadata.repairAttempts` is consistently 1
 
 Repair is working, and you are paying double for every generation. Treat it as a
@@ -123,7 +141,16 @@ of two documents, which would be an unreproducible rendering bug.
 Look at the last frame: there will be an `error`. `schema_violation` mid-stream
 means a fatal issue was detected and the upstream generation was aborted
 deliberately — see the fail-fast path in
-[the streaming pipeline](./diagrams/04-streaming-pipeline.md).
+[the streaming pipeline](./diagrams/04-streaming-pipeline.md). `truncated` means
+the model ran out of budget rather than getting anything wrong.
+
+On a `schema_violation` the frame's `error.details` names the offending paths
+(redacted to path and issue code), which is usually enough to see the problem
+without a server log.
+
+If your UI reads `strategy` without also reading `metadata`, note that the first
+arrives with the opening `meta` frame and the second only with `complete`:
+rendering the former alone makes a failed generation look like a finished one.
 
 ### `stream_malformed: relaxAI returned a streaming response with no body`
 

@@ -149,7 +149,7 @@ lines of application code".
 
 ### Phase 2 — Tasks → [tasks.md](./tasks.md)
 
-60 dependency-ordered tasks — 57 complete, 3 outstanding — tests before implementation
+70 dependency-ordered tasks — 67 complete, 3 outstanding — tests before implementation
 per Principle VII.
 
 ### Phase 3 — Implementation
@@ -169,7 +169,7 @@ Executed in task order. Verification gate: `pnpm verify`
 | IV | Closed discriminated union; `.strict()` objects; `urlString()` fails validation not render; no `dangerouslySetInnerHTML` anywhere; `measureTree` iterative; renderer re-validates | PASS |
 | V | `packages/core` has zero `dependencies`; no `node:` import; `fetch`, `sleep` and `now` all injectable; example app runs `export const runtime = "edge"` | PASS |
 | VI | This document, gated both ends | PASS |
-| VII | 128 tests: 21 partial-parser (incl. every prefix of a realistic document), 12 patch round-trip, 14 JSON Schema, 19 guard (incl. every refusal), 15 UI contract, 17 orchestrator (incl. full ladder walk), 20 React, 10 route | PASS |
+| VII | 154 tests: 21 partial-parser (incl. every prefix of a realistic document), 12 patch round-trip, 14 JSON Schema, 19 guard (incl. every refusal), 15 UI contract, 25 orchestrator (incl. full ladder walk and the truncation path), 20 React, 13 route, 15 model selection | PASS |
 
 ### Complexity Tracking
 

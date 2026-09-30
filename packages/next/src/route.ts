@@ -212,6 +212,7 @@ function statusFor(error: RelaxUIError): number {
       return 499;
     case "schema_violation":
     case "unrepairable":
+    case "truncated":
       return 502;
     default:
       return error.status && error.status >= 400 ? error.status : 500;

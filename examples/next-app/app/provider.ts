@@ -227,9 +227,13 @@ function buildOllama(): ProviderConfig {
     isSovereign: false,
     client,
     model: () => resolveOllamaModel(client),
-    // Smaller models wander. Lower temperature and a tighter budget keep the
-    // document inside the node limit and the demo inside a sensible wait.
-    sampling: { temperature: 0.2, max_tokens: 1_200 },
+    // Lower temperature because smaller models wander. The budget is *not*
+    // tightened to match: a reasoning model (qwen3 and friends) spends tokens
+    // thinking before it writes a single byte of the document, and those count
+    // against the same ceiling. A budget that runs out mid-document produces a
+    // `truncated` error and nothing to render, which reads as the SDK failing
+    // when it is the allowance that was wrong.
+    sampling: { temperature: 0.2, max_tokens: 3_000 },
     // Local token rates are lower, so a tighter throttle buys nothing.
     frameIntervalMs: 80,
   };

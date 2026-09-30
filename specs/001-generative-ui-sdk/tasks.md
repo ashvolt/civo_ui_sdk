@@ -116,6 +116,28 @@ and must fail before that implementation exists.
   a live request through the running app against a stand-in endpoint — model
   auto-discovered, ladder starting at `tool_call`, valid document streamed.
 
+## Phase M3 — Diagnosing a failed generation
+
+Driven by the local demo: a small model on a seven-component registry fails in
+ways relaxAI's larger models mostly do not, and both failures were being reported
+as an unactionable `schema_violation`.
+
+- [x] **T-064** `truncated` as its own error code. Both `generateObject` and
+  `streamObject` read `finish_reason`; when it is `length` and the document does
+  not validate, they report the budget rather than the schema and skip the repair
+  round, which would spend a second full generation to truncate at the same
+  token. A document that is valid when the ceiling is hit is still a success.
+  Three tests, incl. that last case.
+- [x] **T-065** Error frames carry `details`: the redacted issue list (dotted path
+  and Zod issue code, never a value) that the server already computed and was
+  discarding at the wire boundary. The reference app renders it, so a failed
+  generation names the field that broke. One test asserting the path is present
+  and the offending value is not.
+- [x] **T-066** Verified end to end against two stand-in endpoints: a truncating
+  one (one upstream call, `truncated` on the wire) and one emitting a wrong-typed
+  prop (`details: [{ code: "invalid_type", path: "root.children.0.props.value" }]`
+  reaching the browser).
+
 ## Phase N — Documentation
 
 - [x] **T-047** [P] `docs/hld.md` — context, containers, request lifecycle, quality attributes
@@ -181,7 +203,7 @@ A ─► B ─► C ─┬─► D ─► E ─► F ─► G ─► H ─► I 
 ## Verification gate
 
 ```bash
-pnpm verify                       # typecheck + 128 tests + build
+pnpm verify                       # typecheck + 154 tests + build
 cd examples/next-app && next build
 grep -rn 'from "node:' packages/core/src          # must be empty
 grep -rn 'dangerouslySetInnerHTML' packages       # must be empty
