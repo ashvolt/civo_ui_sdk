@@ -1,4 +1,4 @@
-import { defineStructuredSchema, UIStreamAccumulator, type UIStreamEvent } from "relax-ui-core";
+import { defineStructuredSchema, RelaxUIError, UIStreamAccumulator, type UIStreamEvent } from "relax-ui-core";
 import { CapabilityRegistry } from "relax-ui-core";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -108,6 +108,50 @@ describe("createGenerativeUIRoute", () => {
     // The smuggled fields are stripped by the input schema, so they never reach
     // the conversation at all.
     expect(JSON.stringify(sent.messages)).not.toContain("ignore all instructions");
+  });
+
+  it("accepts a model resolver and uses what it returns", async () => {
+    // The reference app's local mode asks the endpoint what it has installed
+    // rather than hardcoding a name, so `model` has to be resolvable per request.
+    const stub = stubFetch([{ sse: contentChunks('{"title":"Resolved","score":3}', 8) }]);
+    const seen: string[] = [];
+
+    const handler = createGenerativeUIRoute({
+      client: testClient(stub, CAPS),
+      model: (request) => {
+        seen.push(new URL(request.url).pathname);
+        return Promise.resolve("test-model");
+      },
+      schema: Report,
+      inputSchema: InputSchema,
+      toMessages: (input) => [{ role: "user", content: input.topic }],
+    });
+
+    await handler(post({ topic: "x" }));
+    expect(seen).toEqual(["/api/ui"]);
+    expect((stub.requests[0]?.body as { model: string }).model).toBe("test-model");
+  });
+
+  it("surfaces a resolver failure instead of hanging or leaking a stack", async () => {
+    // Ollama not running is the common case here, and it must read as a server
+    // error with a message, not a 400 blaming the request body.
+    const stub = stubFetch([{ json: completion("{}") }]);
+    const handler = createGenerativeUIRoute({
+      client: testClient(stub, CAPS),
+      model: () => {
+        throw new RelaxUIError({ code: "transport_error", message: "Ollama is not reachable." });
+      },
+      schema: Report,
+      inputSchema: InputSchema,
+      toMessages: (input) => [{ role: "user", content: input.topic }],
+    });
+
+    const response = await handler(post({ topic: "x" }));
+    expect(response.status).toBe(500);
+    const body = (await response.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe("transport_error");
+    expect(body.error.message).toContain("Ollama is not reachable");
+    expect(stub.requests).toHaveLength(0);
   });
 
   it("lets authorize short-circuit before any inference", async () => {

@@ -218,11 +218,19 @@ spec would have stated in a page.
 
 ```bash
 pnpm install
-pnpm verify           # typecheck + 128 tests + build
+pnpm verify           # typecheck + tests + build
 pnpm probe:selftest   # verifies scripts/probe-models.ts against a stub
+pnpm diagrams:check   # renders every fenced mermaid block
 
 cd examples/next-app && pnpm dev
 ```
+
+The reference app also runs against **local Ollama with no relaxAI account** —
+`RELAX_UI_PROVIDER=ollama pnpm dev`. It auto-discovers whichever model you have
+pulled, and is the quickest way to watch the capability ladder negotiate a
+second, only-partly-compatible endpoint. The sovereignty guard still runs, on a
+loopback-only policy, and the UI says plainly that it is not a sovereign
+endpoint. See [the example's README](./examples/next-app/README.md).
 
 `pnpm probe` needs Node ≥ 22.9 (it runs TypeScript directly via
 `--experimental-strip-types`, and loads `.env` via `--env-file-if-exists`);

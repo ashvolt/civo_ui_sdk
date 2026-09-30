@@ -5,11 +5,37 @@ A dashboard generator on the Next.js App Router, running the route handler on th
 
 ## Run it
 
+Against relaxAI, which is the point of the SDK:
+
 ```bash
 cp .env.example .env.local     # add your RELAX_API_KEY
 pnpm install                   # from the repository root
 pnpm dev
 ```
+
+### …or against local Ollama, with no relaxAI account
+
+```bash
+ollama serve                   # in another terminal
+RELAX_UI_PROVIDER=ollama pnpm dev
+```
+
+No API key needed. The model is **auto-discovered** from whatever you have
+pulled — it asks Ollama's `/v1/models` and prefers families that ship tool
+templates, so the ladder starts above the floor. Pin one with `OLLAMA_MODEL`.
+
+This exists for two reasons. It lets anyone run and review the demo without an
+account. And pointing the same code at a second, only-partly-compatible
+OpenAI endpoint is the clearest demonstration of what the capability ladder is
+*for*: Ollama and relaxAI disagree about constrained decoding and tool calling,
+and the SDK negotiates that rather than assuming it away.
+
+**Local mode is not a way around the sovereignty guard.** The guard still runs;
+it is handed a deliberately narrow policy — loopback hosts only, plaintext
+permitted only because the traffic never leaves the machine — and refuses
+anything wider exactly as it would in production. The UI says plainly that you
+are not on a sovereign endpoint. If that ever stops being obvious, the demo is
+wrong.
 
 ## What to look at, and in what order
 

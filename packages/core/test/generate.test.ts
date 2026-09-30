@@ -340,6 +340,34 @@ describe("streamObject", () => {
   });
 });
 
+describe("capability priors for locally-served models", () => {
+  it("treats an Ollama-style embedding name as not chat-capable", () => {
+    // A `/models` listing from a local runtime mixes embedding models in with
+    // chat models, and "nomic-embed-text" does not contain "embedding".
+    for (const id of ["nomic-embed-text:latest", "mxbai-embed-large", "bge-reranker-v2"]) {
+      expect(CapabilityRegistry.baseline(id).chatCapable).toBe(false);
+    }
+  });
+
+  it("recognises Ollama-style chat tags rather than falling to the floor", () => {
+    // `llama3.2:3b` is the same family as `Llama-3.3-70B` but spelled the way a
+    // local runtime names it; without this the ladder starts at prompted_json.
+    expect(CapabilityRegistry.baseline("llama3.2:3b").toolCalling).toBe(true);
+    expect(CapabilityRegistry.baseline("qwen2.5:7b").toolCalling).toBe(true);
+    expect(CapabilityRegistry.baseline("qwen3:8b").reasoningTrace).toBe(true);
+    // Gemma ships no tool template in most builds, so the floor is correct.
+    expect(CapabilityRegistry.baseline("gemma2:9b").toolCalling).toBe(false);
+    expect(CapabilityRegistry.baseline("gemma2:9b").chatCapable).toBe(true);
+  });
+
+  it("still gives a genuinely unknown model the conservative floor", () => {
+    const caps = CapabilityRegistry.baseline("some-model-nobody-has-heard-of");
+    expect(caps.toolCalling).toBe(false);
+    expect(caps.jsonSchema).toBe(false);
+    expect(caps.jsonObject).toBe(true);
+  });
+});
+
 describe("strategy ladder", () => {
   it("walks the whole ladder down to the prompted floor", async () => {
     const registry = new CapabilityRegistry({

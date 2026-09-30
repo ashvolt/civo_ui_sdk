@@ -26,10 +26,20 @@ import {
  * supply data, and the application decides what that data means.
  */
 
+/**
+ * A model name, or a function that produces one.
+ *
+ * The resolver form exists for deployments that cannot know the model at module
+ * scope: picking per tenant, per experiment, or — as the reference app does in
+ * local mode — asking the endpoint what it actually has loaded. It is still the
+ * *application* choosing, never the browser.
+ */
+export type ModelResolver = (request: Request) => string | Promise<string>;
+
 export interface GenerativeUIRouteConfig<TInput, TObject> {
   /** Built once at module scope, so the key never enters a request path. */
   client: RelaxClient;
-  model: string;
+  model: string | ModelResolver;
   schema: StructuredSchema<TObject>;
   /** Validates the request body. Anything that fails is a 400, not a prompt. */
   inputSchema: SchemaLike<TInput>;
@@ -96,10 +106,15 @@ export function createGenerativeUIRoute<TInput, TObject>(
     }
 
     let messages: ChatMessage[];
+    let model: string;
     try {
       messages = await config.toMessages(parsed.data as TInput, request);
+      model = await resolveModel(config.model, request);
     } catch (cause) {
       if (cause instanceof Response) return cause;
+      if (cause instanceof RelaxUIError) {
+        return errorResponse(statusFor(cause), cause.code, cause.message);
+      }
       return errorResponse(400, "invalid_request", "Could not build the conversation from input.");
     }
 
@@ -107,7 +122,7 @@ export function createGenerativeUIRoute<TInput, TObject>(
     // generation instead of paying for tokens nobody will read.
     const events = streamObject<TObject>({
       client: config.client,
-      model: config.model,
+      model,
       schema: config.schema,
       messages,
       ...(config.system ? { system: config.system } : {}),
@@ -154,7 +169,7 @@ export function createGenerativeObjectRoute<TInput, TObject>(
       const messages = await config.toMessages(parsed.data as TInput, request);
       const result = await generateObject<TObject>({
         client: config.client,
-        model: config.model,
+        model: await resolveModel(config.model, request),
         schema: config.schema,
         messages,
         ...(config.system ? { system: config.system } : {}),
@@ -175,6 +190,11 @@ export function createGenerativeObjectRoute<TInput, TObject>(
       return errorResponse(500, "internal_error", "Generation failed.");
     }
   };
+}
+
+/** Resolves a static model name or invokes the caller's resolver. */
+async function resolveModel(model: string | ModelResolver, request: Request): Promise<string> {
+  return typeof model === "function" ? await model(request) : model;
 }
 
 function statusFor(error: RelaxUIError): number {

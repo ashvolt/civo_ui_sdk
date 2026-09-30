@@ -8,4 +8,4 @@
  */
 
 export { createGenerativeObjectRoute, createGenerativeUIRoute } from "./route.js";
-export type { GenerativeUIRouteConfig, GenerativeUIRouteHandler } from "./route.js";
+export type { GenerativeUIRouteConfig, GenerativeUIRouteHandler, ModelResolver } from "./route.js";

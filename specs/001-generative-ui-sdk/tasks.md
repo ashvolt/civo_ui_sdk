@@ -98,6 +98,24 @@ and must fail before that implementation exists.
 - [x] **T-046a** `examples/next-app`: registry, Edge route, component implementations, streaming page
 - [x] **T-046b** Verify with a real `next build`
 
+## Phase M2 — Local-provider demo mode
+
+- [x] **T-059** `model` in the Next adapter accepts a resolver, so a route can
+  pick a model per request instead of at module scope. Two tests, incl. a
+  resolver failure surfacing as a server error rather than a 400.
+- [x] **T-060** `examples/next-app/app/provider.ts` — `RELAX_UI_PROVIDER` selects
+  relaxAI (default) or local Ollama. Local mode gets a loopback-only sovereignty
+  policy and auto-discovers the model from `/v1/models`.
+- [x] **T-061** The page states the endpoint, and says plainly when it is not a
+  sovereign one. `describeProvider()` reads env without constructing a client, so
+  the banner renders with no API key present.
+- [x] **T-062** Capability priors for locally-served families (Ollama-style tags
+  `qwen2.5:7b`, `llama3.2:3b`, `gemma2:9b`) plus `embed|rerank` detection so a
+  local `/models` listing's embedding models are correctly marked non-chat.
+- [x] **T-063** Verified end to end: `next build` with no relaxAI key at all, then
+  a live request through the running app against a stand-in endpoint — model
+  auto-discovered, ladder starting at `tool_call`, valid document streamed.
+
 ## Phase N — Documentation
 
 - [x] **T-047** [P] `docs/hld.md` — context, containers, request lifecycle, quality attributes
