@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { parseParamCount, rankOllamaModels } from "../app/provider";
+import { describe, expect, it, vi } from "vitest";
+import { parseParamCount, rankOllamaModels, resolveProviderId } from "../app/provider";
 
 /**
  * Which local model the demo picks.
@@ -76,5 +76,47 @@ describe("rankOllamaModels", () => {
     const forward = rankOllamaModels(ids);
     const reversed = rankOllamaModels([...ids].reverse());
     expect(forward).toEqual(reversed);
+  });
+});
+
+describe("resolveProviderId", () => {
+  const withEnv = <T>(value: string | undefined, fn: () => T): T => {
+    const previous = process.env["RELAX_UI_PROVIDER"];
+    if (value === undefined) delete process.env["RELAX_UI_PROVIDER"];
+    else process.env["RELAX_UI_PROVIDER"] = value;
+    try {
+      return fn();
+    } finally {
+      if (previous === undefined) delete process.env["RELAX_UI_PROVIDER"];
+      else process.env["RELAX_UI_PROVIDER"] = previous;
+    }
+  };
+
+  it("defaults to relaxAI when unset", () => {
+    expect(withEnv(undefined, resolveProviderId)).toBe("relaxai");
+  });
+
+  it("accepts the documented values", () => {
+    expect(withEnv("ollama", resolveProviderId)).toBe("ollama");
+    expect(withEnv("relaxai", resolveProviderId)).toBe("relaxai");
+  });
+
+  it("is case- and whitespace-insensitive", () => {
+    // `Ollama` used to fall through to relaxAI in silence, which then failed
+    // with a missing-key error pointing nowhere near the actual mistake.
+    for (const value of ["Ollama", "OLLAMA", " ollama ", "local"]) {
+      expect(withEnv(value, resolveProviderId)).toBe("ollama");
+    }
+  });
+
+  it("warns rather than silently defaulting on an unrecognised value", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(withEnv("olama", resolveProviderId)).toBe("relaxai");
+      expect(warn).toHaveBeenCalledOnce();
+      expect(String(warn.mock.calls[0]?.[0])).toContain("olama");
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

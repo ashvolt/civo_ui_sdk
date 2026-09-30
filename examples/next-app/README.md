@@ -20,6 +20,18 @@ ollama serve                   # in another terminal
 RELAX_UI_PROVIDER=ollama pnpm dev
 ```
 
+Or put it in `examples/next-app/.env.local` and just run `pnpm dev`:
+
+```
+RELAX_UI_PROVIDER=ollama
+OLLAMA_MODEL=qwen3:4b
+```
+
+Two things that catch people out: the file must live in **`examples/next-app/`**
+(Next reads env files from the app directory, not the repository root), and
+**restart the dev server** after editing it — a running server will keep serving
+the old provider, banner and all.
+
 No API key needed. The model is **auto-discovered** from whatever you have
 pulled — it asks Ollama's `/v1/models` and picks the smallest one that can still
 do the job:

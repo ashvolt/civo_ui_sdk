@@ -38,7 +38,31 @@ function env(name: string): string | undefined {
   return value && value.trim() !== "" ? value.trim() : undefined;
 }
 
-export const PROVIDER_ID: ProviderId = env("RELAX_UI_PROVIDER") === "ollama" ? "ollama" : "relaxai";
+/**
+ * Reads `RELAX_UI_PROVIDER`, tolerantly.
+ *
+ * Case-insensitive, and loud about a value it does not recognise. An exact
+ * `=== "ollama"` meant `Ollama` or a typo fell through to relaxAI in silence —
+ * which then failed with a missing-key error, or worse, quietly billed the
+ * wrong endpoint. A misconfiguration that looks like it worked is the one bug
+ * class this whole SDK is meant to avoid, so it should not start in its own demo.
+ */
+export function resolveProviderId(): ProviderId {
+  const raw = env("RELAX_UI_PROVIDER");
+  if (raw === undefined) return "relaxai";
+
+  const normalised = raw.toLowerCase();
+  if (normalised === "ollama" || normalised === "local") return "ollama";
+  if (normalised === "relaxai" || normalised === "relax") return "relaxai";
+
+  console.warn(
+    `[relax-ui] RELAX_UI_PROVIDER="${raw}" is not recognised. ` +
+      `Expected "relaxai" or "ollama"; falling back to relaxai.`,
+  );
+  return "relaxai";
+}
+
+export const PROVIDER_ID: ProviderId = resolveProviderId();
 
 // --- local (Ollama) ---------------------------------------------------------
 
