@@ -116,21 +116,43 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
       */}
       <Dashboard node={object?.root} />
 
+      {/*
+        `strategy` arrives with the opening `meta` frame; `metadata` only with the
+        terminal `complete` frame. Rendering the first without the second used to
+        read as a finished generation when in fact the stream was still open or
+        had failed — so the state is now named explicitly.
+      */}
       {strategy ? (
         <footer style={{ marginTop: "2rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-          Structured via <code>{strategy}</code>
-          {metadata ? (
+          {error ? (
             <>
-              {" "}
-              on <code>{metadata.model}</code> in {Math.round(metadata.durationMs)}ms
+              Failed after negotiating <code>{strategy}</code> — <code>{error.code}</code>. No
+              validated document was produced.
+            </>
+          ) : isStreaming ? (
+            <>
+              Streaming via <code>{strategy}</code>…
+            </>
+          ) : metadata ? (
+            <>
+              Structured via <code>{strategy}</code> on <code>{metadata.model}</code> in{" "}
+              {Math.round(metadata.durationMs)}ms
               {metadata.downgradedFrom.length > 0
                 ? ` (downgraded from ${metadata.downgradedFrom.join(", ")})`
                 : null}
-              {metadata.repairAttempts > 0 ? `, ${metadata.repairAttempts} repair round` : null}
+              {metadata.repairAttempts > 0
+                ? `, ${metadata.repairAttempts} repair round${metadata.repairAttempts === 1 ? "" : "s"}`
+                : null}
             </>
-          ) : null}
+          ) : (
+            <>
+              Negotiated <code>{strategy}</code>, but the stream ended without a validated
+              document. Check the server log for the reason.
+            </>
+          )}
         </footer>
       ) : null}
+
     </main>
   );
 }
