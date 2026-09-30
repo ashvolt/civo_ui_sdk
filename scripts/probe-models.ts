@@ -375,6 +375,16 @@ async function main(): Promise<void> {
     catalogue = await client.listModels();
   } catch (error) {
     console.error(`Could not list models: ${shortMessage(error)}`);
+    // A 402 is the one failure here that is not a problem with the key or the
+    // code, and the raw message does not make that obvious.
+    if (isRelaxUIError(error) && error.code === "payment_required") {
+      console.error(
+        "\nThe key authenticated fine — this is a billing gate, not an auth failure.\n" +
+          "Add a payment method in the relaxAI dashboard, then re-run. Nothing to change here.",
+      );
+    } else if (isRelaxUIError(error) && error.status === 401) {
+      console.error("\nThat is an auth failure: check RELAX_API_KEY in your .env.");
+    }
     process.exit(1);
   }
 

@@ -224,7 +224,8 @@ catch (e) {
 ```
 
 Codes: `config_invalid`, `sovereignty_violation`, `transport_error`, `http_error`,
-`rate_limited`, `timeout`, `aborted`, `stream_malformed`, `no_content`,
+`rate_limited`, `payment_required`, `timeout`, `aborted`, `stream_malformed`,
+`no_content`,
 `schema_violation`, `unrepairable`, `capability_unsupported`, `guard_rejected`.
 
 Branch on `code`, never on message text. `toJSON()` is safe in an HTTP response.

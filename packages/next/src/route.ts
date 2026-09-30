@@ -184,6 +184,8 @@ function statusFor(error: RelaxUIError): number {
       return 500;
     case "rate_limited":
       return 429;
+    case "payment_required":
+      return 402;
     case "timeout":
       return 504;
     case "aborted":

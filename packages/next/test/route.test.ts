@@ -196,6 +196,22 @@ describe("createGenerativeObjectRoute", () => {
     expect(body.error.code).toBe("rate_limited");
   });
 
+  it("maps a billing failure onto 402 rather than a generic 500", async () => {
+    const stub = stubFetch([{ status: 402, json: { error: { message: "payment method required" } } }]);
+    const handler = createGenerativeObjectRoute({
+      client: testClient(stub, CAPS),
+      model: "test-model",
+      schema: Report,
+      inputSchema: InputSchema,
+      toMessages: (input) => [{ role: "user", content: input.topic }],
+    });
+
+    const response = await handler(post({ topic: "x" }));
+    expect(response.status).toBe(402);
+    const body = (await response.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("payment_required");
+  });
+
   it("maps an unrepairable generation onto 502", async () => {
     const stub = stubFetch([
       { json: completion('{"title":"x","score":"nope"}') },

@@ -165,6 +165,14 @@ renderer falls back to `type:index`, which remounts siblings when a list grows.
 
 ## HTTP
 
+### `payment_required` (402)
+
+`A valid payment method is required to use RelaxAI API.` The key authenticated
+fine — this is a billing gate, not an auth failure, which is why it has its own
+code rather than being folded into `http_error`. Add a payment method in the
+relaxAI dashboard; nothing in your code needs to change. It is never retried,
+because retrying cannot help.
+
 ### `rate_limited` (429)
 
 The SDK honours `Retry-After` and retries with full jitter. Persistent 429s mean

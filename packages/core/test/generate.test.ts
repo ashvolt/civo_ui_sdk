@@ -370,6 +370,28 @@ describe("strategy ladder", () => {
     expect(finalMessages[0]?.content).toContain("JSON Schema");
   });
 
+  it("reports a 402 as payment_required, not a generic http_error", async () => {
+    // The live API returns this when the account has no payment method. It is
+    // not a bad request and retrying never helps, so a caller needs to be able
+    // to branch on it without matching message text.
+    const stub = stubFetch([
+      { status: 402, json: errorBody("A valid payment method is required to use RelaxAI API.") },
+    ]);
+
+    await expect(
+      generateObject({
+        client: testClient(stub, ALL_TIERS),
+        model: "test-model",
+        schema: Report,
+        prompt: "summarise",
+      }),
+    ).rejects.toMatchObject({ code: "payment_required", status: 402, retryable: false });
+
+    // And it must not be mistaken for a capability rejection: dropping a tier
+    // would spend a second request on an account that cannot pay for the first.
+    expect(stub.requests).toHaveLength(1);
+  });
+
   it("does not downgrade on an error that is not a capability rejection", async () => {
     const registry = new CapabilityRegistry({
       "test-model": { jsonSchema: true, toolCalling: true, jsonObject: true },

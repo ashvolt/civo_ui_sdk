@@ -10,6 +10,7 @@ export type RelaxUIErrorCode =
   | "transport_error"
   | "http_error"
   | "rate_limited"
+  | "payment_required"
   | "timeout"
   | "aborted"
   | "stream_malformed"

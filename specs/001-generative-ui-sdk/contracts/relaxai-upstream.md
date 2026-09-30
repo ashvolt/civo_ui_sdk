@@ -142,6 +142,7 @@ Applied in order to the accumulated completion:
 | Client abort | `aborted` | no |
 | Per-request timeout | `timeout` | yes |
 | 429 | `rate_limited` | yes |
+| 402 (no payment method on the account) | `payment_required` | no |
 | 408, 409, 425, 500, 502, 503, 504 | `http_error` | yes |
 | Other 4xx | `http_error` | no |
 | 200 with no content | `no_content` | no |
