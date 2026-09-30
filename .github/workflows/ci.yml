@@ -150,40 +150,20 @@ jobs:
         with:
           node-version: "22"
 
-      # A diagram that does not render is worse than no diagram: it looks like
-      # documentation and conveys nothing. Every fenced mermaid block in docs/ is
-      # extracted and rendered, and a parse error fails the build.
-      - name: Render every fenced mermaid block
+      # Installed OUTSIDE the repository on purpose. `npm` cannot read this
+      # workspace's root package.json — it uses pnpm's `workspace:` protocol —
+      # and a diagram check has no business touching the project's dependency
+      # graph either way.
+      - name: Install mermaid-cli (out of tree)
         run: |
+          mkdir -p "$RUNNER_TEMP/mermaid-tools"
+          cd "$RUNNER_TEMP/mermaid-tools"
+          npm init -y >/dev/null
           npm i --no-fund --no-audit @mermaid-js/mermaid-cli@11
-          printf '{ "args": ["--no-sandbox", "--disable-dev-shm-usage"] }' > puppeteer.json
-          mkdir -p .mermaid-out
-          node - <<'JS'
-          import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
-          import { join } from "node:path";
-          mkdirSync(".mermaid-blocks", { recursive: true });
-          let n = 0;
-          const walk = (dir) => {
-            for (const entry of readdirSync(dir)) {
-              const p = join(dir, entry);
-              if (statSync(p).isDirectory()) { walk(p); continue; }
-              if (!p.endsWith(".md")) continue;
-              const re = /```mermaid\n([\s\S]*?)```/g;
-              let m;
-              while ((m = re.exec(readFileSync(p, "utf8")))) {
-                writeFileSync(`.mermaid-blocks/${String(++n).padStart(3, "0")}.mmd`, m[1]);
-              }
-            }
-          };
-          walk("docs");
-          console.log(`extracted ${n} mermaid blocks`);
-          JS
-          fail=0
-          for f in .mermaid-blocks/*.mmd; do
-            if ! npx mmdc -p puppeteer.json -i "$f" -o ".mermaid-out/$(basename "$f" .mmd).svg" >/dev/null 2>mmdc-err.txt; then
-              echo "::error file=$f::mermaid parse error"
-              sed -n '1,12p' mmdc-err.txt
-              fail=1
-            fi
-          done
-          exit $fail
+          echo "MMDC=$RUNNER_TEMP/mermaid-tools/node_modules/.bin/mmdc" >> "$GITHUB_ENV"
+
+      # A diagram that does not render is worse than no diagram: it looks like
+      # documentation and conveys nothing. Two of these were syntactically wrong
+      # when first written and looked entirely plausible in the source.
+      - name: Render every fenced mermaid block
+        run: node scripts/check-diagrams.mjs

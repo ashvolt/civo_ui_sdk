@@ -227,6 +227,10 @@ cd examples/next-app && pnpm dev
 `pnpm probe` needs Node ≥ 22.6 (it runs TypeScript directly via
 `--experimental-strip-types`); everything else needs Node ≥ 20.11.
 
+pnpm is required, not a preference: the workspace uses the `workspace:` protocol,
+which plain `npm install` rejects. The `packageManager` field pins the version, so
+Corepack will fetch it.
+
 The test suite runs entirely against injected `fetch`, `sleep`, `random` and `now`,
 so it exercises real code paths — the actual client, the actual retry loop — with
 no network and no wall-clock waiting. There are no module mocks.

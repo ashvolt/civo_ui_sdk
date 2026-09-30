@@ -17,7 +17,8 @@
     "lint": "tsc --noEmit -p tsconfig.json --pretty false",
     "verify": "pnpm typecheck && pnpm test && pnpm build",
     "probe": "node --experimental-strip-types scripts/probe-models.ts",
-    "probe:selftest": "node scripts/probe-selftest.mjs"
+    "probe:selftest": "node scripts/probe-selftest.mjs",
+    "diagrams:check": "node scripts/check-diagrams.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
