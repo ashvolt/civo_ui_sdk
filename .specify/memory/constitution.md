@@ -1,28 +1,39 @@
 <!--
 Sync Impact Report
 ==================
-Version change:      (none) -> 1.0.0
-Ratified:            2026-09-29
-Rationale:           Initial ratification. MAJOR because this establishes the
-                     governing principles for the repository from nothing.
+Version change:      1.0.0 -> 1.1.0
+Amended:             2026-10-05
+Rationale:           MINOR. Principle I is materially expanded, not redefined:
+                     the egress allowlist, the https rule and the "no call the
+                     application did not ask for" rule are unchanged, and
+                     `api.relax.ai` is still the only endpoint reachable
+                     without the application naming another. What is new is
+                     that the endpoint is described by a *provider profile*
+                     the application selects explicitly, so the SDK can be
+                     developed, tested and demonstrated against an open-weight
+                     model on the developer's own machine (Ollama, LM Studio,
+                     llama.cpp) without a relaxAI account. Driven by feature
+                     002-provider-agnostic-inference.
 
-Principles defined:
-  I.   Sovereignty Is Not A Setting
-  II.  The Schema Is The Contract
-  III. Capability Is Negotiated, Never Assumed
-  IV.  Model Output Is Untrusted Input
-  V.   The Edge Is A Target, Not An Afterthought
-  VI.  Specification Precedes Implementation
-  VII. Every Behaviour Has A Test That Would Fail Without It
+Principles changed:
+  I.   Sovereignty Is Not A Setting — provider-profile clauses added
+  III. Capability Is Negotiated, Never Assumed — capability is a property of
+       the (endpoint, model) pair, not of the model name alone
+
+Principles unchanged: II, IV, V, VI, VII
 
 Templates requiring update:
-  ✅ .specify/templates/spec-template.md    — aligned, Constitution Check present
-  ✅ .specify/templates/plan-template.md    — aligned, gates reference I-VII
-  ✅ .specify/templates/tasks-template.md   — aligned, TDD ordering enforced
-  ✅ docs/hld.md                            — Principle mapping section added
-  ✅ docs/lld.md                            — Principle mapping section added
+  ✅ .specify/templates/spec-template.md    — no change needed
+  ✅ .specify/templates/plan-template.md    — no change needed (gates reference I-VII by name)
+  ✅ .specify/templates/tasks-template.md   — no change needed
+  ✅ docs/hld.md, docs/security-model.md    — provider section added
+  ✅ specs/001-generative-ui-sdk/contracts/ui-stream-protocol.md — optional
+     `provider` field documented (additive, no protocol bump)
 
 Follow-up TODOs: none
+
+Previous report (1.0.0, ratified 2026-09-29): initial ratification, principles
+I-VII defined.
 -->
 
 # relaxAI Generative UI SDK — Constitution
@@ -33,6 +44,13 @@ This repository builds `relax-ui-core`, `relax-ui-react` and `relax-ui-next`: a
 TypeScript SDK that turns Civo's relaxAI into a safe, plug-and-play backend for
 **Generative UI** — interfaces whose structure is decided at request time by a
 model rather than at build time by a developer.
+
+relaxAI is the default endpoint and the reason the SDK exists. It is not a
+build-time dependency of it: the engine speaks to an *inference provider*
+through one narrow interface, and relaxAI is the provider selected when the
+application names no other. A developer can run every code path against an
+open-weight model on their own machine. That is loose coupling in the service of
+the sovereignty claim, not at its expense — see Principle I.
 
 The packages are deliberately *unscoped*. The `@civo/*` namespace belongs to
 Civo, and publishing into a namespace you do not own is not ours to do; the
@@ -54,9 +72,22 @@ hands that guarantee back without the buyer noticing.
 Therefore:
 
 - The transport MUST refuse any endpoint host not explicitly allowlisted.
-  `api.relax.ai` is the only default.
+  `api.relax.ai` is the only endpoint reachable without the application naming
+  a different provider.
 - Plaintext HTTP MUST be refused except for an explicitly opted-in loopback
   address in development.
+- An endpoint other than relaxAI MUST be selected by an explicit act of the
+  application — a provider named in code or in the deployment's environment.
+  The SDK MUST NOT fall back from one provider to another, and an unrecognised
+  provider name MUST be a configuration error, never a silent default.
+- Every provider profile MUST carry its own egress allowlist, and a built-in
+  profile for a local runtime MUST allowlist loopback hosts only. Pointing a
+  local profile at a remote host MUST be refused unless the application widens
+  the allowlist itself.
+- Every provider profile MUST state whether it is a sovereign endpoint. That
+  fact MUST travel with the generation — in the client, in result metadata and
+  on the wire — so an application can show it and a reviewer can assert on it.
+  A non-sovereign provider MUST NOT be presentable as a sovereign one.
 - The SDK MUST NOT perform any network call the application did not ask for.
   There is no analytics endpoint, no version check, no error reporter.
 - Observability MUST be delivered as in-process callbacks and counters. Anything
@@ -98,6 +129,13 @@ Therefore:
 
 - Model capability MUST be data — inspectable, overridable, and refined at
   runtime — never a hard-coded assumption in a request builder.
+- Capability belongs to the *(endpoint, model)* pair. The same weights behind
+  two servers can differ in every respect the ladder cares about, so a provider
+  MAY refine a model's prior, and what is learned about a model on one endpoint
+  MUST NOT be applied to another.
+- An endpoint that *accepts* a mechanism and then does not honour it is a
+  capability failure like any other. The SDK MUST detect it by validating the
+  result, never by trusting the 200.
 - The SDK MUST attempt the strongest structuring mechanism available and MUST
   degrade automatically when the server rejects it.
 - A capability rejection observed once MUST be remembered for the process, so
@@ -224,4 +262,4 @@ and rationale, or it MUST be rejected.
   recorded in the plan's Complexity Tracking table with the simpler alternative
   that was rejected and why. An empty justification is a rejection.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-29 | **Last Amended**: 2026-09-29
+**Version**: 1.1.0 | **Ratified**: 2026-09-29 | **Last Amended**: 2026-10-05

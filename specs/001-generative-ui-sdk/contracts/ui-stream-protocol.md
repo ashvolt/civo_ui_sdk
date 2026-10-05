@@ -50,6 +50,7 @@ data: [DONE]\n\n
   "protocol": 1,
   "requestId": "b7c1e0f2-...",
   "model": "Llama-4-Maverick-17B-128E",
+  "provider": "relaxai",
   "schema": "Dashboard",
   "strategy": "tool_call"
 }
@@ -60,10 +61,22 @@ data: [DONE]\n\n
 | `protocol` | `1` | Client MUST reject an unknown major |
 | `requestId` | `string` | Correlates client, server and provider logs |
 | `model` | `string` | The model that actually answered |
+| `provider` | `string?` | Id of the inference provider (`relaxai`, `ollama`, …). OPTIONAL: added by feature 002 as an additive revision, so a client MUST tolerate its absence |
 | `schema` | `string` | `StructuredSchema.name` |
-| `strategy` | enum | `native_json_schema` \| `tool_call` \| `prompted_json` |
+| `strategy` | enum | `native_json_schema` \| `tool_call` \| `prompted_json` — the mechanism that **produced the document** |
 
-Exactly one `meta`, before any other frame.
+At most one `meta`, and when present it is the first frame.
+
+`meta` is written together with the first document frame, not when the upstream
+request is accepted. A mechanism can be accepted and then yield nothing, in
+which case the server moves to another one before anything is sent; announcing
+early would name a mechanism that did not produce the document. A client
+therefore MUST NOT treat the absence of `meta` as a failure while the response
+is still open.
+
+A stream that fails **before any mechanism engaged** — an unreachable endpoint,
+a rejected credential, a model that is not a chat model — consists of a single
+`error` frame and no `meta`: there is no strategy to name.
 
 ---
 
@@ -155,7 +168,8 @@ unrecognised `details` as "no further information" rather than as an error.
 
 ## Sequencing rules
 
-1. `meta` first.
+1. `meta` first, when present. A lone `error` frame is the only stream
+   without one.
 2. `seq` starts at 1 and increments by exactly 1 across `patch` and `snapshot`
    combined.
 3. Exactly one terminal frame (`complete` or `error`). Nothing follows it.
@@ -196,6 +210,9 @@ Only failures *before* the stream opens use a status code:
 | Body fails the route's input schema | 400 |
 | `authorize` hook rejects | whatever it returns |
 | Anything after the stream opens | 200 + `error` frame |
+| The generation could not start (bad model, missing prompt) | 200 + a single `error` frame carrying its own code |
+
+The body always ends with `data: [DONE]`, including after an `error` frame.
 
 A client MUST therefore treat `error` frames, not the status code, as the primary
 failure signal.
