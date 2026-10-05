@@ -447,6 +447,11 @@ graph LR
 | A Zod construct we cannot derive | `defineStructuredSchema({ jsonSchema })` |
 | Organisation-specific redaction | `redaction: RedactionRule[]` |
 | A self-hosted in-jurisdiction gateway | `sovereignty: { allowedHosts: [...] }` |
+| A local open-weight model, no account | `createClient({ provider: "ollama" })` — also `lmstudio`, `llamacpp` |
+| Another OpenAI-compatible endpoint | `defineProvider({ … })`: address, egress allowlist, key requirement, `sovereign` |
+| A non-OpenAI protocol, or an in-process model | implement `InferenceClient` (four methods, two properties) |
+| A runtime whose constrained decoder rejects a keyword | `schemaDialect: { unsupportedKeywords: [...] }` on its profile |
+| Observing the frames themselves | `onFrame` on the hook; `pnpm frames` from a terminal |
 | Metrics export | `MetricsCollector` + your own endpoint |
 | A non-React client | `readUIStream` + `UIStreamAccumulator` |
 | Proxy or mTLS transport | `fetch` injection |
@@ -458,6 +463,8 @@ graph LR
 | Risk | Impact | Mitigation | Residual |
 |---|---|---|---|
 | Capability priors unverified against live API | Wasted first request per model | Ladder absorbs it; floor needs no server feature; each claim carries provenance | Low — `pnpm probe` measures them; T-056c is the live run |
+| An endpoint accepts a mechanism and silently does not honour it | Wrong-shaped output on a tier the ladder trusted | Validation never trusts the 200; a known gap is declared in the profile's schema dialect so the keyword is never sent ([ADR-0008](./adr/0008-wire-schema-dialects.md)) | Medium — gaps nobody has bisected yet are still silent until validation catches them |
+| A non-sovereign provider is selected by accident | Prompts leave the intended boundary | relaxAI is the default; an unknown name throws; local profiles are loopback-only; the provider id is on the wire ([ADR-0007](./adr/0007-provider-profiles-and-inference-interface.md)) | Low |
 | relaxAI diverges from OpenAI shape | Requests fail | Assumptions isolated in one contract document and one client | Low; compatibility is Civo's stated commitment |
 | Model writes plausible-but-wrong content | Misleading UI | Out of scope: a schema constrains shape, not truth. Documented, and the reference app's system prompt instructs the model to say when it cannot justify a figure | Accepted |
 | `isCapabilityRejection` misses a phrasing | No downgrade; error surfaces | Fails safe — worst case is a normal error, not a wrong result | Low; one tested function to extend |

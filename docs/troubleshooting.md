@@ -18,6 +18,47 @@ Symptoms first, because that is what you have when something breaks.
   files at boot, not per request.
 - **In a Worker**: set it as a binding and pass `apiKey` explicitly.
 
+### `config_invalid: Unknown inference provider "…"`
+
+`RELAX_UI_PROVIDER` (or the `provider` option) names something that is not
+registered. The message lists what is. This is deliberately not a fallback to
+relaxAI: a typo that sends prompts to an endpoint nobody chose is worse than a
+failed start.
+
+Built in: `relaxai`, `ollama`, `lmstudio`, `llamacpp` (plus the aliases `local`,
+`relax`, `lm-studio`, `llama.cpp`). Anything else is a `defineProvider` profile
+passed in code.
+
+### A local provider refuses its own base URL
+
+```
+sovereignty_violation: Host "gpu-box.internal" is not in the sovereignty allowlist (localhost, 127.0.0.1, [::1])
+```
+
+A built-in local profile may dial loopback only, and `OLLAMA_BASE_URL` cannot
+change that — an environment variable can move the address, not widen who may
+be dialled. To reach a runtime on another host, say so in code:
+
+```ts
+createClient({
+  provider: "ollama",
+  baseURL: "https://gpu-box.internal/v1",
+  sovereignty: { allowedHosts: ["gpu-box.internal"] },
+});
+```
+
+### `transport_error: Network failure talking to Ollama`
+
+The local runtime is not running, or not on the address the profile expects.
+`ollama serve`, then `curl http://127.0.0.1:11434/v1/models`. The error is
+retryable, and the application starts regardless — it fails on the first
+request, not at boot.
+
+### `config_invalid: Ollama lists no chat-capable model`
+
+Model discovery found only embedding models, or nothing. `ollama pull
+qwen2.5:3b`, or name a model with `RELAX_UI_MODEL`.
+
 ### `sovereignty_violation: Host "…" is not in the sovereignty allowlist`
 
 `baseURL` points somewhere the allowlist does not cover. Either it is a typo, or
@@ -87,6 +128,18 @@ The local demo in `examples/next-app` hits all three at once: a small model, a
 seven-component registry and a reasoning trace. Its budget is set accordingly in
 `app/provider.ts`.
 
+### A small model repeats the example from a prop's `description`
+
+`describe("Pre-formatted, e.g. '£1.2m'")` and every metric comes back as
+`£1.2m`. Wherever the model can read the schema — the prompted tier, or any
+endpoint that shows it — a literal example is the most available answer, and a
+3b model takes it. Measured on `llama3.2:3b`: two of two generations.
+
+Describe the *form* instead of giving an instance ("a formatted figure with its
+unit"), or accept it as the cost of the prompted tier on a small model. On
+Ollama's constrained tier the model is not shown the schema at all, which is
+why the same registry does not do this there.
+
 ### `metadata.repairAttempts` is consistently 1
 
 Repair is working, and you are paying double for every generation. Treat it as a
@@ -129,6 +182,33 @@ the browser does not, the proxy is the culprit.
 
 Also check `frameIntervalMs`: a large value coalesces frames by design.
 
+### On a local model, the whole document appears in one frame
+
+The generation ran on the `tool_call` tier. Ollama buffers a tool call and
+delivers its arguments in a single chunk, so there is nothing to stream:
+`meta`, one `snapshot`, `complete`. Correct, and not what you wanted.
+
+The Ollama profile prefers `native_json_schema`, which streams token by token,
+so check why it was not used — `pnpm frames` prints the ladder:
+
+- an older Ollama that refuses `response_format: json_schema` (upgrade; 0.5+);
+- `forceStrategy` or `allowStrategies` excluding it;
+- a custom `CapabilityRegistry` passed to the client without the profile's
+  `endpointDefaults`.
+
+### `schema_violation` on every local generation, with props you never registered
+
+The endpoint accepted `response_format: json_schema` and did not enforce it.
+Ollama 0.35 does this when the schema contains a `pattern` keyword: 200, no
+warning, unconstrained output. The built-in `ollama` profile keeps `pattern` off
+the wire for exactly this reason (the application's schema still validates it).
+
+If you see it anyway you are probably not going through the profile — a
+`RelaxClient` pointed at a local base URL, or a `defineProvider` profile without
+a `schemaDialect`. Use `createClient({ provider: "ollama" })`, or add
+`schemaDialect: { unsupportedKeywords: ["pattern"] }` to your own.
+[ADR-0008](./adr/0008-wire-schema-dialects.md) has the bisection.
+
 ### `Error: UI stream out of order: expected seq 2, received 4`
 
 Frames were dropped or interleaved. Almost always two streams sharing one
@@ -152,7 +232,7 @@ If your UI reads `strategy` without also reading `metadata`, note that the first
 arrives with the opening `meta` frame and the second only with `complete`:
 rendering the former alone makes a failed generation look like a finished one.
 
-### `stream_malformed: relaxAI returned a streaming response with no body`
+### `stream_malformed: … returned a streaming response with no body`
 
 The upstream returned 200 with no body. Retry; if persistent, the model or gateway
 is unhealthy.
@@ -208,8 +288,17 @@ you need application-level queueing — `authorize` is the seam.
 ### `timeout` after 120s
 
 Large documents on a slow model. Raise `timeoutMs`, lower `max_tokens`, or simplify
-the schema. Note that `timeout` is retryable and `aborted` is not — they are
+the schema. Local providers default to 300s rather than 120s: CPU inference of a
+nested document routinely outlasts two minutes, and a cold model load comes out
+of the same allowance. The route adapter's `timeoutMs` overrides either. Note that `timeout` is retryable and `aborted` is not — they are
 deliberately distinct codes.
+
+### `metadata.downgradedFrom` contains a tier the server never refused
+
+The mechanism was accepted and the model returned nothing through it — most
+often a forced tool call that a small model simply did not make. The SDK moves
+down a tier rather than re-asking the one that went unanswered. Unlike a
+refusal, this is **not** remembered: the next generation tries that tier again.
 
 ### A 401 does not trigger a strategy downgrade
 

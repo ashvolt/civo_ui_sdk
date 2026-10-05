@@ -42,6 +42,71 @@ sovereignty check and discards the capability cache.
 
 ---
 
+### `createClient(options?)` and provider profiles
+
+```ts
+createClient();                              // RELAX_UI_PROVIDER, else relaxAI
+createClient({ provider: "ollama" });        // built-in: relaxai · ollama · lmstudio · llamacpp
+createClient({ provider: defineProvider({ … }) });
+new OpenAICompatibleClient({ provider });    // the same, ignoring the environment
+```
+
+`RelaxClient` is `OpenAICompatibleClient` with the provider fixed to relaxAI; it
+never reads `RELAX_UI_PROVIDER`. All of them take the options above, plus
+`provider`.
+
+| Member | |
+|---|---|
+| `client.provider` | `{ id, label, sovereign, local }`. Only relaxAI is `sovereign` |
+| `client.baseURL` | The resolved, guard-checked endpoint |
+| `client.capabilities` | The registry for *this endpoint* |
+| `client.schemaDialect` | Keywords this endpoint's constrained decoder cannot honour |
+
+An unknown provider name throws `config_invalid`; it never falls back. A local
+provider's egress policy is loopback-only, and an environment variable cannot
+widen it.
+
+```ts
+const gateway = defineProvider({
+  id: "uk-gateway", label: "UK inference gateway",
+  baseURL: "https://llm.internal.example/v1",
+  apiKeyEnv: ["GATEWAY_API_KEY"], requiresApiKey: true,
+  egress: { allowedHosts: ["llm.internal.example"] },
+  sovereign: false, local: false,
+  capabilities: { jsonSchema: true },                    // optional
+  schemaDialect: { unsupportedKeywords: ["pattern"] },   // optional
+});
+```
+
+Full contract:
+[provider-profile.md](../specs/002-provider-agnostic-inference/contracts/provider-profile.md).
+
+### `InferenceClient`
+
+What `generateObject`, `streamObject` and the route factories actually depend
+on. Implement it to use a non-OpenAI protocol or an in-process model:
+
+```ts
+interface InferenceClient {
+  readonly provider: ProviderDescriptor;
+  readonly capabilities: CapabilityRegistry;
+  readonly schemaDialect?: SchemaDialect;
+  listModels(options?): Promise<ModelDescriptor[]>;
+  chatCompletion(request, options?): Promise<ChatCompletionResponse>;
+  streamChatCompletion(request, options?): AsyncIterable<ChatCompletionResponse>;
+}
+```
+
+### Choosing a model on a local runtime
+
+```ts
+await discoverChatModel(client);       // asks /models, picks one; throws config_invalid if none
+rankChatModels(ids); pickChatModel(ids); parseParamCount("qwen3:30b-a3b"); // 30
+```
+
+A heuristic — small, straight-answering chat models first; embeddings models
+removed. Name a model explicitly when you know which you want.
+
 ### `defineStructuredSchema(options)`
 
 ```ts
@@ -174,8 +239,14 @@ caps.markStrategyUnsupported("m", "native_json_schema");
 CapabilityRegistry.baseline("m");      // prior only
 ```
 
-Pass to `RelaxClient({ capabilities })`. The default registry is process-wide, so
-independent call sites share what they learn.
+Pass to a client as `capabilities`. Without one, every client of the same
+endpoint shares a registry — relaxAI's is the process-wide
+`defaultCapabilityRegistry` — so independent call sites share what they learn,
+and what is learned about one endpoint is never applied to another.
+
+A second argument, `{ endpointDefaults }`, sets capabilities the *server* confers
+on every chat model it serves; it is how the Ollama profile says "constrained
+decoding works here regardless of the model". Observations outrank it.
 
 ---
 
@@ -243,7 +314,7 @@ Branch on `code`, never on message text. `toJSON()` is safe in an HTTP response.
 ### `useGenerativeObject(options)`
 
 ```tsx
-const { object, value, isStreaming, error, metadata, strategy, submit, stop, reset } =
+const { object, value, isStreaming, error, metadata, strategy, provider, submit, stop, reset } =
   useGenerativeObject<{ root: UINode }>({
     api: "/api/ui",
     schema: registry.documentSchema,     // optional client-side re-validation
@@ -251,6 +322,7 @@ const { object, value, isStreaming, error, metadata, strategy, submit, stop, res
     credentials: "include",
     onComplete: (v, m) => analytics.track("ui_generated", { strategy: m.strategy }),
     onError: (e) => toast(e.code),
+    onFrame: (event) => console.debug(event.type),   // observe every frame
   });
 ```
 
@@ -258,6 +330,8 @@ const { object, value, isStreaming, error, metadata, strategy, submit, stop, res
 |---|---|
 | `object` | `Partial<T>` while streaming, full `T` after `complete` |
 | `value` | Set only once the schema has passed |
+| `strategy` / `provider` | From the opening `meta` frame: the mechanism that produced the document, and the inference provider's id (`relaxai`, `ollama`, …) |
+| `onFrame(event)` | An observer, called with every frame before it is applied. For a devtools panel or a test; it cannot change what renders |
 | `submit(body)` | Aborts any in-flight generation first |
 | `stop()` / `reset()` | Cancel; cancel and clear |
 
@@ -332,6 +406,9 @@ Same config, returns `{ object, metadata }` as JSON. Status mapping:
 
 | Variable | Used by | Notes |
 |---|---|---|
+| `RELAX_UI_PROVIDER` | `createClient` | Provider name. Unset → `relaxai`. Unknown → throws |
+| `OLLAMA_BASE_URL` · `LMSTUDIO_BASE_URL` · `LLAMACPP_BASE_URL` | that provider | Moves the address; cannot widen the loopback-only allowlist |
+| `OLLAMA_API_KEY` · `LMSTUDIO_API_KEY` · `LLAMACPP_API_KEY` | that provider | Optional; sent only if set |
 | `RELAX_API_KEY` | `RelaxClient` | Server only. Never `NEXT_PUBLIC_*` |
 | `RELAXAI_API_KEY` | `RelaxClient` | Fallback |
 | `RELAX_BASE_URL` | `RelaxClient` | Still subject to the sovereignty allowlist |

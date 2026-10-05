@@ -63,7 +63,11 @@ quickstart and in `.env.example`.
 
 | Control | Implementation |
 |---|---|
-| Host allowlist | `assertSovereignEndpoint` runs in the `RelaxClient` **constructor**, so a misconfigured `RELAX_BASE_URL` fails the deploy rather than quietly exfiltrating prompts |
+| Host allowlist | `assertSovereignEndpoint` runs in the client **constructor**, for every provider, so a misconfigured base URL fails the deploy rather than quietly exfiltrating prompts |
+| Provider selection is explicit | relaxAI unless the application names another. An unregistered name is `config_invalid`; there is no fallback and no fail-over between providers ([ADR-0007](./adr/0007-provider-profiles-and-inference-interface.md)) |
+| Local providers cannot reach out | Built-in local profiles allowlist loopback only. An environment variable can move the address but not widen the allowlist — only `sovereignty` in code can, and there are tests asserting both halves |
+| Sovereignty is stated, and travels | A profile declares `sovereign`; only relaxAI's does. The provider id is in the stream's `meta` frame and in completion metadata, so an application can show it and a test can assert on it |
+| No placeholder credentials | A keyless provider sends no `Authorization` header, rather than a dummy token that reads as a credential in a proxy log |
 | TLS required | `http://` refused; the loopback exception requires an explicit opt-in **and** a loopback host — the opt-in cannot widen to a remote host, and there is a test asserting exactly that |
 | No incidental egress | The SDK contacts only `/chat/completions` and `/models`. No telemetry, no version check, no error reporter |
 | No runtime dependencies in core | Nothing else to audit on the egress path ([ADR-0003](./adr/0003-no-openai-sdk-dependency.md)) |
@@ -71,6 +75,19 @@ quickstart and in `.env.example`.
 
 **Residual risk**: redaction is high-precision by design, so it under-matches
 rather than mangling prose. It is a safety net, not a DLP product.
+
+**Residual risk (providers)**: `sovereign` on an application-defined profile is
+asserted, not verified — the SDK cannot check a jurisdictional claim. It has to
+be written in code, where a reviewer sees it, and `defineProvider` refuses a
+profile that claims sovereignty while permitting plaintext; that is the extent
+of the control. A hand-written `InferenceClient` is trusted exactly as far as
+the application that wrote it.
+
+**Fail-fast really stops the upstream.** When a frame fails the schema
+mid-stream, or the browser goes away, the response body from the inference
+endpoint is *cancelled*, not merely no longer read. Before feature 002 the lock
+was released and the connection left open, so the model kept generating — and
+the endpoint kept billing — for output nobody would receive.
 
 ### 4.3 Model output as untrusted input (Principle IV)
 
