@@ -18,6 +18,16 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/**
+ * A sibling script's path, as something `spawn` can open.
+ *
+ * `new URL(...).pathname` is not that on Windows: it yields `/C:/...`, which
+ * Node then resolves as `C:\C:\...`. Passed on Linux CI for as long as nobody
+ * ran it anywhere else.
+ */
+const script = (name) => fileURLToPath(new URL(name, import.meta.url));
 
 const PORT = Number(process.env.PROBE_SELFTEST_PORT ?? 8099);
 const BASE = `http://127.0.0.1:${PORT}/v1`;
@@ -64,7 +74,7 @@ async function waitForStub(timeoutMs = 10_000) {
 const outDir = mkdtempSync(join(tmpdir(), "probe-selftest-"));
 const outFile = join(outDir, "caps.json");
 
-const stub = spawn(process.execPath, [new URL("stub-relax.mjs", import.meta.url).pathname, String(PORT)], {
+const stub = spawn(process.execPath, [script("stub-relax.mjs"), String(PORT)], {
   stdio: ["ignore", "ignore", "inherit"],
 });
 
@@ -80,7 +90,7 @@ try {
       process.execPath,
       [
         "--experimental-strip-types",
-        new URL("probe-models.ts", import.meta.url).pathname,
+        script("probe-models.ts"),
         "--base-url",
         BASE,
         "--allow-insecure-loopback",

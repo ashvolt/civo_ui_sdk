@@ -39,6 +39,7 @@ import {
   isCapabilityRejection,
   isRelaxUIError,
   parsePartialJson,
+  OpenAICompatibleClient,
   RelaxClient,
   type ChatCompletionRequest,
   type ModelCapabilities,
@@ -97,6 +98,7 @@ interface Options {
   out?: string;
   allowInsecure: boolean;
   baseURL?: string;
+  provider?: string;
 }
 
 function parseArgs(argv: string[]): Options {
@@ -108,6 +110,9 @@ function parseArgs(argv: string[]): Options {
     if (arg === "--models") options.models = (argv[++i] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
     else if (arg === "--out") options.out = argv[++i];
     else if (arg === "--base-url") options.baseURL = argv[++i];
+    // Probe a local runtime instead: `--provider ollama` needs no key, and its
+    // profile already carries a loopback-only policy.
+    else if (arg === "--provider") options.provider = argv[++i];
     // Only for pointing the probe at a local stub. Never for a real endpoint.
     else if (arg === "--allow-insecure-loopback") options.allowInsecure = true;
     else if (arg === "--help" || arg === "-h") {
@@ -117,6 +122,7 @@ function parseArgs(argv: string[]): Options {
           "",
           "  --models a,b     probe only these model ids",
           "  --base-url URL   override RELAX_BASE_URL",
+          "  --provider NAME  probe another provider (ollama, lmstudio, llamacpp); default relaxai",
           "  --out FILE       also write the capability seed as JSON",
           "  --allow-insecure-loopback   permit http:// on localhost (stub testing only)",
         ].join("\n"),
@@ -143,7 +149,7 @@ function parseArgs(argv: string[]): Options {
  *   error     — something else went wrong; the run should not claim anything
  */
 async function probe(
-  client: RelaxClient,
+  client: OpenAICompatibleClient,
   model: string,
   strategy: "native_json_schema" | "tool_call" | "prompted_json",
 ): Promise<{ result: ProbeResult; raw: string }> {
@@ -218,7 +224,7 @@ async function probe(
   }
 }
 
-async function probeStreaming(client: RelaxClient, model: string): Promise<ProbeResult> {
+async function probeStreaming(client: OpenAICompatibleClient, model: string): Promise<ProbeResult> {
   try {
     let chunks = 0;
     for await (const _chunk of client.streamChatCompletion({
@@ -360,7 +366,11 @@ function registrySeed(reports: ModelReport[]): Record<string, Partial<ModelCapab
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
 
-  const client = new RelaxClient({
+  // `RelaxClient` unless a provider was named: the default run must not be
+  // redirectable by a stray RELAX_UI_PROVIDER in the environment.
+  const Client = options.provider ? OpenAICompatibleClient : RelaxClient;
+  const client = new Client({
+    ...(options.provider ? { provider: options.provider } : {}),
     ...(options.baseURL ? { baseURL: options.baseURL } : {}),
     ...(options.allowInsecure ? { sovereignty: { allowInsecureTransport: true } } : {}),
     // A probe that retries hides the very flakiness it is trying to measure.
