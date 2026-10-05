@@ -5,7 +5,7 @@ import {
   toSSEStream,
   type ChatMessage,
   type GenerationTrace,
-  type RelaxClient,
+  type InferenceClient,
   type SamplingParams,
   type SchemaLike,
   type StructuredSchema,
@@ -37,8 +37,12 @@ import {
 export type ModelResolver = (request: Request) => string | Promise<string>;
 
 export interface GenerativeUIRouteConfig<TInput, TObject> {
-  /** Built once at module scope, so the key never enters a request path. */
-  client: RelaxClient;
+  /**
+   * Built once at module scope, so the key never enters a request path. Any
+   * `InferenceClient`: `new RelaxClient()`, `createClient()` for the provider
+   * the deployment selected, or an implementation of your own.
+   */
+  client: InferenceClient;
   model: string | ModelResolver;
   schema: StructuredSchema<TObject>;
   /** Validates the request body. Anything that fails is a 400, not a prompt. */
@@ -58,7 +62,11 @@ export interface GenerativeUIRouteConfig<TInput, TObject> {
   transport?: "patch" | "snapshot";
   /** Server-side observability. Receives no prompt or completion text. */
   onEvent?: (event: GenerationTrace) => void;
-  /** Hard ceiling on one generation, in ms. Default 120_000. */
+  /**
+   * Hard ceiling on one upstream request, in ms. Default: the client's own,
+   * which is 120_000 for relaxAI and longer for local runtimes — CPU inference
+   * of a nested document routinely outlasts two minutes.
+   */
   timeoutMs?: number;
 }
 
@@ -118,7 +126,7 @@ export function createGenerativeUIRoute<TInput, TObject>(
       return errorResponse(400, "invalid_request", "Could not build the conversation from input.");
     }
 
-    // The client's AbortSignal reaches relaxAI, so a closed tab stops a
+    // The client's AbortSignal reaches the endpoint, so a closed tab stops a
     // generation instead of paying for tokens nobody will read.
     const events = streamObject<TObject>({
       client: config.client,
@@ -134,7 +142,7 @@ export function createGenerativeUIRoute<TInput, TObject>(
       ...(config.frameIntervalMs !== undefined ? { frameIntervalMs: config.frameIntervalMs } : {}),
       ...(config.transport ? { transport: config.transport } : {}),
       ...(config.onEvent ? { onEvent: config.onEvent } : {}),
-      timeoutMs: config.timeoutMs ?? 120_000,
+      ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
       signal: request.signal,
     });
 
@@ -179,7 +187,7 @@ export function createGenerativeObjectRoute<TInput, TObject>(
           ? { maxRepairAttempts: config.maxRepairAttempts }
           : {}),
         ...(config.onEvent ? { onEvent: config.onEvent } : {}),
-        timeoutMs: config.timeoutMs ?? 120_000,
+        ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
         signal: request.signal,
       });
       return Response.json({ object: result.object, metadata: result.metadata });
