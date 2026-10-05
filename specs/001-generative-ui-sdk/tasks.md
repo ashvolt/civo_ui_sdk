@@ -98,6 +98,46 @@ and must fail before that implementation exists.
 - [x] **T-046a** `examples/next-app`: registry, Edge route, component implementations, streaming page
 - [x] **T-046b** Verify with a real `next build`
 
+## Phase M2 — Local-provider demo mode
+
+- [x] **T-059** `model` in the Next adapter accepts a resolver, so a route can
+  pick a model per request instead of at module scope. Two tests, incl. a
+  resolver failure surfacing as a server error rather than a 400.
+- [x] **T-060** `examples/next-app/app/provider.ts` — `RELAX_UI_PROVIDER` selects
+  relaxAI (default) or local Ollama. Local mode gets a loopback-only sovereignty
+  policy and auto-discovers the model from `/v1/models`.
+- [x] **T-061** The page states the endpoint, and says plainly when it is not a
+  sovereign one. `describeProvider()` reads env without constructing a client, so
+  the banner renders with no API key present.
+- [x] **T-062** Capability priors for locally-served families (Ollama-style tags
+  `qwen2.5:7b`, `llama3.2:3b`, `gemma2:9b`) plus `embed|rerank` detection so a
+  local `/models` listing's embedding models are correctly marked non-chat.
+- [x] **T-063** Verified end to end: `next build` with no relaxAI key at all, then
+  a live request through the running app against a stand-in endpoint — model
+  auto-discovered, ladder starting at `tool_call`, valid document streamed.
+
+## Phase M3 — Diagnosing a failed generation
+
+Driven by the local demo: a small model on a seven-component registry fails in
+ways relaxAI's larger models mostly do not, and both failures were being reported
+as an unactionable `schema_violation`.
+
+- [x] **T-064** `truncated` as its own error code. Both `generateObject` and
+  `streamObject` read `finish_reason`; when it is `length` and the document does
+  not validate, they report the budget rather than the schema and skip the repair
+  round, which would spend a second full generation to truncate at the same
+  token. A document that is valid when the ceiling is hit is still a success.
+  Three tests, incl. that last case.
+- [x] **T-065** Error frames carry `details`: the redacted issue list (dotted path
+  and Zod issue code, never a value) that the server already computed and was
+  discarding at the wire boundary. The reference app renders it, so a failed
+  generation names the field that broke. One test asserting the path is present
+  and the offending value is not.
+- [x] **T-066** Verified end to end against two stand-in endpoints: a truncating
+  one (one upstream call, `truncated` on the wire) and one emitting a wrong-typed
+  prop (`details: [{ code: "invalid_type", path: "root.children.0.props.value" }]`
+  reaching the browser).
+
 ## Phase N — Documentation
 
 - [x] **T-047** [P] `docs/hld.md` — context, containers, request lifecycle, quality attributes
@@ -117,19 +157,44 @@ and must fail before that implementation exists.
 
 ## Outstanding
 
-- [ ] **T-056** `scripts/probe-models.ts` — call a live relaxAI key across the
-  catalogue and emit a measured capability table, replacing the documented
-  priors. **Blocked**: this build environment's egress policy denies `relax.ai`.
-  Until it runs, every capability claim in `capability/registry.ts` is sourced
-  from Civo's published documentation and carries a `note` saying so. The
-  architecture absorbs a wrong prior — one wasted request per model per process —
+- [x] **T-056a** `scripts/probe-models.ts` — probes each catalogue model for
+  `json_schema`, tool calling, `json_object`, streaming and reasoning traces,
+  reports where measurement disagrees with the shipped prior, and emits a
+  paste-ready `CapabilityRegistry` seed. Drives the SDK's own `RelaxClient`, so a
+  run also exercises the transport and the rejection classifier.
+- [x] **T-056b** `scripts/stub-relax.mjs` + `scripts/probe-selftest.mjs` — four
+  stub models with deliberately awkward behaviour, and assertions on the probe's
+  conclusions about each. Runs in CI. It caught two real bugs on first execution:
+  a streaming rejection recorded as an error rather than a capability fact, and a
+  model failing every probe as "not a chat model" still being written back as
+  `chatCapable: true`.
+- [ ] **T-056c** Run the probe against a live key and replace the priors in
+  `capability/registry.ts` with measurements. **Blocked here, not blocked for
+  you**: this build environment's egress policy denies `relax.ai`, so it needs to
+  be run somewhere with network access — `pnpm build && RELAX_API_KEY=... pnpm
+  probe`. Until then every capability claim in `capability/registry.ts` is
+  sourced from Civo's published documentation and carries a `note` saying so. The
+  architecture absorbs a wrong prior (one wasted request per model per process),
   but this should land before a 1.0 publish.
 - [ ] **T-057** Publish workflow (`changesets` + npm provenance). Deliberately
   deferred: nothing should be published until T-056 has run.
-- [ ] **T-058** Browser-level integration test of the reference app
-  (Playwright: submit, observe frames arrive, assert a rejected node renders
-  nothing). The renderer's refusal paths are unit-tested; this would cover the
-  wiring end to end.
+- [x] **T-058** Browser-level integration test of the reference app.
+  `examples/next-app/e2e/` — seven Playwright tests driving the real app in
+  Chromium against `e2e/stub-endpoint.mjs`, a committed OpenAI-compatible
+  stand-in. Covers the joins that unit tests cannot: the route's SSE frames
+  reaching the hook, the hook's patches reaching the renderer, the ladder
+  downgrading visibly to `tool_call` after the endpoint refuses `json_schema`,
+  `truncated` surfacing as a budget failure, and a schema violation naming the
+  offending path in the browser with the value absent. Runs in CI as its own job.
+
+  The stand-in is deliberate: a real model returns a different document every
+  run, so asserting on its output would test the model. One thing is *not*
+  covered here — the renderer's own refusals (`unknown_type`, `invalid_props`,
+  `depth_exceeded`). They are unreachable through a correct server, because the
+  schema rejects those documents before a frame is sent; reaching them from a
+  browser would need a route that emits unvalidated documents, which is not
+  something this example should contain. They stay covered by T-043's
+  `react-dom/server` tests, which is the right level for them.
 
 ---
 
@@ -151,7 +216,7 @@ A ─► B ─► C ─┬─► D ─► E ─► F ─► G ─► H ─► I 
 ## Verification gate
 
 ```bash
-pnpm verify                       # typecheck + 128 tests + build
+pnpm verify                       # typecheck + 154 tests + build
 cd examples/next-app && next build
 grep -rn 'from "node:' packages/core/src          # must be empty
 grep -rn 'dangerouslySetInnerHTML' packages       # must be empty

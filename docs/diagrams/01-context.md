@@ -13,9 +13,9 @@ graph LR
     end
 
     subgraph sdk["SDK"]
-        Core["@civo/relax-ui-core"]
-        RPkg["@civo/relax-ui-react"]
-        NPkg["@civo/relax-ui-next"]
+        Core["relax-ui-core"]
+        RPkg["relax-ui-react"]
+        NPkg["relax-ui-next"]
     end
 
     Relax[("relaxAI<br/>api.relax.ai/v1<br/>UK jurisdiction")]

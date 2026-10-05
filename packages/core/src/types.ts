@@ -120,6 +120,11 @@ export const STRATEGY_PRECEDENCE: readonly StructuringStrategyName[] = [
 export interface GenerationMetadata {
   requestId: string;
   model: string;
+  /**
+   * Id of the inference provider that served the generation (`relaxai`,
+   * `ollama`, ...). Optional only because a hand-written client may not say.
+   */
+  provider?: string;
   strategy: StructuringStrategyName;
   /** Strategies that were attempted and rejected before `strategy` succeeded. */
   downgradedFrom: StructuringStrategyName[];

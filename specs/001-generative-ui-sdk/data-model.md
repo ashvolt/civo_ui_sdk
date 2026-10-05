@@ -245,7 +245,8 @@ return to the browser.
 Every SDK failure. Callers branch on `code`, never on message text.
 
 `config_invalid`, `sovereignty_violation`, `transport_error`, `http_error`,
-`rate_limited`, `timeout`, `aborted`, `stream_malformed`, `no_content`,
+`rate_limited`, `payment_required`, `timeout`, `aborted`, `stream_malformed`,
+`no_content`, `truncated`,
 `schema_violation`, `capability_unsupported`, `unrepairable`, `guard_rejected`.
 
 Plus `retryable: boolean`, and optional `status`, `requestId`, `strategy`,

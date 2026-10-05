@@ -1,4 +1,4 @@
-# @civo/relax-ui-core
+# relax-ui-core
 
 Runtime-agnostic core of the [relaxAI Generative UI SDK](../../README.md):
 schema-enforced structured generation, streaming partial objects, and a
@@ -12,14 +12,15 @@ and CI asserts it.
 ## Install
 
 ```bash
-pnpm add @civo/relax-ui-core zod
+pnpm add relax-ui-core zod
 ```
 
 ## What is in here
 
 | Area | Exports |
 |---|---|
-| Client | `RelaxClient`, `HttpClient` |
+| Client | `RelaxClient`, `createClient`, `OpenAICompatibleClient`, `InferenceClient`, `HttpClient` |
+| Providers | `relaxai`, `ollama`, `lmstudio`, `llamacpp`, `defineProvider`, `discoverChatModel` |
 | Generation | `generateObject`, `streamObject`, `toSSEStream` |
 | Schema | `defineStructuredSchema`, `toJsonSchema`, `safeParsePartial` |
 | Capability | `CapabilityRegistry`, `negotiateStrategy`, `isCapabilityRejection` |
@@ -30,10 +31,24 @@ pnpm add @civo/relax-ui-core zod
 | Protocol | `UIStreamAccumulator`, `encodeUIStreamEvent` |
 | Errors | `RelaxUIError`, `isRelaxUIError` |
 
+## Not only relaxAI
+
+relaxAI is the default endpoint. The engine itself depends on the
+`InferenceClient` interface, so the same code runs against an open-weight model
+on your own machine — no account, no key:
+
+```ts
+const client = createClient({ provider: "ollama" });   // or RELAX_UI_PROVIDER=ollama + createClient()
+```
+
+The sovereignty guard runs for every provider; a local one carries a
+loopback-only allowlist. See
+[the provider contract](../../specs/002-provider-agnostic-inference/contracts/provider-profile.md).
+
 ## Minimal use
 
 ```ts
-import { defineStructuredSchema, generateObject, RelaxClient } from "@civo/relax-ui-core";
+import { defineStructuredSchema, generateObject, RelaxClient } from "relax-ui-core";
 import { z } from "zod";
 
 const client = new RelaxClient();   // reads RELAX_API_KEY; validates the endpoint host

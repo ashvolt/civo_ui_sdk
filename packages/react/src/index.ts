@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * @civo/relax-ui-react — React bindings for the relaxAI Generative UI SDK.
+ * relax-ui-react — React bindings for the relaxAI Generative UI SDK.
  *
  * Client-only, key-free and model-agnostic: this package consumes the SDK's
  * validated event stream. It never sees a relaxAI credential and never parses

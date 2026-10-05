@@ -3,7 +3,7 @@ import {
   isStreamTerminator,
   isUIStreamEvent,
   type UIStreamEvent,
-} from "@civo/relax-ui-core";
+} from "relax-ui-core";
 
 /**
  * Reads the SDK's SSE response into typed events.

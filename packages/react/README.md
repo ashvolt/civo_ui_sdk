@@ -1,4 +1,4 @@
-# @civo/relax-ui-react
+# relax-ui-react
 
 React bindings for the [relaxAI Generative UI SDK](../../README.md): a streaming
 object hook and an allowlist-only renderer.
@@ -11,14 +11,14 @@ attacker cannot edit the code. That is [ADR-0001](../../docs/adr/0001-server-sid
 ## Install
 
 ```bash
-pnpm add @civo/relax-ui-react @civo/relax-ui-core zod
+pnpm add relax-ui-react relax-ui-core zod
 ```
 
 ## Use
 
 ```tsx
 "use client";
-import { createGenerativeRenderer, useGenerativeObject } from "@civo/relax-ui-react";
+import { createGenerativeRenderer, useGenerativeObject } from "relax-ui-react";
 import { registry } from "./ui-registry";
 
 const Dashboard = createGenerativeRenderer(registry, {

@@ -14,8 +14,15 @@ import type { JsonValue } from "../types.js";
  *     because partially rendered prose is the point of streaming;
  *   - a half-written **key** is discarded, because `{"tit": ...}` would be a
  *     lie about the shape of the object;
- *   - a dangling `,` `:` or incomplete literal/number is rewound to the last
- *     committed member of its frame.
+ *   - a number is held at its longest valid prefix (`12.` reads as `12`), so
+ *     a value that has appeared never disappears again while its next
+ *     character is in flight;
+ *   - a dangling `,` `:` or incomplete literal is rewound to the last committed
+ *     member of its frame.
+ *
+ * Together those make the result *monotonic*: each prefix of a document yields
+ * a value containing every member the previous prefix yielded. A client can
+ * therefore paint every frame without anything flickering out and back.
  *
  * The scanner is single-pass and allocation-light: it is on the hot path for
  * every token the model emits.
@@ -180,7 +187,15 @@ export function completePartialJson(src: string): string | null {
   } else {
     if (tokenStart !== -1) {
       const raw = src.slice(tokenStart);
-      cut = isCompleteBareToken(raw) ? src.length : top().commit;
+      if (isCompleteBareToken(raw)) {
+        cut = src.length;
+      } else {
+        // `12.` and `1.2e-` are numbers whose next character has not arrived.
+        // Dropping the member here would make a value that was already shown
+        // (`12`) vanish for one frame and return on the next.
+        const held = validNumberPrefix(raw);
+        cut = held > 0 ? tokenStart + held : top().commit;
+      }
     } else {
       cut = top().commit;
     }
@@ -227,6 +242,16 @@ function isCompleteBareToken(raw: string): boolean {
   // A number is only safe to keep if it terminates on a digit: `1.2e` and `-`
   // are prefixes of numbers the model has not finished writing.
   return /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(raw);
+}
+
+/**
+ * Length of the longest prefix of `raw` that is a complete JSON number, or 0.
+ *
+ * `12.` -> 2, `1.2e-` -> 3, `-` -> 0, `tru` -> 0.
+ */
+function validNumberPrefix(raw: string): number {
+  const match = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(raw);
+  return match ? match[0].length : 0;
 }
 
 /**

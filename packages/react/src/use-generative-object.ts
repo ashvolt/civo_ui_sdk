@@ -7,7 +7,7 @@ import {
   type SchemaLike,
   type StructuringStrategyName,
   type UIStreamEvent,
-} from "@civo/relax-ui-core";
+} from "relax-ui-core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readUIStream } from "./stream.js";
 
@@ -26,6 +26,14 @@ export interface UseGenerativeObjectOptions<T> {
   credentials?: RequestCredentials;
   onComplete?: (value: T, metadata: GenerationMetadata) => void;
   onError?: (error: RelaxUIError) => void;
+  /**
+   * Called with every frame, in order, before it is applied to state.
+   *
+   * For inspecting the stream — a devtools panel, a frame counter, a test. It
+   * is an observer, not a hook into the pipeline: the frame has already been
+   * validated server-side and nothing returned from here changes what renders.
+   */
+  onFrame?: (event: UIStreamEvent<T>) => void;
 }
 
 export interface GenerativeObjectState<T> {
@@ -38,6 +46,11 @@ export interface GenerativeObjectState<T> {
   metadata: GenerationMetadata | undefined;
   /** Which structuring strategy the server ended up using. */
   strategy: StructuringStrategyName | undefined;
+  /**
+   * Id of the inference provider serving the generation, from the opening
+   * frame. Undefined until then, and for servers that do not report one.
+   */
+  provider: string | undefined;
 }
 
 export interface UseGenerativeObjectResult<T> extends GenerativeObjectState<T> {
@@ -53,12 +66,13 @@ const INITIAL: GenerativeObjectState<never> = {
   error: undefined,
   metadata: undefined,
   strategy: undefined,
+  provider: undefined,
 };
 
 /**
  * Consumes the SDK's UI event stream into React state.
  *
- * The hook is deliberately thin. It does not talk to relaxAI, does not hold an
+ * The hook is deliberately thin. It does not talk to a model, does not hold an
  * API key, and does not parse model output — by the time bytes reach it they
  * describe a validated object taking shape. Everything that could be attacked
  * happens on the server, where the attacker cannot edit the code.
@@ -119,6 +133,7 @@ export function useGenerativeObject<T>(
       }
 
       for await (const event of readUIStream<T>(response.body, controller.signal)) {
+        callbacks.current.onFrame?.(event);
         accumulator.apply(event);
         applyToState(event, accumulator, setState, callbacks.current);
       }
@@ -156,7 +171,7 @@ function applyToState<T>(
 ): void {
   switch (event.type) {
     case "meta":
-      setState((previous) => ({ ...previous, strategy: event.strategy }));
+      setState((previous) => ({ ...previous, strategy: event.strategy, provider: event.provider }));
       return;
 
     case "patch":
@@ -201,6 +216,9 @@ function applyToState<T>(
         message: event.error.message,
         retryable: event.error.retryable,
         ...(event.error.requestId ? { requestId: event.error.requestId } : {}),
+        // Carried through so a caller can say *which* field broke. Already
+        // redacted to pointers and issue codes upstream.
+        ...(event.error.details !== undefined ? { details: event.error.details } : {}),
       });
       setState((previous) => ({ ...previous, isStreaming: false, error }));
       options.onError?.(error);

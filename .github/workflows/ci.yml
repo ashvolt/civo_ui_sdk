@@ -48,6 +48,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The probe script needs a live relaxAI key, which CI has none of. It is
+      # still verified: a stub impersonates four models with deliberately awkward
+      # behaviour and the self-test asserts the probe's conclusions about each.
+      # Needs Node >= 22.6 for --experimental-strip-types.
+      - name: Probe script self-test
+        if: matrix.node == '22'
+        run: pnpm probe:selftest
+
       - name: Assert published entry points exist
         run: |
           for pkg in core react next; do
@@ -132,6 +140,46 @@ jobs:
             exit 1
           fi
 
+  e2e:
+    name: Browser integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The workspace packages are consumed by the example through `workspace:`
+      # links, so the example cannot start until they are built.
+      - name: Build packages
+        run: pnpm build
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Drives the reference app in a real browser against a local stand-in
+      # endpoint: the route's frames reach the hook, the hook's patches reach the
+      # renderer, and a failed generation says what failed. No relaxAI account and
+      # no model involved — the stand-in makes the document deterministic.
+      - name: Browser tests
+        run: pnpm test:e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: examples/next-app/playwright-report/
+          retention-days: 7
+
   diagrams:
     name: Mermaid diagrams render
     runs-on: ubuntu-latest
@@ -142,40 +190,20 @@ jobs:
         with:
           node-version: "22"
 
-      # A diagram that does not render is worse than no diagram: it looks like
-      # documentation and conveys nothing. Every fenced mermaid block in docs/ is
-      # extracted and rendered, and a parse error fails the build.
-      - name: Render every fenced mermaid block
+      # Installed OUTSIDE the repository on purpose. `npm` cannot read this
+      # workspace's root package.json — it uses pnpm's `workspace:` protocol —
+      # and a diagram check has no business touching the project's dependency
+      # graph either way.
+      - name: Install mermaid-cli (out of tree)
         run: |
+          mkdir -p "$RUNNER_TEMP/mermaid-tools"
+          cd "$RUNNER_TEMP/mermaid-tools"
+          npm init -y >/dev/null
           npm i --no-fund --no-audit @mermaid-js/mermaid-cli@11
-          printf '{ "args": ["--no-sandbox", "--disable-dev-shm-usage"] }' > puppeteer.json
-          mkdir -p .mermaid-out
-          node - <<'JS'
-          import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
-          import { join } from "node:path";
-          mkdirSync(".mermaid-blocks", { recursive: true });
-          let n = 0;
-          const walk = (dir) => {
-            for (const entry of readdirSync(dir)) {
-              const p = join(dir, entry);
-              if (statSync(p).isDirectory()) { walk(p); continue; }
-              if (!p.endsWith(".md")) continue;
-              const re = /```mermaid\n([\s\S]*?)```/g;
-              let m;
-              while ((m = re.exec(readFileSync(p, "utf8")))) {
-                writeFileSync(`.mermaid-blocks/${String(++n).padStart(3, "0")}.mmd`, m[1]);
-              }
-            }
-          };
-          walk("docs");
-          console.log(`extracted ${n} mermaid blocks`);
-          JS
-          fail=0
-          for f in .mermaid-blocks/*.mmd; do
-            if ! npx mmdc -p puppeteer.json -i "$f" -o ".mermaid-out/$(basename "$f" .mmd).svg" >/dev/null 2>mmdc-err.txt; then
-              echo "::error file=$f::mermaid parse error"
-              sed -n '1,12p' mmdc-err.txt
-              fail=1
-            fi
-          done
-          exit $fail
+          echo "MMDC=$RUNNER_TEMP/mermaid-tools/node_modules/.bin/mmdc" >> "$GITHUB_ENV"
+
+      # A diagram that does not render is worse than no diagram: it looks like
+      # documentation and conveys nothing. Two of these were syntactically wrong
+      # when first written and looked entirely plausible in the source.
+      - name: Render every fenced mermaid block
+        run: node scripts/check-diagrams.mjs

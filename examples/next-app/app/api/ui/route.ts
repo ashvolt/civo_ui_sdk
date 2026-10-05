@@ -1,31 +1,28 @@
-import { RelaxClient } from "@civo/relax-ui-core";
-import { createGenerativeUIRoute } from "@civo/relax-ui-next";
+import { createGenerativeUIRoute } from "relax-ui-next";
 import { z } from "zod";
+import { getProvider } from "../../provider";
 import { dashboardSchema } from "../../ui-registry";
 
 /**
  * The entire server side of the feature.
  *
- * Runs on the Edge runtime: the SDK's core touches nothing beyond `fetch`,
- * `ReadableStream` and `AbortController`, so there is no Node dependency to
- * strand it on a serverless function.
+ * Node rather than Edge, only because a local provider has to reach a runtime
+ * on 127.0.0.1 — an Edge deployment has no loopback to reach. Against relaxAI
+ * this route runs unchanged on the Edge runtime (`export const runtime =
+ * "edge"`), and did until the local provider was added; the SDK's core needs
+ * nothing beyond `fetch`, `ReadableStream` and `AbortController`.
  */
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 /**
- * One client per module, not one per request.
+ * One provider per module, not per request.
  *
- * Constructing it here means the API key is read once at cold start, lives only
- * in the server bundle, and cannot be reached from the browser. The sovereignty
- * check runs at construction, so a misconfigured `RELAX_BASE_URL` fails the
- * deploy rather than silently exfiltrating prompts to whatever host was typed.
+ * Built at cold start, so the API key is read once and lives only in the server
+ * bundle. The sovereignty check runs inside the client constructor, which means
+ * a misconfigured endpoint fails the first request loudly rather than quietly
+ * sending prompts somewhere unintended.
  */
-const client = new RelaxClient({
-  // Redaction is opt-in; a dashboard prompt should never contain a card number,
-  // and if one turns up we would like to know rather than forward it.
-  redaction: true,
-  onRedaction: (hits) => console.warn("[relax-ui] redacted outbound prompt", hits),
-});
+const provider = getProvider();
 
 const InputSchema = z.object({
   topic: z.string().min(3).max(300),
@@ -33,10 +30,11 @@ const InputSchema = z.object({
 });
 
 export const POST = createGenerativeUIRoute({
-  client,
-  // Llama 4 Maverick: 500k context, strong tool calling, cheap. The SDK will
-  // negotiate down from json_schema to tool calling automatically.
-  model: process.env["RELAX_MODEL"] ?? "Llama-4-Maverick-17B-128E",
+  client: provider.client,
+  // A string against relaxAI; against a local runtime, a resolver that asks the
+  // endpoint what it actually has installed. Either way the *application*
+  // decides — the browser cannot influence it.
+  model: provider.model,
   schema: dashboardSchema,
   inputSchema: InputSchema,
 
@@ -60,15 +58,18 @@ export const POST = createGenerativeUIRoute({
     },
   ],
 
-  sampling: { temperature: 0.4, max_tokens: 2_000 },
-
-  // ~50ms between frames: fast enough to feel live, slow enough that a dense
-  // tree is not re-laid-out on every token.
-  frameIntervalMs: 50,
+  sampling: provider.sampling,
+  frameIntervalMs: provider.frameIntervalMs,
 
   onEvent: (event) => {
     if (event.type === "strategy_downgraded") {
       console.info(`[relax-ui] ${event.from} -> ${event.to}: ${event.reason}`);
+    }
+    // The endpoint's constrained decoder was sent a narrower schema than the
+    // one that validates. Worth a line: it is the SDK telling the model less
+    // than it enforces, and that should never happen unobserved.
+    if (event.type === "schema_adapted") {
+      console.info(`[relax-ui] wire schema for ${event.provider} omits: ${event.dropped.join(", ")}`);
     }
   },
 });

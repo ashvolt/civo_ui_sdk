@@ -61,11 +61,14 @@ interface CapabilityRule {
  */
 const RULES: readonly CapabilityRule[] = [
   {
-    match: /embedding/i,
+    // `embed` rather than `embedding`, so Ollama-style names (nomic-embed-text,
+    // mxbai-embed-large) are caught too — they are the ones most likely to turn
+    // up in a `/models` listing next to chat models.
+    match: /embed|rerank/i,
     capabilities: {
       jsonSchema: false, jsonObject: false, toolCalling: false, streaming: false,
       reasoningTrace: false, chatCapable: false,
-      note: "Embedding model: not valid for /chat/completions.",
+      note: "Embedding or rerank model: not valid for /chat/completions.",
     },
   },
   {
@@ -140,6 +143,45 @@ const RULES: readonly CapabilityRule[] = [
       note: "Kimi family default.",
     },
   },
+  // --- families as named by local runtimes (Ollama tags like `qwen2.5:7b`) ----
+  // These are priors, not measurements, exactly like the relaxAI entries above:
+  // a local runtime's tool support depends on both the model's template and the
+  // server version. `pnpm probe --base-url http://localhost:11434/v1
+  // --allow-insecure-loopback` measures them and prints a seed to paste back.
+  {
+    match: /^qwen3/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: true, streaming: true,
+      reasoningTrace: true, contextWindow: 32_000, chatCapable: true,
+      note: "Qwen3: ships tool templates and a thinking mode. Prior, unverified.",
+    },
+  },
+  {
+    match: /^qwen/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: true, streaming: true,
+      reasoningTrace: false, contextWindow: 32_000, chatCapable: true,
+      note: "Qwen2.x: tool templates present. Prior, unverified.",
+    },
+  },
+  {
+    // Ollama-style tag (`llama3.2:3b`); the hyphenated `llama-3` rule above
+    // covers hosted naming.
+    match: /^llama3[.:]/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: true, streaming: true,
+      reasoningTrace: false, contextWindow: 128_000, chatCapable: true,
+      note: "Llama 3.x served locally. Tool support from 3.1 onward. Prior, unverified.",
+    },
+  },
+  {
+    match: /^gemma/i,
+    capabilities: {
+      jsonSchema: false, jsonObject: true, toolCalling: false, streaming: true,
+      reasoningTrace: false, contextWindow: 8_000, chatCapable: true,
+      note: "Gemma: most builds ship no tool template, so the prompted floor applies.",
+    },
+  },
   {
     match: /^mistral/i,
     capabilities: {
@@ -150,6 +192,17 @@ const RULES: readonly CapabilityRule[] = [
   },
 ];
 
+export interface CapabilityRegistryOptions {
+  /**
+   * Capabilities this *endpoint* confers on every chat model it serves.
+   *
+   * Constrained decoding is the motivating case: it is implemented by the
+   * server, so a runtime that compiles schemas to grammars supports it for
+   * models whose name alone says they do not.
+   */
+  endpointDefaults?: Partial<ModelCapabilities>;
+}
+
 /**
  * Mutable capability store.
  *
@@ -159,9 +212,14 @@ const RULES: readonly CapabilityRule[] = [
  */
 export class CapabilityRegistry {
   private readonly overrides = new Map<string, Partial<ModelCapabilities>>();
+  private readonly endpointDefaults: Partial<ModelCapabilities> | undefined;
 
-  constructor(seed?: Record<string, Partial<ModelCapabilities>>) {
+  constructor(
+    seed?: Record<string, Partial<ModelCapabilities>>,
+    options: CapabilityRegistryOptions = {},
+  ) {
     if (seed) for (const [model, caps] of Object.entries(seed)) this.overrides.set(model.toLowerCase(), caps);
+    this.endpointDefaults = options.endpointDefaults;
   }
 
   /** Static prior for `model`, before any overrides. */
@@ -173,8 +231,18 @@ export class CapabilityRegistry {
     return { ...UNKNOWN_MODEL_CAPABILITIES };
   }
 
+  /**
+   * What `model` is believed to do *on this endpoint*.
+   *
+   * Three layers, weakest first: the model-name prior, what the endpoint adds
+   * to every chat model it serves, and what has actually been observed. The
+   * endpoint layer never touches a non-chat model — a server that can constrain
+   * decoding still cannot make an embeddings model answer a chat request.
+   */
   get(model: string): ModelCapabilities {
-    const base = CapabilityRegistry.baseline(model);
+    const prior = CapabilityRegistry.baseline(model);
+    const base =
+      this.endpointDefaults && prior.chatCapable ? { ...prior, ...this.endpointDefaults } : prior;
     const override = this.overrides.get(model.toLowerCase());
     return override ? { ...base, ...override } : base;
   }
@@ -199,3 +267,25 @@ export class CapabilityRegistry {
 
 /** Process-wide default so independent call sites share what they learn. */
 export const defaultCapabilityRegistry = new CapabilityRegistry();
+
+const scopedRegistries = new Map<string, CapabilityRegistry>();
+
+/**
+ * The registry shared by every client of one endpoint.
+ *
+ * Observations are facts about an endpoint, not about a model name: learning
+ * that `qwen2.5:7b` cannot call tools on one server says nothing about the same
+ * name behind another. So what is learned is shared within a scope and never
+ * across scopes. The first caller for a scope fixes its endpoint defaults.
+ */
+export function capabilityRegistryFor(
+  scope: string,
+  options: CapabilityRegistryOptions = {},
+): CapabilityRegistry {
+  let registry = scopedRegistries.get(scope);
+  if (!registry) {
+    registry = new CapabilityRegistry(undefined, options);
+    scopedRegistries.set(scope, registry);
+  }
+  return registry;
+}

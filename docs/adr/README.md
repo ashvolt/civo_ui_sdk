@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Six decisions this SDK turns on. Each records the alternatives and why they were
+Eight decisions this SDK turns on. Each records the alternatives and why they were
 rejected — the rejections are the useful part, because they are what a reviewer
 would otherwise have to ask about.
 
@@ -12,6 +12,8 @@ would otherwise have to ask about.
 | [0004](./0004-closed-component-vocabulary.md) | Close the component vocabulary at schema-construction time | II, IV |
 | [0005](./0005-streaming-partial-validation.md) | Classify validation issues instead of deriving a partial schema | II, VII |
 | [0006](./0006-json-patch-streaming-transport.md) | Stream JSON Patch frames, not snapshots | V |
+| [0007](./0007-provider-profiles-and-inference-interface.md) | The endpoint is a provider profile behind an inference interface | I, III, V |
+| [0008](./0008-wire-schema-dialects.md) | Send a constrained decoder only what it can enforce | II, III |
 
 Principles are from the [constitution](../../.specify/memory/constitution.md).
 

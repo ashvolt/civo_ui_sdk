@@ -30,9 +30,25 @@ describe("completePartialJson", () => {
     expect(completePartialJson('{"ok":true')).toBe('{"ok":true}');
   });
 
-  it("rewinds a number that cannot terminate yet", () => {
-    expect(completePartialJson('{"n":1.2e')).toBe("{}");
+  it("holds a number at its last valid value while the next character is pending", () => {
+    // `12.` used to drop the member outright, so a streamed `12.5` went
+    // 12 -> (gone) -> 12.5 and the client saw the value flicker out and back.
+    // Found by watching a real model's frames: `remove` ops in mid-stream.
+    expect(completePartialJson('{"n":12.')).toBe('{"n":12}');
+    expect(completePartialJson('{"n":1.2e')).toBe('{"n":1.2}');
+    expect(completePartialJson('{"n":1.2e-')).toBe('{"n":1.2}');
+    expect(completePartialJson('{"n":-3.')).toBe('{"n":-3}');
+    expect(completePartialJson('[1,2.')).toBe("[1,2]");
+  });
+
+  it("rewinds a number with no valid prefix at all", () => {
     expect(completePartialJson('{"n":-')).toBe("{}");
+    expect(completePartialJson('{"a":1,"n":-')).toBe('{"a":1}');
+  });
+
+  it("does not mistake a half-written literal for a number", () => {
+    expect(completePartialJson('{"ok":tru')).toBe("{}");
+    expect(completePartialJson('{"ok":nul')).toBe("{}");
   });
 
   it("keeps a number that is already valid", () => {
@@ -112,4 +128,60 @@ describe("parsePartialJson", () => {
       expect(() => parsePartialJson(doc.slice(0, i))).not.toThrow();
     }
   });
+});
+
+describe("a streamed document only ever grows", () => {
+  // The property the number fix restores, stated generally: no prefix of a
+  // document may yield a value that has *lost* a member an earlier prefix had.
+  // A client that sees a member vanish and return repaints for nothing, and a
+  // `remove` op is the wire-level symptom.
+  const DOC = {
+    root: {
+      type: "Stack",
+      props: { gap: "md", heading: "Spend" },
+      children: [
+        {
+          type: "BarList",
+          props: {
+            title: "Top providers",
+            items: [
+              { label: "AWS", value: 12.5 },
+              { label: "Azure", value: 9 },
+              { label: "GCP", value: 4.25 },
+              { label: "Other", value: 1.5e3 },
+              { label: "Refunds", value: -0.75 },
+            ],
+          },
+        },
+        { type: "Metric", props: { label: "Growth", value: "12%", trend: "up", ok: true, note: null } },
+      ],
+    },
+  };
+
+  /** Every key path present in `value`, objects and arrays alike. */
+  function paths(value: unknown, at = ""): string[] {
+    if (value === null || typeof value !== "object") return [at];
+    const entries = Array.isArray(value)
+      ? value.map((child, index) => [String(index), child] as const)
+      : Object.entries(value);
+    return [at, ...entries.flatMap(([key, child]) => paths(child, `${at}/${key}`))];
+  }
+
+  for (const [name, text] of [
+    ["compact", JSON.stringify(DOC)],
+    ["pretty-printed", JSON.stringify(DOC, null, 2)],
+  ] as const) {
+    it(`never drops a member it has already shown (${name})`, () => {
+      let seen: string[] = [];
+      for (let end = 1; end <= text.length; end++) {
+        const parsed = parsePartialJson(text.slice(0, end));
+        if (parsed.value === undefined) continue;
+        const now = new Set(paths(parsed.value));
+        const lost = seen.filter((path) => !now.has(path));
+        expect(lost, `after ${JSON.stringify(text.slice(Math.max(0, end - 24), end))}`).toEqual([]);
+        seen = [...now];
+      }
+      expect(parsePartialJson(text).value).toEqual(DOC);
+    });
+  }
 });

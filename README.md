@@ -4,7 +4,7 @@
 
 **Stream schema-validated, model-designed interfaces from [Civo relaxAI](https://www.civo.com/ai/relaxai) — safely, on the edge, without leaving UK jurisdiction.**
 
-`@civo/relax-ui-core` · `@civo/relax-ui-react` · `@civo/relax-ui-next`
+`relax-ui-core` · `relax-ui-react` · `relax-ui-next`
 
 TypeScript · Zod 3 & 4 · Next.js App Router · zero runtime dependencies in core
 
@@ -67,6 +67,26 @@ vocabulary able to appear.
 
 → **[Quickstart](./specs/001-generative-ui-sdk/quickstart.md)** ·
 **[Reference app](./examples/next-app)** · **[API reference](./docs/api-reference.md)**
+
+### See it run — on your own machine, with no account
+
+[![The reference app streaming a dashboard from a local open-weight model, with the frame inspector open](./docs/demo/generative-ui-local-model.png)](./docs/demo/generative-ui-local-model.webm)
+
+**[▶ Demo video](./docs/demo/generative-ui-local-model.webm)** — a real generation
+from `llama3.2:3b` on local Ollama: about 200 frames, each validated server-side
+before the browser saw it. Recorded by a committed script (`pnpm demo:record`), so
+it can be regenerated rather than trusted. The figures on screen are the model's
+invention, not data: a schema constrains shape, not truth.
+
+```bash
+ollama pull qwen2.5:3b
+pnpm install && pnpm build
+RELAX_UI_PROVIDER=ollama pnpm --filter relax-ui-example-next dev   # then open /?frames=1
+pnpm frames                                                        # or watch the frames in a terminal
+```
+
+relaxAI is the default endpoint and the reason the SDK exists; it is not a
+requirement of the engine. → **[Local quickstart](./specs/002-provider-agnostic-inference/quickstart.md)**
 
 ---
 
@@ -160,19 +180,60 @@ relaxAI's reason to exist is jurisdictional. An SDK that quietly accepts any
 
 → [ADR-0003](./docs/adr/0003-no-openai-sdk-dependency.md)
 
+### Loosely coupled, without loosening the guard
+
+The engine depends on an `InferenceClient` interface, not on relaxAI. Which
+endpoint a client talks to is a **provider profile** — data: an address, an
+egress allowlist, whether a key is needed, whether it is sovereign.
+
+```ts
+new RelaxClient();                       // relaxAI. Nothing can redirect it.
+createClient();                          // RELAX_UI_PROVIDER, else relaxAI.
+createClient({ provider: "ollama" });    // a local open-weight model. No key.
+createClient({ provider: defineProvider({ … }) });   // your own endpoint.
+```
+
+Built in: `relaxai`, `ollama`, `lmstudio`, `llamacpp`. What makes that safe rather
+than a hole in Principle I:
+
+- **the guard runs for every provider** — a local profile carries a loopback-only
+  allowlist, and an environment variable can move its address but not widen it;
+- **no fallback** — a misspelt provider name is a configuration error, never a
+  silent default to the hosted endpoint;
+- **the provider travels with the result** — `meta.provider` on the wire,
+  `metadata.provider` on completion, and only relaxAI is ever `sovereign`;
+- **capability is per endpoint** — the same weights behind two servers differ, so
+  what is learned about a model on one endpoint is never applied to another.
+
+Running against a real local model is how three frame-creation bugs were found
+that the scripted tests could not see: a tool call that returns nothing, a
+runtime that accepts a schema and silently does not enforce it, and an upstream
+generation left running after the SDK had stopped reading it.
+
+→ [ADR-0007](./docs/adr/0007-provider-profiles-and-inference-interface.md) ·
+[ADR-0008](./docs/adr/0008-wire-schema-dialects.md) ·
+[what was measured](./specs/002-provider-agnostic-inference/research.md)
+
 ---
 
 ## Packages
 
 | Package | Responsibility | Runtime deps |
 |---|---|---|
-| [`@civo/relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards, wire protocol | none (Zod is a peer) |
-| [`@civo/relax-ui-react`](./packages/react) | Streaming object hook, allowlist-only renderer | core, React |
-| [`@civo/relax-ui-next`](./packages/next) | App Router handler factories | core |
+| [`relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards, wire protocol | none (Zod is a peer) |
+| [`relax-ui-react`](./packages/react) | Streaming object hook, allowlist-only renderer | core, React |
+| [`relax-ui-next`](./packages/next) | App Router handler factories | core |
 
 Core runs unchanged on **Node ≥ 20, Vercel Edge, Cloudflare Workers, Bun and
 Deno**: `fetch` is the only platform API it requires, and it imports nothing from
 `node:`.
+
+### On the package names
+
+The packages are unscoped on purpose. `@civo/*` is Civo's npm namespace, and
+publishing into a namespace you do not own is not a thing to do quietly — so
+those names are left free in case Civo adopts this work. If they do, the rename
+is a find-and-replace.
 
 ---
 
@@ -191,7 +252,16 @@ spec would have stated in a page.
 | [Plan](./specs/001-generative-ui-sdk/plan.md) | Constitution checks, design decisions, known limitations |
 | [Data model](./specs/001-generative-ui-sdk/data-model.md) | Nine entities with their invariants |
 | [Contracts](./specs/001-generative-ui-sdk/contracts/) | Wire protocol, upstream assumptions, public API |
-| [Tasks](./specs/001-generative-ui-sdk/tasks.md) | 60 dependency-ordered tasks (57 complete, 3 outstanding), tests before implementation |
+| [Tasks](./specs/001-generative-ui-sdk/tasks.md) | 70 dependency-ordered tasks (68 complete, 2 outstanding), tests before implementation |
+
+Feature 002 — [provider-agnostic inference](./specs/002-provider-agnostic-inference/spec.md)
+— has the same chain: [spec](./specs/002-provider-agnostic-inference/spec.md) ·
+[research](./specs/002-provider-agnostic-inference/research.md) (measured against
+a live local runtime) · [plan](./specs/002-provider-agnostic-inference/plan.md) ·
+[data model](./specs/002-provider-agnostic-inference/data-model.md) ·
+[contract](./specs/002-provider-agnostic-inference/contracts/provider-profile.md) ·
+[tasks](./specs/002-provider-agnostic-inference/tasks.md). It amended the
+constitution to v1.1.0.
 
 ### Design documentation
 
@@ -200,7 +270,7 @@ spec would have stated in a page.
 | [HLD](./docs/hld.md) | Context, containers, lifecycle, quality attributes, risks |
 | [LLD](./docs/lld.md) | Module internals, algorithms, complexity, the cases that motivated them |
 | [Security model](./docs/security-model.md) | Assets, adversaries, controls — and what is *not* defended |
-| [ADRs](./docs/adr/) | Six load-bearing decisions, each with its rejected alternatives |
+| [ADRs](./docs/adr/) | Eight load-bearing decisions, each with its rejected alternatives |
 | [Diagrams](./docs/diagrams/) | Eight Mermaid diagrams, all render-verified |
 | [API reference](./docs/api-reference.md) | Every export, with examples |
 | [Troubleshooting](./docs/troubleshooting.md) | Symptoms first |
@@ -211,10 +281,33 @@ spec would have stated in a page.
 
 ```bash
 pnpm install
-pnpm verify      # typecheck + 128 tests + build
+pnpm verify           # typecheck + tests + build
+pnpm probe:selftest   # verifies scripts/probe-models.ts against a stub
+pnpm diagrams:check   # renders every fenced mermaid block
+pnpm test:e2e         # 20 browser tests against two stand-in endpoints
+pnpm frames           # one real generation on local Ollama, every frame checked
+pnpm demo:record      # regenerate the demo video
 
 cd examples/next-app && pnpm dev
 ```
+
+The reference app runs against **a local model with no relaxAI account** —
+`RELAX_UI_PROVIDER=ollama pnpm dev` (also `lmstudio`, `llamacpp`). It
+auto-discovers whichever model you have pulled. The sovereignty guard still
+runs, on a loopback-only policy, and the UI says plainly that it is not a
+sovereign endpoint. See [the example's README](./examples/next-app/README.md).
+
+`pnpm frames` is the tool to reach for after upgrading a local runtime: it prints
+each frame as it is created and asserts the wire contract's sequencing rules and
+that replaying the frames reproduces the completed value.
+
+`pnpm probe` needs Node ≥ 22.9 (it runs TypeScript directly via
+`--experimental-strip-types`, and loads `.env` via `--env-file-if-exists`);
+everything else needs Node ≥ 20.11.
+
+pnpm is required, not a preference: the workspace uses the `workspace:` protocol,
+which plain `npm install` rejects. The `packageManager` field pins the version, so
+Corepack will fetch it.
 
 The test suite runs entirely against injected `fetch`, `sleep`, `random` and `now`,
 so it exercises real code paths — the actual client, the actual retry loop — with
@@ -222,7 +315,7 @@ no network and no wall-clock waiting. There are no module mocks.
 
 | Suite | Tests | Emphasis |
 |---|---|---|
-| Partial JSON | 21 | Rewind rules, escapes, **every prefix** of a realistic document |
+| Partial JSON | 25 | Rewind rules, escapes, **every prefix** of a realistic document, and that no prefix loses a member an earlier one had |
 | JSON Patch | 12 | Round-trip, array ordering, structural sharing |
 | JSON Schema | 14 | Constraints, unions, `$defs` recursion, deliberate throws |
 | Guards | 19 | Every refusal path |
@@ -230,6 +323,10 @@ no network and no wall-clock waiting. There are no module mocks.
 | Orchestration | 17 | Each tier, downgrade + persistence, repair, full ladder walk |
 | React | 20 | Renderer refusals, escaping, keying; stream decoding |
 | Next route | 10 | Input rejection, smuggled model/system, status mapping |
+| Providers | 36 | Mostly refusals: unknown name, remote host on a local profile, env trying to widen the allowlist |
+| Schema dialect | 10 | Keyword removed everywhere it is a keyword, kept where it is a name; validator unchanged |
+| Frame creation | 29 | Cases first seen on a real local model: empty tool call, lazy `meta`, upstream cancelled on early exit |
+| Browser (Playwright) | 20 | Two app instances: a runtime that honours constrained decoding, and one that refuses it |
 
 ---
 
@@ -238,15 +335,36 @@ no network and no wall-clock waiting. There are no module mocks.
 Feature-complete and tested, **not yet published**. Two things a reviewer should
 know:
 
-1. **The capability priors are not verified against the live API.** This was built
-   in an environment whose egress policy blocks `relax.ai`, so the per-model table
-   is assembled from Civo's published documentation and each entry carries a `note`
-   saying so. The architecture is designed to absorb a wrong prior — one wasted
-   request per model per process, never a failure, because the floor strategy needs
-   no server feature at all — but
-   [T-056](./specs/001-generative-ui-sdk/tasks.md#outstanding) exists to replace
-   priors with measurements, and it should land before a 1.0.
-2. **Other known limitations** — the Zod → JSON Schema subset, positional array
+1. **The capability priors are not yet verified against the live API.** This was
+   built in an environment whose egress policy blocks `relax.ai`, so the per-model
+   table is assembled from Civo's published documentation and each entry carries a
+   `note` saying so. The architecture absorbs a wrong prior — one wasted request
+   per model per process, never a failure, because the floor strategy needs no
+   server feature at all.
+
+   Closing it is one command with a key. Put it in `.env` (gitignored, and
+   loaded automatically) so it never reaches a command line or shell history:
+
+   ```bash
+   cp .env.example .env    # then fill in RELAX_API_KEY
+   pnpm build && pnpm probe
+   ```
+
+   `scripts/probe-models.ts` probes every catalogue model for constrained
+   decoding, tool calling, `json_object`, streaming and reasoning traces, prints
+   where reality disagrees with the shipped priors, and emits a paste-ready
+   `CapabilityRegistry` seed. It drives the SDK's own client, so a run also
+   exercises the transport and the rejection classifier against the live API.
+
+   The probe itself is verified: `pnpm probe:selftest` runs it against four stub
+   models with deliberately awkward behaviour and asserts its conclusions. That
+   self-test caught two real bugs the first time it ran.
+2. **The local-runtime profiles are measured for one runtime, at one version.**
+   Ollama 0.35.0 was on the bench and its two refinements (constrained decoding
+   works; `pattern` silently disables it) are measurements. `lmstudio` and
+   `llamacpp` are an address and a loopback policy, nothing more, and say so.
+   `pnpm frames -- --provider <name>` is the re-measurement.
+3. **Other known limitations** — the Zod → JSON Schema subset, positional array
    diffing, no built-in rate limiting — are listed in
    [plan.md](./specs/001-generative-ui-sdk/plan.md#known-limitations) rather than
    left to be discovered.
@@ -255,7 +373,8 @@ know:
 
 ## Licence
 
-Apache-2.0.
+[Apache-2.0](./LICENSE).
 
-Not an official Civo project. Built as a proof-of-work prototype against relaxAI's
-public API surface.
+Not an official Civo project, and not affiliated with or endorsed by Civo. Built
+as a proof-of-work prototype against relaxAI's public API surface. "Civo" and
+"relaxAI" are Civo's marks, used here only to say what this integrates with.

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentSpecMap, UINode, UIRegistry } from "@civo/relax-ui-core";
+import type { ComponentSpecMap, UINode, UIRegistry } from "relax-ui-core";
 import * as React from "react";
 
 /**
