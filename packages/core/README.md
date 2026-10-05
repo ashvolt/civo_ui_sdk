@@ -19,7 +19,8 @@ pnpm add relax-ui-core zod
 
 | Area | Exports |
 |---|---|
-| Client | `RelaxClient`, `HttpClient` |
+| Client | `RelaxClient`, `createClient`, `OpenAICompatibleClient`, `InferenceClient`, `HttpClient` |
+| Providers | `relaxai`, `ollama`, `lmstudio`, `llamacpp`, `defineProvider`, `discoverChatModel` |
 | Generation | `generateObject`, `streamObject`, `toSSEStream` |
 | Schema | `defineStructuredSchema`, `toJsonSchema`, `safeParsePartial` |
 | Capability | `CapabilityRegistry`, `negotiateStrategy`, `isCapabilityRejection` |
@@ -29,6 +30,20 @@ pnpm add relax-ui-core zod
 | Guards | `assertSovereignEndpoint`, `sanitizeUrl`, `redact` |
 | Protocol | `UIStreamAccumulator`, `encodeUIStreamEvent` |
 | Errors | `RelaxUIError`, `isRelaxUIError` |
+
+## Not only relaxAI
+
+relaxAI is the default endpoint. The engine itself depends on the
+`InferenceClient` interface, so the same code runs against an open-weight model
+on your own machine — no account, no key:
+
+```ts
+const client = createClient({ provider: "ollama" });   // or RELAX_UI_PROVIDER=ollama + createClient()
+```
+
+The sovereignty guard runs for every provider; a local one carries a
+loopback-only allowlist. See
+[the provider contract](../../specs/002-provider-agnostic-inference/contracts/provider-profile.md).
 
 ## Minimal use
 

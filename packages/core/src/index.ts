@@ -1,6 +1,10 @@
 /**
  * relax-ui-core — Generative UI for Civo relaxAI.
  *
+ * relaxAI is the default endpoint, not a requirement: the engine drives any
+ * `InferenceClient`, and `createClient({ provider: "ollama" })` runs every code
+ * path against an open-weight model on your own machine.
+ *
  * Runtime-agnostic: Node, Bun, Deno, Cloudflare Workers, the Vercel Edge
  * runtime and a Next.js route handler all run this same build. The only
  * platform API it requires is `fetch`.
@@ -29,9 +33,32 @@ export type {
 } from "./types.js";
 export { STRATEGY_PRECEDENCE } from "./types.js";
 
+// --- providers ------------------------------------------------------------
+export {
+  BUILT_IN_PROVIDERS,
+  defineProvider,
+  describeProvider,
+  llamacpp,
+  lmstudio,
+  LOOPBACK_ONLY_POLICY,
+  ollama,
+  relaxai,
+  resolveProvider,
+} from "./provider/profile.js";
+export type { ProviderDescriptor, ProviderProfile, SchemaDialect } from "./provider/profile.js";
+export {
+  discoverChatModel,
+  parseParamCount,
+  pickChatModel,
+  rankChatModels,
+} from "./provider/model-selection.js";
+
 // --- client ---------------------------------------------------------------
-export { RelaxClient, contentDeltaOf } from "./client/relax-client.js";
-export type { RelaxClientOptions, RequestOptions } from "./client/relax-client.js";
+export type { InferenceClient, RequestOptions } from "./client/inference-client.js";
+export { contentDeltaOf, createClient, OpenAICompatibleClient } from "./client/openai-compatible-client.js";
+export type { OpenAICompatibleClientOptions } from "./client/openai-compatible-client.js";
+export { RelaxClient } from "./client/relax-client.js";
+export type { RelaxClientOptions } from "./client/relax-client.js";
 export { HttpClient } from "./client/http.js";
 export type { AttemptInfo, FetchLike, HttpClientOptions, HttpRequest, RetryPolicy } from "./client/http.js";
 
@@ -46,16 +73,19 @@ export type { UrlPolicy } from "./guard/url.js";
 // --- capability -----------------------------------------------------------
 export {
   CapabilityRegistry,
+  capabilityRegistryFor,
   defaultCapabilityRegistry,
   UNKNOWN_MODEL_CAPABILITIES,
 } from "./capability/registry.js";
-export type { ModelCapabilities } from "./capability/registry.js";
+export type { CapabilityRegistryOptions, ModelCapabilities } from "./capability/registry.js";
 export { isCapabilityRejection, negotiateStrategy } from "./capability/negotiate.js";
 export type { NegotiationInput, NegotiationResult } from "./capability/negotiate.js";
 
 // --- schema ---------------------------------------------------------------
 export { defineStructuredSchema } from "./schema/define.js";
 export type { DefineStructuredSchemaOptions, StructuredSchema } from "./schema/define.js";
+export { adaptJsonSchema } from "./schema/dialect.js";
+export type { AdaptedSchema } from "./schema/dialect.js";
 export { toJsonSchema } from "./schema/json-schema.js";
 export type { ToJsonSchemaOptions } from "./schema/json-schema.js";
 export { classifyIssue, formatIssues, redactIssues, safeParsePartial } from "./schema/partial.js";

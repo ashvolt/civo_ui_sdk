@@ -72,7 +72,8 @@ export function assertSovereignEndpoint(baseURL: string, policy: SovereigntyPoli
       code: "sovereignty_violation",
       message:
         `Host "${host}" is not in the sovereignty allowlist (${allowed.join(", ")}). ` +
-        `Add it to relaxAI client options if this endpoint is genuinely in-jurisdiction.`,
+        `Add it to the client's sovereignty.allowedHosts if this endpoint is genuinely one ` +
+        `this deployment may send prompts to.`,
       details: { host, allowed: [...allowed] },
     });
   }

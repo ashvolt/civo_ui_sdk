@@ -15,6 +15,12 @@ const DONE = "[DONE]";
  * Written against `ReadableStream` rather than Node streams so the same code
  * path serves Node, Bun, Deno, Cloudflare Workers and the Vercel Edge runtime —
  * the environments a Next.js route handler can actually be deployed to.
+ *
+ * Stopping early cancels the body. A consumer that `break`s out of the loop, or
+ * a generator further up that is `return()`ed, must close the HTTP response —
+ * not merely stop reading it. Otherwise the server goes on generating, and
+ * billing, for a reader that has gone; on a local runtime it also keeps the
+ * model busy, so the next request queues behind an answer nobody wants.
  */
 export async function* decodeSSE(
   body: ReadableStream<Uint8Array>,
@@ -23,6 +29,7 @@ export async function* decodeSSE(
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let drained = false;
 
   const onAbort = () => void reader.cancel().catch(() => {});
   signal?.addEventListener("abort", onAbort, { once: true });
@@ -33,7 +40,10 @@ export async function* decodeSSE(
         throw new RelaxUIError({ code: "aborted", message: "Stream aborted by caller." });
       }
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        drained = true;
+        break;
+      }
       buffer += decoder.decode(value, { stream: true });
 
       // Events are separated by a blank line; tolerate CRLF and bare LF.
@@ -52,6 +62,10 @@ export async function* decodeSSE(
     if (tail) yield tail;
   } finally {
     signal?.removeEventListener("abort", onAbort);
+    // Reached with the body still open whenever the consumer left early or an
+    // error was thrown mid-stream. Releasing the lock alone would leave the
+    // connection, and the generation behind it, running.
+    if (!drained) await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
 }

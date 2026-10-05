@@ -38,6 +38,13 @@ export interface HttpClientOptions {
   retry?: RetryPolicy;
   /** Called once per attempt with the outcome. Never receives request bodies. */
   onAttempt?: (info: AttemptInfo) => void;
+  /**
+   * Name of the endpoint, used only in error messages. Default "relaxAI".
+   *
+   * An error that says "relaxAI returned 404" when the request went to a local
+   * runtime sends whoever reads it to the wrong system.
+   */
+  upstream?: string;
 }
 
 const RETRYABLE_STATUS = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
@@ -58,6 +65,7 @@ export class HttpClient {
   private readonly fetchImpl: FetchLike;
   private readonly retry: Required<RetryPolicy>;
   private readonly onAttempt?: (info: AttemptInfo) => void;
+  private readonly upstream: string;
 
   constructor(options: HttpClientOptions = {}) {
     const resolved = options.fetch ?? (globalThis.fetch as FetchLike | undefined);
@@ -76,6 +84,7 @@ export class HttpClient {
       sleep: options.retry?.sleep ?? defaultSleep,
     };
     if (options.onAttempt) this.onAttempt = options.onAttempt;
+    this.upstream = options.upstream ?? "relaxAI";
   }
 
   /**
@@ -135,7 +144,7 @@ export class HttpClient {
       if (response.ok) return { kind: "ok", response };
       return {
         kind: "fail",
-        error: await toHttpError(response),
+        error: await toHttpError(response, this.upstream),
         retryAfter: response.headers.get("retry-after"),
       };
     } catch (cause) {
@@ -145,7 +154,7 @@ export class HttpClient {
           retryAfter: null,
           error: new RelaxUIError({
             code: "timeout",
-            message: `Request to relaxAI exceeded ${request.timeoutMs}ms.`,
+            message: `Request to ${this.upstream} exceeded ${request.timeoutMs}ms.`,
             retryable: true,
             cause,
           }),
@@ -165,7 +174,7 @@ export class HttpClient {
       }
       const error = new RelaxUIError({
         code: "transport_error",
-        message: `Network failure talking to relaxAI: ${describe(cause)}`,
+        message: `Network failure talking to ${this.upstream}: ${describe(cause)}`,
         retryable: true,
         cause,
       });
@@ -190,7 +199,7 @@ export class HttpClient {
   }
 }
 
-async function toHttpError(response: Response): Promise<RelaxUIError> {
+async function toHttpError(response: Response, upstream: string): Promise<RelaxUIError> {
   let detail = "";
   let parsed: JsonValue | undefined;
   try {
@@ -208,7 +217,7 @@ async function toHttpError(response: Response): Promise<RelaxUIError> {
   const requestId =
     response.headers.get("x-request-id") ?? response.headers.get("cf-ray") ?? undefined;
 
-  const message = `relaxAI returned ${response.status} ${response.statusText}${detail ? `: ${detail}` : ""}`;
+  const message = `${upstream} returned ${response.status} ${response.statusText}${detail ? `: ${detail}` : ""}`;
 
   // 402 is worth its own code rather than a generic http_error: it is not a bad
   // request, retrying never helps, and the fix is a human adding a payment

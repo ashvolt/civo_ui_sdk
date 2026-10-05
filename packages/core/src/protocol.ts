@@ -32,6 +32,11 @@ export interface UIStreamMetaEvent {
   protocol: typeof UI_STREAM_PROTOCOL_VERSION;
   requestId: string;
   model: string;
+  /**
+   * Id of the inference provider serving this generation. Added in an additive
+   * revision of protocol 1, so a client MUST tolerate its absence.
+   */
+  provider?: string;
   schema: string;
   strategy: StructuringStrategyName;
 }

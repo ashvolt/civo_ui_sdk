@@ -5,6 +5,7 @@ import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
   ChatMessage,
+  JsonSchema,
   StructuringStrategyName,
 } from "../types.js";
 
@@ -22,6 +23,15 @@ export interface StrategyContext<T> {
   messages: ChatMessage[];
   capabilities: ModelCapabilities;
   sampling?: SamplingParams;
+  /**
+   * The JSON Schema to put on the wire for server-enforced tiers, when the
+   * endpoint's constrained decoder needs something narrower than the
+   * application's own. Absent means "send `schema.jsonSchema` as it is".
+   *
+   * Never used by the prompted tier: that one is read by the model rather than
+   * compiled by the server, so it gets the full description.
+   */
+  wireSchema?: JsonSchema;
 }
 
 /**
@@ -38,6 +48,14 @@ export interface StructuringStrategy {
   deltaOf(chunk: ChatCompletionResponse): string;
   /** JSON text from a completed non-streaming response. */
   finalOf(response: ChatCompletionResponse): string;
+  /**
+   * Text a streaming chunk carries *outside* this strategy's own channel.
+   *
+   * Only the tool tier defines it. Some models answer a forced tool call by
+   * writing the document as ordinary message content; reading it from there
+   * costs nothing, where ignoring it costs a second generation.
+   */
+  fallbackDeltaOf?(chunk: ChatCompletionResponse): string;
 }
 
 function contentDelta(chunk: ChatCompletionResponse): string {
@@ -50,7 +68,7 @@ function contentFinal(response: ChatCompletionResponse): string {
   if (typeof content === "string") return content;
   throw new RelaxUIError({
     code: "no_content",
-    message: `relaxAI returned no assistant content (finish_reason=${choice?.finish_reason ?? "unknown"}).`,
+    message: `The endpoint returned no assistant content (finish_reason=${choice?.finish_reason ?? "unknown"}).`,
   });
 }
 
@@ -83,7 +101,7 @@ export const nativeJsonSchemaStrategy: StructuringStrategy = {
           type: "json_schema",
           json_schema: {
             name: context.schema.name,
-            schema: context.schema.jsonSchema,
+            schema: context.wireSchema ?? context.schema.jsonSchema,
             strict: true,
             ...(context.schema.description ? { description: context.schema.description } : {}),
           },
@@ -119,7 +137,7 @@ export const toolCallStrategy: StructuringStrategy = {
               description:
                 context.schema.description ??
                 `Emit the requested UI payload. Call this function exactly once.`,
-              parameters: context.schema.jsonSchema,
+              parameters: context.wireSchema ?? context.schema.jsonSchema,
               strict: true,
             },
           },
@@ -138,6 +156,7 @@ export const toolCallStrategy: StructuringStrategy = {
     // omit `index` still put it first.
     return calls[0]?.function?.arguments ?? "";
   },
+  fallbackDeltaOf: contentDelta,
   finalOf(response: ChatCompletionResponse): string {
     const call = response.choices?.[0]?.message?.tool_calls?.[0];
     if (!call) {
