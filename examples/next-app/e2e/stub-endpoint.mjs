@@ -15,10 +15,21 @@
  *   ok        a valid document, streamed in small pieces (the default)
  *   truncate  stops mid-document with finish_reason "length"
  *   badtype   a Metric whose `value` is a number where the registry wants a string
+ *   emptytool a forced tool call that returns nothing, as small models sometimes do
  *
- * Every mode refuses `response_format: json_schema`, because Ollama does, so a
- * run always exercises a real downgrade from the top of the ladder to tool
- * calling rather than asserting the happy tier only.
+ * `SCHEMA` decides whether `response_format: json_schema` is honoured, and is
+ * fixed for the life of the process. `on` honours it and streams the document
+ * as content, the way Ollama 0.5+ does — the tier a local generation actually
+ * uses. `off` (the default) refuses it, the way an older runtime does, so a run
+ * exercises a real downgrade from the top of the ladder.
+ *
+ * It is deliberately not switchable at runtime. A real server does not change
+ * its mind about a capability between requests, and the SDK remembers a
+ * rejection for the life of the process — so a stub that flipped would be
+ * testing a situation that cannot occur, against state it had just poisoned.
+ *
+ * `DELAY_MS` paces the chunks. Zero for tests; a few tens of milliseconds makes
+ * the stream watchable when the stub is standing in for a model on screen.
  */
 import { createServer } from "node:http";
 
@@ -47,7 +58,9 @@ const BAD_TYPE = {
   },
 };
 
-const MODES = new Set(["ok", "truncate", "badtype"]);
+const MODES = new Set(["ok", "truncate", "badtype", "emptytool"]);
+const DELAY_MS = Number(process.env["DELAY_MS"] ?? 0);
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Mutable so one process can serve every case.
@@ -57,6 +70,13 @@ const MODES = new Set(["ok", "truncate", "badtype"]);
  * failure shapes. Switched over `POST /__mode`, which exists only for the test.
  */
 let mode = MODES.has(MODE) ? MODE : "ok";
+const honourSchema = process.env["SCHEMA"] === "on";
+
+/**
+ * What the last completion request looked like, for the test to assert on.
+ * Facts about the request only — never its prompt.
+ */
+let last = { tier: "none", schemaHadPattern: false, hadAuthorization: false, requests: 0 };
 
 /** The body this mode answers with, and the finish_reason that goes with it. */
 function payload() {
@@ -111,8 +131,10 @@ const server = createServer(async (req, res) => {
       return sendJson(res, 400, { error: { message: `unknown mode "${requested}"` } });
     }
     mode = requested;
-    return sendJson(res, 200, { mode });
+    last = { tier: "none", schemaHadPattern: false, hadAuthorization: false, requests: 0 };
+    return sendJson(res, 200, { mode, schema: honourSchema ? "on" : "off" });
   }
+  if (url.pathname === "/__last") return sendJson(res, 200, last);
 
   // One model, tool-capable and not a reasoning family, so the demo's own
   // ranking has nothing to weigh and the test asserts on a fixed name.
@@ -130,22 +152,55 @@ const server = createServer(async (req, res) => {
     return sendJson(res, 400, { error: { message: "malformed request body" } });
   }
 
-  // The capability rejection the ladder exists to absorb. Phrased the way
-  // Ollama phrases it so the SDK's classifier is genuinely exercised.
-  if (body.response_format?.type === "json_schema") {
+  const wantsSchema = body.response_format?.type === "json_schema";
+  const asToolCall = Array.isArray(body.tools) && body.tools.length > 0;
+  last = {
+    tier: wantsSchema ? "native_json_schema" : asToolCall ? "tool_call" : "prompted_json",
+    // The Ollama profile's dialect says `pattern` must not be sent to a
+    // server-enforced tier. Recorded so a test can hold the SDK to that.
+    schemaHadPattern: JSON.stringify(wantsSchema ? body.response_format : (body.tools ?? "")).includes('"pattern"'),
+    hadAuthorization: typeof req.headers["authorization"] === "string",
+    requests: last.requests + 1,
+  };
+
+  // The capability rejection the ladder exists to absorb. Phrased the way an
+  // OpenAI-compatible server phrases it so the SDK's classifier is exercised.
+  if (wantsSchema && !honourSchema) {
     return sendJson(res, 400, {
       error: { message: "response_format json_schema is not supported by this model" },
     });
   }
 
   const model = body.model ?? "unknown";
-  const asToolCall = Array.isArray(body.tools) && body.tools.length > 0;
   const wrap = (text) =>
     asToolCall
       ? { tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "Dashboard", arguments: text } }] }
       : { content: text };
 
   const { body: text, finish } = payload();
+
+  // A forced tool call that produces nothing: two chunks, no arguments, no
+  // content, `finish_reason: stop`. Recorded from qwen2.5:3b on Ollama 0.35.
+  if (mode === "emptytool" && asToolCall) {
+    if (!body.stream) {
+      return sendJson(res, 200, {
+        id: "completion",
+        object: "chat.completion",
+        created: 0,
+        model,
+        choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: "" } }],
+      });
+    }
+    res.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    res.write(chunk(model, { role: "assistant", content: "" }, null));
+    res.write(chunk(model, {}, "stop"));
+    res.write("data: [DONE]\n\n");
+    return res.end();
+  }
 
   if (!body.stream) {
     return sendJson(res, 200, {
@@ -170,10 +225,11 @@ const server = createServer(async (req, res) => {
   });
   // Small pieces on purpose: the point is to make the browser render a document
   // that is still half-written, which is what the partial parser is for.
-  const size = 24;
+  const size = DELAY_MS > 0 ? 6 : 24;
   for (let at = 0; at < text.length; at += size) {
     const isLast = at + size >= text.length;
     res.write(chunk(model, wrap(text.slice(at, at + size)), isLast ? finish : null));
+    if (DELAY_MS > 0) await pause(DELAY_MS);
   }
   res.write("data: [DONE]\n\n");
   res.end();
@@ -181,5 +237,5 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   // stderr, so a parent process reading stdout for data is unaffected.
-  console.error(`stub endpoint (mode=${mode}) on http://127.0.0.1:${PORT}/v1`);
+  console.error(`stub endpoint (mode=${mode}, schema=${honourSchema ? "on" : "off"}) on http://127.0.0.1:${PORT}/v1`);
 });

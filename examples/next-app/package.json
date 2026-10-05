@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "demo:record": "playwright test -c playwright.demo.config.ts"
   },
   "dependencies": {
     "relax-ui-core": "workspace:^",

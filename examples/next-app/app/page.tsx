@@ -1,5 +1,5 @@
 import DashboardPage from "./dashboard-page";
-import { describeProvider } from "./provider";
+import { describeActiveProvider } from "./provider";
 
 /**
  * A server component, so the endpoint label is read from the environment at
@@ -8,7 +8,21 @@ import { describeProvider } from "./provider";
  */
 export const dynamic = "force-dynamic";
 
-export default function Page() {
-  const provider = describeProvider();
-  return <DashboardPage providerLabel={provider.label} isSovereign={provider.isSovereign} />;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const provider = describeActiveProvider();
+  // `?frames=1` opens the frame inspector on load, so a link (or the recording
+  // script) can land on the page with the stream already visible.
+  const { frames } = await searchParams;
+  return (
+    <DashboardPage
+      providerLabel={provider.label}
+      isSovereign={provider.isSovereign}
+      isLocal={provider.isLocal}
+      showFramesInitially={frames === "1"}
+    />
+  );
 }

@@ -14,10 +14,19 @@ import { defineConfig } from "@playwright/test";
  * The model is a local stand-in (`e2e/stub-endpoint.mjs`), not a real one: a
  * real model returns a different document every run, and a test that asserts on
  * model output is a test that fails for reasons that are not bugs.
+ *
+ * There are two stand-ins and two instances of the app, from one build:
+ *
+ *   modern  honours `response_format: json_schema`, as a current local runtime does
+ *   legacy  refuses it, and is used to walk the ladder down
+ *
+ * Two, because the SDK *remembers* what an endpoint refused for the life of the
+ * process. One app talking to an endpoint that changed its mind between tests
+ * would be asserting against state the previous test had deliberately poisoned.
  */
 
-const STUB_PORT = 11437;
-const APP_PORT = 3210;
+const MODERN = { stub: 11437, app: 3210 };
+const LEGACY = { stub: 11438, app: 3211 };
 
 /**
  * Where to find Chromium, when it is not where Playwright installs it.
@@ -27,6 +36,24 @@ const APP_PORT = 3210;
  * this file hardcoding a path that exists on exactly one machine.
  */
 const chromiumPath = process.env["PLAYWRIGHT_CHROMIUM_PATH"];
+const launchOptions = chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {};
+
+/** Local provider, so the app needs no relaxAI account to be tested. */
+const appEnv = (stubPort: number) => ({
+  RELAX_UI_PROVIDER: "ollama",
+  // The sovereignty guard still runs; the Ollama profile hands it a
+  // loopback-only policy, which this address satisfies.
+  OLLAMA_BASE_URL: `http://127.0.0.1:${stubPort}/v1`,
+});
+
+const stub = (port: number, schema: "on" | "off") => ({
+  command: `node e2e/stub-endpoint.mjs ${port}`,
+  url: `http://127.0.0.1:${port}/v1/models`,
+  reuseExistingServer: false,
+  stdout: "pipe" as const,
+  stderr: "pipe" as const,
+  env: { SCHEMA: schema },
+});
 
 export default defineConfig({
   testDir: "./e2e",
@@ -40,34 +67,43 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: process.env["CI"] ? [["github"], ["list"]] : [["list"]],
-  use: {
-    baseURL: `http://127.0.0.1:${APP_PORT}`,
-    ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),
-    trace: "retain-on-failure",
-  },
-  webServer: [
+  use: { trace: "retain-on-failure" },
+  projects: [
     {
-      command: `node e2e/stub-endpoint.mjs ${STUB_PORT}`,
-      url: `http://127.0.0.1:${STUB_PORT}/v1/models`,
-      reuseExistingServer: false,
-      stdout: "pipe",
-      stderr: "pipe",
+      name: "modern-runtime",
+      testMatch: "dashboard.spec.ts",
+      use: { baseURL: `http://127.0.0.1:${MODERN.app}`, ...launchOptions },
     },
+    {
+      name: "legacy-runtime",
+      testMatch: "legacy-runtime.spec.ts",
+      use: { baseURL: `http://127.0.0.1:${LEGACY.app}`, ...launchOptions },
+    },
+  ],
+  // Started in order, each awaited before the next — which is what lets the
+  // second app instance reuse the build the first one made.
+  webServer: [
+    stub(MODERN.stub, "on"),
+    stub(LEGACY.stub, "off"),
     {
       // `next start`, not `next dev`: the test should exercise what ships, and a
       // dev-mode first-request compile is slow enough to look like a hang.
-      command: `next build && next start -p ${APP_PORT}`,
-      url: `http://127.0.0.1:${APP_PORT}`,
+      command: `next build && next start -p ${MODERN.app}`,
+      url: `http://127.0.0.1:${MODERN.app}`,
       reuseExistingServer: false,
       timeout: 180_000,
       stdout: "pipe",
       stderr: "pipe",
-      env: {
-        // Local mode, so the app needs no relaxAI account to be tested. The
-        // sovereignty guard still runs; it is handed a loopback-only policy.
-        RELAX_UI_PROVIDER: "ollama",
-        OLLAMA_BASE_URL: `http://127.0.0.1:${STUB_PORT}/v1`,
-      },
+      env: appEnv(MODERN.stub),
+    },
+    {
+      command: `next start -p ${LEGACY.app}`,
+      url: `http://127.0.0.1:${LEGACY.app}`,
+      reuseExistingServer: false,
+      timeout: 60_000,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: appEnv(LEGACY.stub),
     },
   ],
 });

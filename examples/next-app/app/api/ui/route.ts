@@ -6,11 +6,11 @@ import { dashboardSchema } from "../../ui-registry";
 /**
  * The entire server side of the feature.
  *
- * Node rather than Edge, only because local mode has to reach Ollama on
- * 127.0.0.1 — an Edge deployment has no loopback to reach. Against relaxAI this
- * route runs unchanged on the Edge runtime (`export const runtime = "edge"`),
- * and did until the local provider was added; the SDK's core needs nothing
- * beyond `fetch`, `ReadableStream` and `AbortController`.
+ * Node rather than Edge, only because a local provider has to reach a runtime
+ * on 127.0.0.1 — an Edge deployment has no loopback to reach. Against relaxAI
+ * this route runs unchanged on the Edge runtime (`export const runtime =
+ * "edge"`), and did until the local provider was added; the SDK's core needs
+ * nothing beyond `fetch`, `ReadableStream` and `AbortController`.
  */
 export const runtime = "nodejs";
 
@@ -31,9 +31,9 @@ const InputSchema = z.object({
 
 export const POST = createGenerativeUIRoute({
   client: provider.client,
-  // A string against relaxAI; against Ollama, a resolver that asks the endpoint
-  // what it actually has installed. Either way the *application* decides — the
-  // browser cannot influence it.
+  // A string against relaxAI; against a local runtime, a resolver that asks the
+  // endpoint what it actually has installed. Either way the *application*
+  // decides — the browser cannot influence it.
   model: provider.model,
   schema: dashboardSchema,
   inputSchema: InputSchema,
@@ -64,6 +64,12 @@ export const POST = createGenerativeUIRoute({
   onEvent: (event) => {
     if (event.type === "strategy_downgraded") {
       console.info(`[relax-ui] ${event.from} -> ${event.to}: ${event.reason}`);
+    }
+    // The endpoint's constrained decoder was sent a narrower schema than the
+    // one that validates. Worth a line: it is the SDK telling the model less
+    // than it enforces, and that should never happen unobserved.
+    if (event.type === "schema_adapted") {
+      console.info(`[relax-ui] wire schema for ${event.provider} omits: ${event.dropped.join(", ")}`);
     }
   },
 });

@@ -1,9 +1,10 @@
 "use client";
 
 import { useGenerativeObject } from "relax-ui-react";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Dashboard } from "./components";
-import type { UINode } from "relax-ui-core";
+import { FrameInspector, toFrameEntry, type FrameEntry } from "./frame-inspector";
+import type { UINode, UIStreamEvent } from "relax-ui-core";
 
 /**
  * The entire client side of the feature.
@@ -14,36 +15,64 @@ import type { UINode } from "relax-ui-core";
  * renderer can paint every frame without special-casing "not finished yet".
  */
 export interface DashboardPageProps {
-  /** e.g. "relaxAI (api.relax.ai)" or "local Ollama (127.0.0.1:11434)". */
+  /** e.g. "relaxAI (api.relax.ai)" or "Ollama (127.0.0.1:11434)". */
   providerLabel: string;
-  /** False in local mode. Drives the banner — never hidden. */
+  /** False for every local provider. Drives the banner — never hidden. */
   isSovereign: boolean;
+  /** True when the endpoint is on this machine. */
+  isLocal: boolean;
+  /** Whether the frame inspector starts open. */
+  showFramesInitially?: boolean;
 }
 
-export default function DashboardPage({ providerLabel, isSovereign }: DashboardPageProps) {
+type Document = { root: UINode };
+
+export default function DashboardPage({
+  providerLabel,
+  isSovereign,
+  isLocal,
+  showFramesInitially = false,
+}: DashboardPageProps) {
   const [topic, setTopic] = useState("UK public cloud spend, 2024 vs 2025");
   const [audience, setAudience] = useState<"executive" | "engineering" | "finance">("executive");
+  const [showFrames, setShowFrames] = useState(showFramesInitially);
 
-  const { object, isStreaming, error, metadata, strategy, submit, stop } = useGenerativeObject<{
-    root: UINode;
-  }>({ api: "/api/ui" });
+  // The frame log. Kept beside the hook rather than inside it: the hook's job
+  // is the document, and most applications never want the frames at all.
+  const [frames, setFrames] = useState<FrameEntry[]>([]);
+  const startedAt = useRef(0);
+  const onFrame = useCallback((event: UIStreamEvent<Document>) => {
+    setFrames((previous) => [...previous, toFrameEntry(event, previous.length + 1, startedAt.current)]);
+  }, []);
+
+  const { object, isStreaming, error, metadata, strategy, submit, stop } = useGenerativeObject<Document>({
+    api: "/api/ui",
+    onFrame,
+  });
 
   return (
-    <main style={{ maxWidth: 1040, margin: "0 auto", padding: "2.5rem 1.25rem" }}>
+    <main
+      style={{
+        maxWidth: showFrames ? 1380 : 1040,
+        margin: "0 auto",
+        padding: "2.5rem 1.25rem",
+      }}
+    >
       <header style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ margin: 0, fontSize: "1.6rem" }}>Generative dashboards on relaxAI</h1>
+        <h1 style={{ margin: 0, fontSize: "1.6rem" }}>Generative dashboards</h1>
         <p style={{ color: "var(--muted)", marginTop: "0.4rem" }}>
           The layout below is chosen by the model at request time, assembled only from components
           this application registered, and validated before a single byte reaches the browser.
         </p>
 
         {/*
-          The endpoint is always stated, and local mode says plainly that it is
-          not a sovereign one. A demo that blurred that line would undercut the
-          thing the SDK is actually claiming.
+          The endpoint is always stated, and a local one says plainly that it is
+          not sovereign. A demo that blurred that line would undercut the thing
+          the SDK is actually claiming.
         */}
         <p
           role={isSovereign ? undefined : "note"}
+          data-testid="provider-banner"
           style={{
             marginTop: "0.9rem",
             padding: "0.55rem 0.8rem",
@@ -60,11 +89,17 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
             </>
           ) : (
             <>
-              <strong>Local demo mode — {providerLabel}.</strong> Not a sovereign endpoint, and
-              not what this SDK is for: it exists so the demo runs without a relaxAI account, and
-              so you can watch the capability ladder negotiate a second, only partly compatible
-              server. The sovereignty guard is still enforced — it has simply been handed a
-              loopback-only policy. Set <code>RELAX_UI_PROVIDER=relaxai</code> for the real thing.
+              <strong>
+                {isLocal ? "Local model" : "Non-sovereign endpoint"} — {providerLabel}.
+              </strong>{" "}
+              Not a sovereign endpoint
+              {isLocal
+                ? ": prompts stay on this machine, and no jurisdictional guarantee is being made. "
+                : ". "}
+              Same engine, validator and wire protocol as against relaxAI; the sovereignty guard is
+              still enforced
+              {isLocal ? ", with a loopback-only allowlist" : ""}. Unset{" "}
+              <code>RELAX_UI_PROVIDER</code> for relaxAI.
             </>
           )}
         </p>
@@ -73,19 +108,23 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
       <form
         onSubmit={(event) => {
           event.preventDefault();
+          startedAt.current = performance.now();
+          setFrames([]);
           void submit({ topic, audience });
         }}
-        style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}
+        style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem", alignItems: "center" }}
       >
         <input
           value={topic}
           onChange={(event) => setTopic(event.target.value)}
           placeholder="What should the dashboard be about?"
+          aria-label="Topic"
           style={{ flex: "1 1 22rem", padding: "0.6rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)" }}
         />
         <select
           value={audience}
           onChange={(event) => setAudience(event.target.value as typeof audience)}
+          aria-label="Audience"
           style={{ padding: "0.6rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)" }}
         >
           <option value="executive">Executive</option>
@@ -100,10 +139,14 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
             Stop
           </button>
         ) : null}
+        <label style={{ display: "flex", gap: "0.35rem", alignItems: "center", fontSize: "0.85rem", color: "var(--muted)" }}>
+          <input type="checkbox" checked={showFrames} onChange={(event) => setShowFrames(event.target.checked)} />
+          Show frames
+        </label>
       </form>
 
       {error ? (
-        <div role="alert" style={{ padding: "0.9rem 1rem", borderRadius: 10, border: "1px solid #c53030" }}>
+        <div role="alert" style={{ padding: "0.9rem 1rem", borderRadius: 10, border: "1px solid #c53030", marginBottom: "1rem" }}>
           <strong>{error.code}</strong> — {error.message}
           {error.retryable ? " (retrying may help)" : null}
           {/*
@@ -124,12 +167,25 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
         </div>
       ) : null}
 
-      {/*
-        `object.root` is partial for most of the stream: children arrive one at a
-        time and props fill in mid-word. The renderer handles that because the
-        schema's optional/required rules are enforced only at completion.
-      */}
-      <Dashboard node={object?.root} />
+      <div
+        style={{
+          display: "grid",
+          gap: "1.25rem",
+          gridTemplateColumns: showFrames ? "minmax(0, 1fr) minmax(18rem, 24rem)" : "minmax(0, 1fr)",
+          alignItems: "start",
+        }}
+      >
+        {/*
+          `object.root` is partial for most of the stream: children arrive one at a
+          time and props fill in mid-word. The renderer handles that because the
+          schema's optional/required rules are enforced only at completion.
+        */}
+        <div data-testid="document">
+          <Dashboard node={object?.root} />
+        </div>
+
+        {showFrames ? <FrameInspector frames={frames} /> : null}
+      </div>
 
       {/*
         `strategy` arrives with the opening `meta` frame; `metadata` only with the
@@ -150,8 +206,14 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
             </>
           ) : metadata ? (
             <>
-              Structured via <code>{strategy}</code> on <code>{metadata.model}</code> in{" "}
-              {Math.round(metadata.durationMs)}ms
+              Structured via <code>{strategy}</code> on <code>{metadata.model}</code>
+              {metadata.provider ? (
+                <>
+                  {" "}
+                  (<code>{metadata.provider}</code>)
+                </>
+              ) : null}{" "}
+              in {Math.round(metadata.durationMs)}ms
               {metadata.downgradedFrom.length > 0
                 ? ` (downgraded from ${metadata.downgradedFrom.join(", ")})`
                 : null}
@@ -167,7 +229,6 @@ export default function DashboardPage({ providerLabel, isSovereign }: DashboardP
           )}
         </footer>
       ) : null}
-
     </main>
   );
 }
@@ -180,7 +241,6 @@ const button: React.CSSProperties = {
   color: "#fff",
   cursor: "pointer",
 };
-
 
 /**
  * Reads the redacted schema issues off an error, defensively.

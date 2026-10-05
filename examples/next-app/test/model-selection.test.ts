@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-import { parseParamCount, rankOllamaModels, resolveProviderId } from "../app/provider";
+import { parseParamCount, rankChatModels as rankOllamaModels, RelaxUIError } from "relax-ui-core";
+import { describe, expect, it } from "vitest";
+import { activeProfile, describeActiveProvider } from "../app/provider";
 
 /**
  * Which local model the demo picks.
@@ -94,44 +95,67 @@ describe("rankOllamaModels", () => {
   });
 });
 
-describe("resolveProviderId", () => {
-  const withEnv = <T>(value: string | undefined, fn: () => T): T => {
-    const previous = process.env["RELAX_UI_PROVIDER"];
-    if (value === undefined) delete process.env["RELAX_UI_PROVIDER"];
-    else process.env["RELAX_UI_PROVIDER"] = value;
+describe("activeProfile", () => {
+  const withEnv = <T>(vars: Record<string, string | undefined>, fn: () => T): T => {
+    const previous: Record<string, string | undefined> = {};
+    for (const [name, value] of Object.entries(vars)) {
+      previous[name] = process.env[name];
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
     try {
       return fn();
     } finally {
-      if (previous === undefined) delete process.env["RELAX_UI_PROVIDER"];
-      else process.env["RELAX_UI_PROVIDER"] = previous;
+      for (const [name, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
     }
   };
+  const provider = (value: string | undefined) => withEnv({ RELAX_UI_PROVIDER: value }, () => activeProfile().id);
 
   it("defaults to relaxAI when unset", () => {
-    expect(withEnv(undefined, resolveProviderId)).toBe("relaxai");
+    expect(provider(undefined)).toBe("relaxai");
+    expect(provider("   ")).toBe("relaxai");
   });
 
-  it("accepts the documented values", () => {
-    expect(withEnv("ollama", resolveProviderId)).toBe("ollama");
-    expect(withEnv("relaxai", resolveProviderId)).toBe("relaxai");
+  it("accepts every built-in provider", () => {
+    expect(provider("ollama")).toBe("ollama");
+    expect(provider("relaxai")).toBe("relaxai");
+    expect(provider("lmstudio")).toBe("lmstudio");
+    expect(provider("llamacpp")).toBe("llamacpp");
   });
 
   it("is case- and whitespace-insensitive", () => {
     // `Ollama` used to fall through to relaxAI in silence, which then failed
     // with a missing-key error pointing nowhere near the actual mistake.
     for (const value of ["Ollama", "OLLAMA", " ollama ", "local"]) {
-      expect(withEnv(value, resolveProviderId)).toBe("ollama");
+      expect(provider(value)).toBe("ollama");
     }
   });
 
-  it("warns rather than silently defaulting on an unrecognised value", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("refuses an unrecognised value instead of defaulting to relaxAI", () => {
+    // This used to warn and carry on with relaxAI. A typo that sends prompts
+    // to an endpoint nobody chose is not something a warning makes acceptable.
+    let thrown: unknown;
     try {
-      expect(withEnv("olama", resolveProviderId)).toBe("relaxai");
-      expect(warn).toHaveBeenCalledOnce();
-      expect(String(warn.mock.calls[0]?.[0])).toContain("olama");
-    } finally {
-      warn.mockRestore();
+      provider("olama");
+    } catch (error) {
+      thrown = error;
     }
+    expect(thrown).toBeInstanceOf(RelaxUIError);
+    expect((thrown as RelaxUIError).code).toBe("config_invalid");
+    expect((thrown as RelaxUIError).message).toContain("olama");
+  });
+
+  it("labels the endpoint without needing a key, and never calls a local one sovereign", () => {
+    const local = withEnv({ RELAX_UI_PROVIDER: "ollama", OLLAMA_BASE_URL: undefined }, describeActiveProvider);
+    expect(local).toEqual({ id: "ollama", label: "Ollama (127.0.0.1:11434)", isSovereign: false, isLocal: true });
+
+    const hosted = withEnv(
+      { RELAX_UI_PROVIDER: undefined, RELAX_API_KEY: undefined, RELAX_BASE_URL: undefined },
+      describeActiveProvider,
+    );
+    expect(hosted).toEqual({ id: "relaxai", label: "relaxAI (api.relax.ai)", isSovereign: true, isLocal: false });
   });
 });
