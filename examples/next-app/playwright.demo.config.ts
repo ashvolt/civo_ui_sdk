@@ -32,7 +32,8 @@ const appEnv: Record<string, string> = {
 
 export default defineConfig({
   testDir: "./demo",
-  testMatch: "record.spec.ts",
+  // `narrate.mjs` selects the narrated walkthrough; the default is the silent demo.
+  testMatch: process.env["DEMO_SPEC"] ?? "record.spec.ts",
   // Two generations on CPU, with a cold model load in front of the first.
   timeout: 15 * 60_000,
   retries: 0,

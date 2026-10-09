@@ -13,3 +13,6 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Narrated demo: synthesised clips and the raw recording
+examples/next-app/demo/.work/

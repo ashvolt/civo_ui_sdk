@@ -68,6 +68,22 @@ vocabulary able to appear.
 → **[Quickstart](./specs/001-generative-ui-sdk/quickstart.md)** ·
 **[Reference app](./examples/next-app)** · **[API reference](./docs/api-reference.md)**
 
+### Watch the walkthrough
+
+[![Narrated walkthrough: the reference app generating a dashboard, with the stream frames beside it](./docs/demo/relax-ui-walkthrough.png)](https://youtu.be/77KEdBJBsKs)
+
+**[▶ Narrated walkthrough on YouTube](https://youtu.be/77KEdBJBsKs)** (5 min) — the
+app is opened and used like a user would, while a narrator explains what is
+happening underneath: where the question is sent, what each frame is, how the
+model is kept to the schema, what testing against a real model found, and the
+trade-offs. The same file is in the repository as
+[`docs/demo/relax-ui-walkthrough.mp4`](./docs/demo/relax-ui-walkthrough.mp4).
+
+Picture, voice and model all ran on one laptop: Playwright drives the real app,
+[Piper](https://github.com/OHF-Voice/piper1-gpl) reads the script, and
+`llama3.2:3b` on Ollama answers. `pnpm demo:narrated` regenerates it; the script
+is [`narration.json`](./examples/next-app/demo/narration.json).
+
 ### See it run — on your own machine, with no account
 
 [![The reference app streaming a dashboard from a local open-weight model, with the frame inspector open](./docs/demo/generative-ui-local-model.png)](./docs/demo/generative-ui-local-model.webm)

@@ -1,0 +1,130 @@
+{
+  "voice": "en_US-ryan-high",
+  "note": "`say` is what the voice reads, spelled for the ear (relax U I, Oh-lama). `caption` is what appears on screen. Edit either and re-run `pnpm demo:narrated`; only changed clips are re-synthesised.",
+  "clips": [
+    {
+      "id": "intro",
+      "caption": "relax-ui — a walkthrough",
+      "say": "Hi, and welcome. This is a walkthrough of relax U I, a toolkit for building generative user interfaces. That means screens where the layout itself is decided by an A I model at the moment you ask, instead of being fixed by a developer in advance. In the next few minutes I will load the app, use it like a real user, and explain what is happening underneath, including the trade offs."
+    },
+    {
+      "id": "problem",
+      "caption": "Why this needs a toolkit",
+      "say": "First, why does this need a toolkit at all? Three reasons. One. A model streams its answer a few characters at a time, and half a document cannot be read by normal tools, so most apps show a blank screen until the very end. Two. Anything a model writes is untrusted. If you draw it directly, you have handed your screen to whoever can influence the model. And three. Open models differ. Some can be forced to follow a structure, some cannot, and nothing tells you which in advance."
+    },
+    {
+      "id": "open-app",
+      "caption": "Opening the reference app",
+      "say": "So, let's open the application. This is the reference app that ships with the project. It is an ordinary web page. A box to type a topic, a choice of audience, and a generate button."
+    },
+    {
+      "id": "banner",
+      "caption": "The page always says where your question is sent",
+      "say": "Before doing anything, look at this banner. It tells you exactly where your question will be sent. Right now, that is a model running on this laptop, through a free tool called Oh-lama. No cloud account, no key, and nothing leaves the machine. In production, the same code talks to relax A I, Civo's service hosted in the United Kingdom. The app always says which one it is using, and it will never describe a local model as a sovereign service. That honesty is deliberate."
+    },
+    {
+      "id": "frames-panel",
+      "caption": "Stream frames: the raw traffic, made visible",
+      "say": "On the right is a panel most users would never see. I have switched it on so we can watch the raw traffic. Every row will be one small message from the server."
+    },
+    {
+      "id": "ask-1",
+      "caption": "Ask: UK public cloud spend, for executives",
+      "say": "I will ask for a dashboard about U K public cloud spending, for an executive audience, and press generate."
+    },
+    {
+      "id": "streaming",
+      "caption": "The page fills in while the model is still writing",
+      "say": "The first row says meta. That is the server announcing which model answered, and which technique it used to keep the model on track. Then the page starts to fill in. Notice it is not waiting for the whole answer. A heading appears, then a card, then the number inside the card."
+    },
+    {
+      "id": "frames-explained",
+      "caption": "Snapshots first, then small patches",
+      "say": "Each of those rows is called a frame. The early ones are snapshots, the whole document so far. After that they become patches. Tiny instructions, like, add this card, or, replace this text. Sending only the change keeps the traffic small."
+    },
+    {
+      "id": "validated",
+      "caption": "Every frame is checked on the server first",
+      "say": "And here is the important part. Every single frame was checked on the server before it was sent. The browser never sees raw model output. If the model had written something that breaks the rules, the stream would stop right there, with a clear error, instead of drawing something broken."
+    },
+    {
+      "id": "result-1",
+      "caption": "Layout chosen by the model, from seven registered components",
+      "say": "It is finished. The line at the bottom tells us what happened. Which technique, which model, and how long it took. The whole layout, the cards, the highlighted note, the chart, was chosen by the model. But it could only choose from seven building blocks this app registered. It cannot invent a new kind of component, and it cannot inject a script or a dangerous link. One caution. The numbers are the model's own guesses. The toolkit guarantees the shape of the answer, not the truth of it."
+    },
+    {
+      "id": "ask-2",
+      "caption": "A different question, for engineers",
+      "say": "Now a different question. I will type, Kubernetes cluster reliability, last thirty days. And I will switch the audience to engineering."
+    },
+    {
+      "id": "new-layout",
+      "caption": "Same code, same rules — a different layout",
+      "say": "Same page, same server code, same rules. But watch the layout. It is a different arrangement, because the question is different. Nothing here is a template."
+    },
+    {
+      "id": "ladder",
+      "caption": "Three techniques, strongest first, chosen automatically",
+      "say": "While that runs, a word on how the model is kept in line. The toolkit has three techniques, strongest first. The strongest makes it impossible for the model to produce the wrong structure. If the server does not support that, it steps down to the next one, and finally to simply asking, and then checking the answer. It picks automatically, remembers what worked, and tells you which one it used."
+    },
+    {
+      "id": "found",
+      "caption": "What testing against a real model found",
+      "say": "Running against a real model, rather than a simulation, exposed real problems, and they are now fixed. One example. The local server accepted our rules, replied that everything was fine, and then quietly ignored them. Another. When the toolkit stopped a bad answer early, the model kept working in the background, wasting time and money. Neither showed up in ordinary tests. Both show up when you watch real frames."
+    },
+    {
+      "id": "tradeoffs",
+      "caption": "The honest trade-offs",
+      "say": "Now, the honest trade offs. Speed. On a laptop with no graphics card, a dashboard takes thirty to forty seconds. A hosted service is far faster. Quality. A small model sometimes puts a value in the wrong place. A larger model does better, and runs slower. Safety has a cost. Every frame makes a stop at the server to be checked, which adds a moment of delay, but gives you a real security boundary. And flexibility is limited on purpose. The model can only use components you registered."
+    },
+    {
+      "id": "close",
+      "caption": "Not done yet — and how to try it",
+      "say": "Finally, what is not done yet. The hosted relax A I service has not been measured live from this machine. Two other local tools are supported, but untested. And long paragraphs are sent again more often than they need to be. All of that is written down in the project, not hidden. To try it yourself, install Oh-lama, download a small model, change one setting, and run the app. Thanks for watching."
+    }
+  ],
+  "cards": {
+    "intro": {
+      "title": "relax-ui",
+      "subtitle": "Generative UI — streamed, validated, and safe to render",
+      "bullets": ["The model chooses the layout", "The server checks every frame", "The browser only draws what was approved"]
+    },
+    "problem": {
+      "title": "Why this needs a toolkit",
+      "bullets": [
+        "Streaming: half a document cannot be parsed — so apps show a blank screen",
+        "Trust: model output is untrusted input",
+        "Variety: open models differ in what they can be made to do"
+      ]
+    },
+    "found": {
+      "title": "Found by testing against a real model",
+      "bullets": [
+        "A server that accepted the rules, said OK, and ignored them",
+        "A model left running after its answer had been rejected",
+        "A tool call that returned nothing at all",
+        "A number that flickered out and back mid-stream",
+        "Errors that lost their real cause on the way to the browser"
+      ],
+      "footer": "All five fixed — each reproduced before it was fixed."
+    },
+    "tradeoffs": {
+      "title": "Trade-offs",
+      "bullets": [
+        "Speed — 30–40 s per dashboard on a laptop CPU; hosted is far faster",
+        "Quality — small models misplace values; larger ones are slower",
+        "Safety — every frame stops at the server: a little delay, a real boundary",
+        "Flexibility — only registered components, on purpose"
+      ]
+    },
+    "close": {
+      "title": "Not done yet",
+      "bullets": [
+        "relaxAI itself not yet measured live",
+        "LM Studio and llama.cpp supported, untested",
+        "Long text is re-sent more than it needs to be"
+      ],
+      "footer": "Try it:  ollama pull qwen2.5:3b   ·   RELAX_UI_PROVIDER=ollama pnpm dev"
+    }
+  }
+}
