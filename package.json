@@ -21,7 +21,8 @@
     "diagrams:check": "node scripts/check-diagrams.mjs",
     "test:e2e": "pnpm --filter relax-ui-example-next test:e2e",
     "frames": "node --env-file-if-exists=.env --experimental-strip-types --no-warnings scripts/inspect-frames.ts",
-    "demo:record": "pnpm --filter relax-ui-example-next demo:record"
+    "demo:record": "pnpm --filter relax-ui-example-next demo:record",
+    "demo:narrated": "pnpm --filter relax-ui-example-next demo:narrated"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

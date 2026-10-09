@@ -5,3 +5,6 @@ packages:
 # esbuild ships a platform-specific binary via its postinstall script; tsup needs it.
 onlyBuiltDependencies:
   - esbuild
+  # Downloads the ffmpeg binary the narrated demo recorder muxes with. Used by
+  # the example only, and only by `pnpm demo:narrated`.
+  - ffmpeg-static

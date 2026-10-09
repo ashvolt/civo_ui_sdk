@@ -114,6 +114,27 @@ Writes `docs/demo/generative-ui-local-model.webm` and a still beside it.
 Playwright's recorder running, so the video is the real route, the real renderer
 and a real model — the captions are the only thing the script adds.
 
+### Record the narrated walkthrough
+
+```bash
+pip install piper-tts                                   # once
+python -m piper.download_voices en_US-ryan-high --data-dir ~/.cache/piper-voices
+pnpm demo:narrated                                      # voice, picture, then both
+pnpm demo:narrated -- --mux-only                        # re-lay the audio only
+```
+
+Writes `docs/demo/relax-ui-walkthrough.mp4`
+([on YouTube](https://youtu.be/77KEdBJBsKs)). Playwright records no audio, so
+[`demo/narrate.mjs`](./demo/narrate.mjs) does it in three steps: Piper reads
+[`demo/narration.json`](./demo/narration.json) into one clip per scene, the
+recorder holds each scene for the length of its clip and notes when it began,
+and ffmpeg places every clip at that moment. The narration drives the timing, so
+the voice cannot drift from the picture however long the model takes.
+
+To change what is said, edit `narration.json`: `say` is spelled for the ear,
+`caption` is what appears on screen, and only clips whose text changed are
+synthesised again.
+
 ## What to look at, and in what order
 
 | File | Why it is worth reading |
