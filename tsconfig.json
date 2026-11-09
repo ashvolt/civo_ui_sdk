@@ -21,6 +21,7 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
+      "relax-ui-protocol": ["packages/protocol/src/index.ts"],
       "relax-ui-core": ["packages/core/src/index.ts"],
       "relax-ui-core/*": ["packages/core/src/*"],
       "relax-ui-react": ["packages/react/src/index.ts"],

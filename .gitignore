@@ -16,3 +16,4 @@ blob-report/
 
 # Narrated demo: synthesised clips and the raw recording
 examples/next-app/demo/.work/
+.size/

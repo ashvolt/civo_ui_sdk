@@ -25,3 +25,7 @@ export type {
 } from "./renderer.js";
 
 export { readUIStream } from "./stream.js";
+
+// The source and tier types `useGenerativeObject` accepts, so a React host
+// needs no second import to name them.
+export type { SocketLike, Source, ValidationTier } from "relax-ui-protocol";

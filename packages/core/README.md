@@ -28,7 +28,7 @@ pnpm add relax-ui-core zod
 | Streaming | `parsePartialJson`, `diffJson`, `applyPatch`, `decodeSSE` |
 | Generative UI | `createUIRegistry`, `urlString`, `displayText`, `measureTree` |
 | Guards | `assertSovereignEndpoint`, `sanitizeUrl`, `redact` |
-| Protocol | `UIStreamAccumulator`, `encodeUIStreamEvent` |
+| Protocol | `UIStreamAccumulator`, `encodeUIStreamEvent` — from [`relax-ui-protocol`](../protocol), compiled in |
 | Errors | `RelaxUIError`, `isRelaxUIError` |
 
 ## Not only relaxAI

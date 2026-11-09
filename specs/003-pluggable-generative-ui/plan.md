@@ -203,6 +203,7 @@ produce it are done.
    (shared via adopted stylesheets), not per instance — but a library that
    expects global scripts (Bootstrap's JS components) will not work there; the
    twelve need none.
-4. Sizes in research are estimates until phase 1 measures them.
+4. Sizes in research were estimates until phase 1. R1 and R7 are measured
+   (T-218); R2's remain estimates until the phase 4 spike.
 5. Size is reported, not enforced (clarification).
 6. Read-only components only; interaction is a later feature.

@@ -24,7 +24,8 @@
     "build": "tsup"
   },
   "dependencies": {
-    "relax-ui-core": "workspace:^"
+    "relax-ui-core": "workspace:^",
+    "relax-ui-protocol": "workspace:^"
   },
   "peerDependencies": {
     "react": "^18.2.0 || ^19.0.0",
