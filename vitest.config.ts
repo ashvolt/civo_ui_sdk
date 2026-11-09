@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "relax-ui-protocol": r("./packages/protocol/src/index.ts"),
+      "relax-ui-contract": r("./packages/contract/src/index.ts"),
+      "relax-ui-theme-base": r("./packages/theme-base/src/index.ts"),
       "relax-ui-core": r("./packages/core/src/index.ts"),
       "relax-ui-react": r("./packages/react/src/index.ts"),
       "relax-ui-next": r("./packages/next/src/index.ts"),

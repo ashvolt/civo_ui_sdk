@@ -62,7 +62,7 @@ test.describe("a successful generation", () => {
     await generate(page);
 
     // The heading comes from the model's document, not from the app: seeing it
-    // means a `Stack` node's props survived the whole pipeline.
+    // means a `Heading` node's props survived the whole pipeline.
     await expect(page.getByRole("heading", { name: "UK public cloud spend" })).toBeVisible();
     await expect(page.getByText("Total spend")).toBeVisible();
     await expect(page.getByText("£4.1bn")).toBeVisible();
@@ -87,7 +87,7 @@ test.describe("a successful generation", () => {
 
   test("renders model text as text", async ({ page }) => {
     await generate(page);
-    // The Prose node's text reaches the DOM as a text node. If it were ever
+    // The Text node's text reaches the DOM as a text node. If it were ever
     // interpolated as markup, this passes and the security tests catch it — so
     // what this really pins is that the node rendered at all.
     await expect(page.getByText("Figures illustrative", { exact: false })).toBeVisible();
@@ -228,4 +228,53 @@ test.describe("the frame inspector", () => {
     await expect(page.locator('[data-frame-type="meta"]')).toHaveCount(1);
     expect(await page.locator("[data-frame-type]").count()).toBe(first);
   });
+});
+
+test.describe("the base theme", () => {
+  test.beforeEach(async ({ request }) => setMode(request, "ok"));
+
+  /**
+   * FR-232: a variant switch restyles without re-rendering. Proven in the
+   * browser: a rendered node is tagged, the variant changes, and the very same
+   * node — not a re-created one — now has different computed colours.
+   */
+  test("switching variant and density restyles the same nodes", async ({ page }) => {
+    await generate(page);
+    const metric = page.locator(".gen-metric").first();
+    await expect(metric).toBeVisible();
+
+    await page.getByRole("combobox", { name: "Theme" }).selectOption("light");
+    await metric.evaluate((el) => ((el as unknown as { __tag: string }).__tag = "original"));
+    const light = await metric.evaluate((el) => getComputedStyle(el).backgroundColor);
+    const lightPadding = await metric.evaluate((el) => getComputedStyle(el).paddingTop);
+
+    await page.getByRole("combobox", { name: "Theme" }).selectOption("dark");
+    await page.getByRole("combobox", { name: "Density" }).selectOption("compact");
+
+    expect(await metric.evaluate((el) => (el as unknown as { __tag?: string }).__tag)).toBe("original");
+    expect(await metric.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(light);
+    expect(await metric.evaluate((el) => getComputedStyle(el).paddingTop)).not.toBe(lightPadding);
+  });
+
+  /** NFR-205: WCAG 2.2 AA, audited by axe, in each variant. */
+  for (const [variant, density] of [
+    ["light", "comfortable"],
+    ["dark", "comfortable"],
+    ["light", "compact"],
+  ] as const) {
+    test(`has no accessibility violations: ${variant}, ${density}`, async ({ page }) => {
+      await generate(page);
+      await expect(page.locator(".gen-metric").first()).toBeVisible();
+      await expect(footer(page)).toContainText("Structured via");
+      await page.getByRole("combobox", { name: "Theme" }).selectOption(variant);
+      await page.getByRole("combobox", { name: "Density" }).selectOption(density);
+
+      const { default: AxeBuilder } = await import("@axe-core/playwright");
+      const results = await new AxeBuilder({ page })
+        .include('[data-testid="document"]')
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+        .analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+    });
+  }
 });

@@ -45,6 +45,8 @@ const FRAMEWORK = ["react", "react-dom", "react/jsx-runtime", "next", "next/*"];
 /** Each package alone: every import that is not its own code stays external. */
 const PACKAGES = [
   { name: "relax-ui-protocol", entry: dist("protocol"), note: "browser protocol, no dependencies" },
+  { name: "relax-ui-contract", entry: dist("contract"), note: "twelve components and the schema builder" },
+  { name: "relax-ui-theme-base", entry: dist("theme-base"), note: "tokens, variants, twelve templates" },
   { name: "relax-ui-core", entry: dist("core"), note: "server engine; includes protocol" },
   { name: "relax-ui-react", entry: dist("react"), note: "hook and renderer" },
   { name: "relax-ui-next", entry: dist("next"), note: "route handler (server)" },
@@ -69,6 +71,18 @@ const SCENARIOS = [
     note: "the reference app's client imports",
     code: `export { useGenerativeObject, GenerativeUI, createGenerativeRenderer } from ${JSON.stringify(dist("react"))};`,
     external: [...FRAMEWORK, "zod"],
+  },
+  {
+    name: "react: hook + renderer + base theme",
+    note: "what the reference app ships: the twelve, drawn by the base theme",
+    code: `export { useGenerativeObject, createGenerativeRenderer, baseComponents, GenerativeTheme } from ${JSON.stringify(dist("react"))};`,
+    external: [...FRAMEWORK, "zod"],
+  },
+  {
+    name: "contract: browser validation",
+    note: "the standard contract's schemas, Zod included: what full validation costs",
+    code: `export { standardContract } from ${JSON.stringify(dist("contract"))};`,
+    external: [],
   },
   {
     name: "validator: zod",

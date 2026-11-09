@@ -22,7 +22,11 @@ export type {
   GenerativeComponentProps,
   GenerativeUIProps,
   RenderFailure,
+  RenderVocabulary,
 } from "./renderer.js";
+
+export { baseComponents, fromTemplates, GenerativeTheme } from "./base-theme.js";
+export type { GenerativeThemeProps } from "./base-theme.js";
 
 export { readUIStream } from "./stream.js";
 

@@ -65,16 +65,46 @@ Numbered from T-201.
 
 ## Phase 2 — Contract and base theme
 
-- [ ] **T-220** Tests: twelve schemas — bounds (List ≤ 20, Table ≤ 8×50, Chart ≤ 4×24), no
+- [x] **T-220** Tests: twelve schemas — bounds (List ≤ 20, Table ≤ 8×50, Chart ≤ 4×24), no
   action props, Link URL guard, `extend()` may add or override, may not remove.
-- [ ] **T-221** `packages/contract`.
-- [ ] **T-222** Tests: server JSON Schema derived from the contract equals what the
+- [x] **T-221** `packages/contract`.
+- [x] **T-222** Tests: server JSON Schema derived from the contract equals what the
   browser validates against.
-- [ ] **T-223** Tests: tokens only (no literal colours in component CSS); variant switch
+- [x] **T-223** Tests: tokens only (no literal colours in component CSS); variant switch
   restyles without re-render; axe contrast in light, dark, compact.
-- [ ] **T-224** `packages/theme-base`: tokens, variants, twelve implementations, SVG chart.
-- [ ] **T-225** React renderer on the contract; next-app moved from its seven components
+- [x] **T-224** `packages/theme-base`: tokens, variants, twelve implementations, SVG chart.
+- [x] **T-225** React renderer on the contract; next-app moved from its seven components
   to the twelve; theme switcher.
+
+### Phase 2 notes
+
+- **One schema builder, two packages.** `buildUISchemas` moved from core's
+  `createUIRegistry` into `relax-ui-contract`; core now calls it (compiled in,
+  as with protocol). `UINode`, `measureTree` and the URL guard moved to
+  `relax-ui-protocol`, which every renderer needs. Old core paths re-export.
+- **Templates, not per-framework implementations.** The base theme's twelve are
+  functions from props to markup *data* (`VNode`). React renders them through
+  `fromTemplates`; the phase 4 DOM backend will render the same templates. One
+  implementation, so markup cannot drift between hosts.
+- **Props as built** extend R11 slightly: Chart has `title`, `unit` and
+  `labels` (series values align to labels); Table has an optional `caption`;
+  Callout and Badge gain a `danger` tone; Stack has `direction`. Unknown props
+  are stripped, not refused, so a model adding a harmless extra prop does not
+  fail a generation; they never reach a component either way.
+- **Roles.** Card is `region` (named by its title), Metric `group`, Badge and
+  Callout `note` (not `status`: a live region would announce on every frame
+  while streaming), Chart `img` with the data in its accessible name.
+- **Contrast** is checked twice: a unit test computes WCAG ratios for every
+  colour pair in every variant, and axe audits the rendered dashboard in the
+  browser in light, dark and compact.
+- **Density** is a scale on `--gen-space-unit` and the type scale, not the
+  `--gen-density` integer the data model first sketched.
+- **Found on the way: protocol-relative URLs.** The URL guard from feature 001
+  passed `//evil.example/x` (and `/\evil.example`) as relative paths. It now
+  refuses them; a test is added to core's guard suite.
+- **Bundle cost.** `baseComponents` is marked pure, so an app that does not
+  import it does not ship the theme: hook-only stays 4.8 KB gzip; hook,
+  renderer and base theme together are 9.6 KB.
 
 ## Phase 3 — Render core and lazy loading
 
@@ -143,4 +173,4 @@ Numbered from T-201.
 
 ## Outstanding
 
-Phase 0 and phase 1 are done. Everything from T-220 is outstanding.
+Phases 0, 1 and 2 are done. Everything from T-230 is outstanding.

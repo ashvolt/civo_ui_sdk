@@ -33,3 +33,6 @@ body {
 input, select, button { font: inherit; }
 a { color: var(--accent); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+
+/* The themed dashboard panel. Its colours come from the base theme's tokens. */
+.dashboard-surface { border-radius: 14px; padding: 1.25rem; }

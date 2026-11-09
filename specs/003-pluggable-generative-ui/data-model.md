@@ -145,7 +145,7 @@ Design tokens plus the base implementations.
 | typography | `--gen-font-family`, `--gen-font-size-{1..5}` |
 | shape | `--gen-radius-{s,m,l}` |
 | spacing | `--gen-space-{1..6}` |
-| density | `--gen-density` (0, −1, −2) |
+| density | `--gen-space-unit` (scaled by `data-gen-density="compact"`, which also steps the type scale down) |
 
 **Invariants**
 

@@ -22,6 +22,8 @@
     "baseUrl": ".",
     "paths": {
       "relax-ui-protocol": ["packages/protocol/src/index.ts"],
+      "relax-ui-contract": ["packages/contract/src/index.ts"],
+      "relax-ui-theme-base": ["packages/theme-base/src/index.ts"],
       "relax-ui-core": ["packages/core/src/index.ts"],
       "relax-ui-core/*": ["packages/core/src/*"],
       "relax-ui-react": ["packages/react/src/index.ts"],

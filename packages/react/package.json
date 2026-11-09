@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "relax-ui-core": "workspace:^",
-    "relax-ui-protocol": "workspace:^"
+    "relax-ui-protocol": "workspace:^",
+    "relax-ui-theme-base": "workspace:^"
   },
   "peerDependencies": {
     "react": "^18.2.0 || ^19.0.0",

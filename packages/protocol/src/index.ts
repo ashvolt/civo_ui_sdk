@@ -53,3 +53,9 @@ export type { ReadSourceOptions, SocketLike, Source, SourceKind } from "./source
 
 export { isSameOriginUrl, resolveValidation } from "./trust.js";
 export type { ValidationTier } from "./trust.js";
+
+export { measureTree } from "./ui.js";
+export type { TreeBudget, UINode } from "./ui.js";
+
+export { assertSafeUrl, DEFAULT_DATA_MEDIA_TYPES, DEFAULT_URL_SCHEMES, sanitizeUrl } from "./url.js";
+export type { UrlPolicy } from "./url.js";
