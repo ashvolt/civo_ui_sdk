@@ -1,0 +1,120 @@
+# Tasks: Pluggable Generative UI
+
+**Feature**: 003-pluggable-generative-ui
+**Input**: [plan.md](./plan.md), [data-model.md](./data-model.md), [contracts/](./contracts/)
+
+`[P]` marks tasks with no dependency on each other. Per Principle VII, each test
+task precedes the implementation it covers and must fail before it exists.
+Numbered from T-201.
+
+**Status legend**: `[x]` done · `[ ]` outstanding
+
+---
+
+## Phase 0 — Governance (done in this change)
+
+- [x] **T-201** `spec.md`: twelve clarifications, no markers.
+- [x] **T-202** Constitution v1.2.0: Principles IV and V clauses; Sync Impact Report.
+- [x] **T-203** `research.md` (R1–R11), `data-model.md`, `contracts/element-and-connectors.md`,
+  `quickstart.md`, this plan, with Constitution Check before and after design.
+- [x] **T-204** Spec revisions from research: FR-207 (same-origin), FR-222 and scenario 15
+  (shadow / light modes).
+
+## Phase 1 — Protocol and inputs
+
+- [ ] **T-210** Tests: `protocol` exports equal `core`'s current protocol exports; `core`
+  re-exports them; feature 001/002 suites unchanged.
+- [ ] **T-211** Extract `packages/protocol`: events, accumulator, JSON Patch, SSE decoder,
+  `readUIStream`. Zero `dependencies`.
+- [ ] **T-212** [P] Tests: socket source — one event per message; `[DONE]`, `complete` and
+  `error` end the document; renderer never closes the socket; close mid-document reports
+  incomplete.
+- [ ] **T-213** [P] Tests: stream source and document source.
+- [ ] **T-214** Sources in `protocol`; `useGenerativeObject` accepts `source`.
+- [ ] **T-215** Tests (refusals): `validate: "server"` rejected for document, stream, socket
+  and cross-origin URL; accepted for same-origin URL.
+- [ ] **T-216** Browser validation for foreign sources in the React path.
+- [ ] **T-217** [P] Size report CI job (esbuild metafile, gzip, previous-build comparison).
+- [ ] **T-218** Measure and replace research R1/R7 estimates with real numbers.
+
+## Phase 2 — Contract and base theme
+
+- [ ] **T-220** Tests: twelve schemas — bounds (List ≤ 20, Table ≤ 8×50, Chart ≤ 4×24), no
+  action props, Link URL guard, `extend()` may add or override, may not remove.
+- [ ] **T-221** `packages/contract`.
+- [ ] **T-222** Tests: server JSON Schema derived from the contract equals what the
+  browser validates against.
+- [ ] **T-223** Tests: tokens only (no literal colours in component CSS); variant switch
+  restyles without re-render; axe contrast in light, dark, compact.
+- [ ] **T-224** `packages/theme-base`: tokens, variants, twelve implementations, SVG chart.
+- [ ] **T-225** React renderer on the contract; next-app moved from its seven components
+  to the twelve; theme switcher.
+
+## Phase 3 — Render core and lazy loading
+
+- [ ] **T-230** Property test: for every prefix of three realistic streams, reconciled DOM
+  equals a fresh render of that prefix.
+- [ ] **T-231** Tests: identity skip — an untouched subtree's DOM nodes are the same
+  objects after a frame.
+- [ ] **T-232** Reconciler (keyed children, identity skip).
+- [ ] **T-233** Tests: loader called once per type per page; triggered on exact type
+  match only; partial type triggers nothing; failed load renders fallback, reported once,
+  retried on next document only; `preload` loads eagerly.
+- [ ] **T-234** Catalog and lazy loader.
+- [ ] **T-235** Tests: validator never loaded for same-origin `server`; always loaded for
+  others; connector never receives an invalid node.
+- [ ] **T-236** Validation tiers in render core.
+- [ ] **T-237** React renderer moves onto render core; its public API unchanged.
+- [ ] **T-238** Test: a page with no renderer loads zero component chunks.
+
+## Phase 4 — Element and generic connectors
+
+- [ ] **T-240** Spike: own reconciler driving the DOM backend inside a custom element; pass
+  T-230 there, or switch to Lit and record why.
+- [ ] **T-241** Tests: element attributes, `source` property, `submit`, `stop`, events,
+  refusal table from the contract.
+- [ ] **T-242** `packages/element` with `shadow` and `light` modes.
+- [ ] **T-243** Connector conformance suite: every component renders; text stays text;
+  unknown type renders nothing; URL guard holds; fallback reported.
+- [ ] **T-244** `defineConnector` for `class` and `element` kinds; `requires` check.
+- [ ] **T-245** [P] Bootstrap 5 connector; passes T-243 in `light` and in `shadow` with
+  adopted stylesheet.
+- [ ] **T-246** [P] Shoelace connector; passes T-243.
+- [ ] **T-247** Test: two elements, two themes, one page — no style leak in `shadow` mode.
+- [ ] **T-248** `examples/html-host`; Playwright under `script-src 'self'` (no
+  `unsafe-eval`).
+
+## Phase 5 — Framework connectors
+
+- [ ] **T-250** Mount contract tests: `mount`, `update`, `unmount`; children rendered by the
+  core into the child host; `shadow` mode refused.
+- [ ] **T-251** [P] `connect-react` + MUI sample; passes T-243.
+- [ ] **T-252** [P] `connect-angular` + Angular Material sample; passes T-243.
+- [ ] **T-253** [P] `connect-vue` + Vue library sample; passes T-243.
+- [ ] **T-254** Measure: one root per node versus batched roots at 20, 100 and 300 nodes;
+  batch where needed.
+- [ ] **T-255** [P] `examples/angular-host`, `examples/vue-host`; Playwright each.
+- [ ] **T-256** Same document rendered in all four hosts, compared structurally.
+
+## Phase 6 — Documentation and CI
+
+- [ ] **T-260** CI: no `dependencies` in protocol, render, element, theme-base; only peers in
+  connectors; egress grep extended to new packages.
+- [ ] **T-261** [P] `docs/security-model.md`: browser validation tiers, `light` mode trade-off.
+- [ ] **T-262** [P] ADRs: own reconciler; shadow vs light; same-origin trust; mount contract.
+- [ ] **T-263** [P] README, API reference, per-package READMEs, troubleshooting.
+- [ ] **T-264** Fill plan.md Verification with measured results.
+
+---
+
+## Dependency order
+
+```
+0 ─► 1 ─► 2 ─► 3 ─► 4 ─► 5
+          │         └─► 6 (docs per phase, CI with 4)
+          └─ T-217 size report runs from phase 1 onward
+```
+
+## Outstanding at the end of this change
+
+Everything from T-210. This change is governance and design only.
