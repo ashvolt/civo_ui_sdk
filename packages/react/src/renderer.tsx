@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentSpec, ComponentSpecMap, UINode } from "relax-ui-core";
+import { createCatalog, Resolver } from "relax-ui-render";
 import * as React from "react";
 
 /**
@@ -73,73 +74,81 @@ export function GenerativeUI<M extends ComponentSpecMap>(
   props: GenerativeUIProps<M>,
 ): React.ReactElement | null {
   const { registry, components, node, onInvalidNode, placeholder } = props;
+  const resolver = React.useMemo(() => resolverFor(registry, components), [registry, components]);
 
   if (!node) return <>{placeholder ?? null}</>;
 
-  return (
-    <RenderNode
-      registry={registry}
-      components={components}
-      node={node}
-      depth={1}
-      onInvalidNode={onInvalidNode}
-    />
-  );
+  return <RenderNode resolver={resolver} node={node} depth={1} onInvalidNode={onInvalidNode} />;
 }
 
-interface RenderNodeProps<M extends ComponentSpecMap> {
-  registry: RenderVocabulary<M>;
-  components: ComponentImplementations<M>;
+/**
+ * The render core's resolver, set up for React: the components are eager,
+ * and validation is always full — the React renderer has always re-validated
+ * every node, and keeps doing so.
+ *
+ * Only types with both a spec and a component are in the vocabulary, so a
+ * missing component is an unknown type, as it always was.
+ */
+function resolverFor<M extends ComponentSpecMap>(
+  registry: RenderVocabulary<M>,
+  components: ComponentImplementations<M>,
+): Resolver<GenerativeComponent<never>> {
+  const implementations = components as unknown as Record<string, GenerativeComponent<never>>;
+  const types = Object.keys(registry.specs).filter((type) => registry.spec(type) && implementations[type]);
+  return new Resolver<GenerativeComponent<never>>({
+    catalog: createCatalog({ templates: implementations }),
+    types,
+    validate: "full",
+    validator: {
+      props(type, raw) {
+        const result = registry.spec(type)!.props.safeParse(raw);
+        return result.success
+          ? { ok: true, props: result.data as Record<string, unknown> }
+          : { ok: false, detail: result.error!.issues.map((issue) => issue.path.join(".")).join(", ") };
+      },
+    },
+    maxDepth: registry.limits.maxDepth,
+  });
+}
+
+interface RenderNodeProps {
+  resolver: Resolver<GenerativeComponent<never>>;
   node: UINode;
   depth: number;
   onInvalidNode?: (failure: RenderFailure) => React.ReactNode;
 }
 
-function RenderNode<M extends ComponentSpecMap>({
-  registry,
-  components,
+/**
+ * One node. Memoised on its props: with the protocol's structural sharing an
+ * untouched subtree is the same `node` object in the next frame, so React
+ * skips it outright, as the DOM backend does.
+ */
+const RenderNode = /* @__PURE__ */ React.memo(function RenderNode({
+  resolver,
   node,
   depth,
   onInvalidNode,
-}: RenderNodeProps<M>): React.ReactElement | null {
-  const fail = (failure: RenderFailure): React.ReactElement | null => (
-    <>{onInvalidNode?.(failure) ?? null}</>
-  );
+}: RenderNodeProps): React.ReactElement | null {
+  const resolution = resolver.resolve(node, depth);
 
-  if (depth > registry.limits.maxDepth) {
-    return fail({ reason: "depth_exceeded", type: String(node?.type) });
+  if (resolution.kind === "skip") {
+    // Outside the vocabulary, too deep, or props that fail their schema.
+    // Render nothing rather than guess what was meant.
+    const { reason, type, detail } = resolution.failure;
+    const failure: RenderFailure = { reason: reason as RenderFailure["reason"], type, ...(detail !== undefined && reason === "invalid_props" ? { detail } : {}) };
+    return <>{onInvalidNode?.(failure) ?? null}</>;
   }
+  if (resolution.kind === "pending") return null;
 
-  if (!node || typeof node !== "object" || typeof node.type !== "string") {
-    return fail({ reason: "unknown_type", type: String((node as { type?: unknown })?.type) });
-  }
-
-  const spec = registry.spec(node.type);
-  const Component = components[node.type as keyof M] as GenerativeComponent<never> | undefined;
-  if (!spec || !Component) {
-    // A type outside the registry can only mean a compromised or mismatched
-    // stream. Render nothing rather than guess what was meant.
-    return fail({ reason: "unknown_type", type: node.type });
-  }
-
-  const validated = spec.props.safeParse(node.props ?? {});
-  if (!validated.success) {
-    return fail({
-      reason: "invalid_props",
-      type: node.type,
-      detail: validated.error.issues.map((issue) => issue.path.join(".")).join(", "),
-    });
-  }
-
+  const Component = resolution.implementation;
   const children = Array.isArray(node.children) ? node.children : undefined;
 
   return (
-    <Component props={validated.data as never} node={node}>
+    <Component props={resolution.props as never} node={node}>
       {children?.map((child, index) => (
         <RenderNode
           key={child?.key ?? `${child?.type ?? "node"}:${index}`}
-          registry={registry}
-          components={components}
+          resolver={resolver}
           node={child}
           depth={depth + 1}
           onInvalidNode={onInvalidNode}
@@ -147,7 +156,7 @@ function RenderNode<M extends ComponentSpecMap>({
       ))}
     </Component>
   );
-}
+});
 
 /**
  * Binds a registry to its implementations once, so call sites pass only a node.

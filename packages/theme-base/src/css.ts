@@ -1,6 +1,10 @@
 /**
  * The base theme's styles, as strings.
  *
+ * Each is built inside a pure-annotated function: the template literals call
+ * a helper, and without the annotation a bundler must keep them, shipping 11 KB
+ * of CSS text to pages that only use the lazy loaders.
+ *
  * Kept in TypeScript rather than a .css file so there is one source for both
  * ways a host takes them: the build writes `dist/theme.css` for a page to link,
  * and phase 4's Web Component adopts the same text into its shadow root.
@@ -68,7 +72,7 @@ const DARK = `
   --gen-color-chart-4: #c79bf2;`;
 
 /** Custom properties, and the variants that override them (FR-231, FR-232). */
-export const tokens = `
+export const tokens: string = /* @__PURE__ */ (() => `
 .gen-theme {${LIGHT}
   --gen-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --gen-font-size-1: 0.8125rem;
@@ -100,12 +104,12 @@ export const tokens = `
   --gen-font-size-5: 1.625rem;
   --gen-line-height: 1.4;
 }
-`;
+`)();
 
 const s = (n: number) => `calc(var(--gen-space-unit) * ${n})`;
 
 /** The twelve components. Reads tokens only (T1). */
-export const components = `
+export const components: string = /* @__PURE__ */ (() => `
 .gen-theme {
   container-type: inline-size;
   font-family: var(--gen-font-family);
@@ -224,10 +228,11 @@ export const components = `
 @media (prefers-reduced-motion: no-preference) {
   .gen-theme .gen-chart__bar { transition: y 160ms ease-out, height 160ms ease-out; }
 }
-`;
+`)();
 
 /** Tokens and components together: what `dist/theme.css` contains. */
-export const themeCss = `${tokens}\n${components}`;
+export const themeCss: string = /* @__PURE__ */ (() => `${tokens}
+${components}`)();
 
 /** The variants a host may set on the `.gen-theme` root. */
 export const VARIANTS = ["light", "dark", "auto"] as const;

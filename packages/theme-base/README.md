@@ -67,8 +67,15 @@ import { baseTemplates, CHILDREN, h } from "relax-ui-theme-base";
 const Pill = (p: { text: string }) => h("span", { class: "gen-badge gen-tone--info", role: "note" }, p.text);
 ```
 
-`relax-ui-react`'s `fromTemplates` turns templates into React components. The
-DOM renderer (phase 4) will render the same templates, so one implementation
-serves every host.
+`relax-ui-react`'s `fromTemplates` turns templates into React components, and
+`relax-ui-render`'s `DomRenderer` draws the same templates without a framework.
+One implementation serves every host.
+
+## Lazy loading
+
+`baseLoaders` holds the same twelve components as `baseTemplates`, fetched on
+first use in five chunks: layout (Stack, Grid, Card), text (Heading, Text, List,
+Link, Badge, Callout), Metric, Table and Chart. Importing `baseLoaders` pulls in
+none of them, and none of the CSS text either (tested at the bundle level).
 
 Size: 4.0 KB gzip; about 4.5 KB added to a React app that uses it (`pnpm size`).
