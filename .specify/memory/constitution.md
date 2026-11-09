@@ -1,39 +1,62 @@
 <!--
 Sync Impact Report
 ==================
-Version change:      1.0.0 -> 1.1.0
-Amended:             2026-10-05
-Rationale:           MINOR. Principle I is materially expanded, not redefined:
-                     the egress allowlist, the https rule and the "no call the
-                     application did not ask for" rule are unchanged, and
-                     `api.relax.ai` is still the only endpoint reachable
-                     without the application naming another. What is new is
-                     that the endpoint is described by a *provider profile*
-                     the application selects explicitly, so the SDK can be
-                     developed, tested and demonstrated against an open-weight
-                     model on the developer's own machine (Ollama, LM Studio,
-                     llama.cpp) without a relaxAI account. Driven by feature
-                     002-provider-agnostic-inference.
+Version change:      1.1.0 -> 1.2.0
+Amended:             2026-11-09
+Rationale:           MINOR. Two principles gain explicit guidance for a
+                     browser renderer that can be fed from sources other than
+                     the SDK's own server. No existing rule is removed or
+                     relaxed: what the server does is unchanged, and the new
+                     clauses add obligations on the browser rather than
+                     waiving any. Driven by feature 003-pluggable-generative-ui.
 
 Principles changed:
-  I.   Sovereignty Is Not A Setting — provider-profile clauses added
-  III. Capability Is Negotiated, Never Assumed — capability is a property of
-       the (endpoint, model) pair, not of the model name alone
+  IV.  Model Output Is Untrusted Input — a document that did not come from the
+       SDK's own server is validated in full in the browser; skipping browser
+       validation is permitted only for a same-origin SDK route
+  V.   The Edge Is A Target — the browser protocol package has no runtime
+       dependency; connector packages may take their framework or theme
+       library as a peer dependency, and nothing else
 
-Principles unchanged: II, IV, V, VI, VII
+Principles unchanged: I, II, III, VI, VII
 
 Templates requiring update:
-  ✅ .specify/templates/spec-template.md    — no change needed
-  ✅ .specify/templates/plan-template.md    — no change needed (gates reference I-VII by name)
-  ✅ .specify/templates/tasks-template.md   — no change needed
-  ✅ docs/hld.md, docs/security-model.md    — provider section added
-  ✅ specs/001-generative-ui-sdk/contracts/ui-stream-protocol.md — optional
-     `provider` field documented (additive, no protocol bump)
+  ✅ .specify/templates/*                    — no change needed
+  ⏳ docs/security-model.md                  — browser validation tiers, when 003 is implemented
+  ⏳ .github/workflows/ci.yml                — size report job, when 003 is implemented
 
-Follow-up TODOs: none
+Follow-up TODOs: the two ⏳ items above, tracked as tasks in
+specs/003-pluggable-generative-ui/tasks.md.
 
-Previous report (1.0.0, ratified 2026-09-29): initial ratification, principles
-I-VII defined.
+Previous report (1.1.0, amended 2026-10-05):
+  Version change:      1.0.0 -> 1.1.0
+  Amended:             2026-10-05
+  Rationale:           MINOR. Principle I is materially expanded, not redefined:
+                       the egress allowlist, the https rule and the "no call the
+                       application did not ask for" rule are unchanged, and
+                       `api.relax.ai` is still the only endpoint reachable
+                       without the application naming another. What is new is
+                       that the endpoint is described by a *provider profile*
+                       the application selects explicitly, so the SDK can be
+                       developed, tested and demonstrated against an open-weight
+                       model on the developer's own machine (Ollama, LM Studio,
+                       llama.cpp) without a relaxAI account. Driven by feature
+                       002-provider-agnostic-inference.
+
+  Principles changed:
+    I.   Sovereignty Is Not A Setting — provider-profile clauses added
+    III. Capability Is Negotiated, Never Assumed — capability is a property of
+         the (endpoint, model) pair, not of the model name alone
+
+  Principles unchanged: II, IV, V, VI, VII
+
+  Templates requiring update:
+    ✅ .specify/templates/spec-template.md    — no change needed
+    ✅ .specify/templates/plan-template.md    — no change needed (gates reference I-VII by name)
+    ✅ .specify/templates/tasks-template.md   — no change needed
+    ✅ docs/hld.md, docs/security-model.md    — provider section added
+    ✅ specs/001-generative-ui-sdk/contracts/ui-stream-protocol.md — optional
+       `provider` field documented (additive, no protocol bump)
 -->
 
 # relaxAI Generative UI SDK — Constitution
@@ -165,6 +188,17 @@ Therefore:
   iterative walk that cannot itself be made to overflow the stack.
 - Validation, guarding and parsing MUST happen on the server. What crosses to
   the browser is a vouched-for object, never raw model tokens.
+- A document that reaches the browser by any route other than the SDK's own
+  server — a static document, a WebSocket, a byte stream from elsewhere — was
+  vouched for by nobody. It MUST be validated in full in the browser, against
+  the same contract, before any node is rendered.
+- Browser validation MAY be skipped only for a stream from a same-origin SDK
+  route, and only when the application asks. The renderer MUST refuse to skip it
+  for any other source.
+- No theme, connector or component implementation MAY receive a node that has
+  not passed validation, nor render model output as markup. A connector is
+  application code; it is trusted to *style* a validated node, never to decide
+  whether one is valid.
 
 *Rationale:* generative UI moves the XSS surface from "what the developer wrote"
 to "what the model was persuaded to write". The allowlist is the mitigation.
@@ -184,6 +218,12 @@ Therefore:
   belongs in an adapter package.
 - Every I/O seam MUST be injectable, so tests exercise the real code path with a
   stub `fetch` rather than a mocked module.
+- The browser protocol package MUST have zero runtime dependencies. It is loaded
+  by every page that renders a document, whatever its framework.
+- A connector package MAY declare its framework or theme library as a peer
+  dependency, and MUST declare nothing else at runtime. The library is the
+  host's; the connector only adapts to it.
+- A page that renders no document MUST load no component implementation.
 
 *Rationale:* dependencies and platform assumptions are inherited by every
 deployment target. Core is the wrong place to spend either.
@@ -262,4 +302,4 @@ and rationale, or it MUST be rejected.
   recorded in the plan's Complexity Tracking table with the simpler alternative
   that was rejected and why. An empty justification is a rejection.
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-29 | **Last Amended**: 2026-10-05
+**Version**: 1.2.0 | **Ratified**: 2026-09-29 | **Last Amended**: 2026-11-09

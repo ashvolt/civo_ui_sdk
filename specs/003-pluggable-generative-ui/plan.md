@@ -1,0 +1,208 @@
+# Implementation Plan: Pluggable Generative UI
+
+**Branch**: `003-pluggable-generative-ui` | **Date**: 2026-11-09 | **Spec**: [spec.md](./spec.md)
+**Constitution**: [v1.2.0](../../.specify/memory/constitution.md) — amended for this feature
+
+---
+
+## Summary
+
+Make the browser half of the SDK as portable as the server half: a dependency-free
+protocol package, a standard twelve-component contract, a framework-neutral
+render core with lazy loading and tiered validation, a `<gen-ui>` Web Component
+that any host can place, a token-based base theme, and one connector interface
+through which any theme library — class-based, Web-Component-based, or framework
+components in React, Angular and Vue — styles the result.
+
+The insight the design turns on: *streaming already gives the renderer the two
+facts it needs to be cheap.* `applyPatch` shares structure, so a subtree no frame
+touched is the same object next time — the reconciler's diff collapses to an
+identity check, small enough to write without a framework. And the model writes a
+node's `type` before its props, so the component's code can be fetched while the
+props it will render are still arriving — lazy loading with almost no visible
+cost. The hard part is not rendering; it is style isolation against global theme
+libraries, which research R3 shows cannot be fully had, and the plan says so.
+
+---
+
+## Technical Context
+
+| | |
+|---|---|
+| **Language** | TypeScript 5.7, `strict`, `noUncheckedIndexedAccess` |
+| **Browser targets** | evergreen: Custom Elements v1, Shadow DOM, constructable stylesheets, dynamic `import()` |
+| **New runtime dependencies** | none in protocol, render, element or base theme; framework connectors take React / Angular / Vue as peers |
+| **Build** | tsup per package; esbuild metafile for size reports |
+| **Test** | Vitest + happy-dom for render core and element; Playwright for hosts; property tests for the reconciler |
+| **Hosts to verify** | React (existing app), Angular, Vue, plain HTML — one example app each |
+| **Wire protocol** | version 1, unchanged |
+
+---
+
+## Constitution Check — pre-design
+
+Against v1.1.0, which was in force when the spec was written.
+
+| Principle | Assessment | Verdict |
+|---|---|---|
+| I. Sovereignty | Browser-only feature; no new egress. A same-origin URL is the only network source the renderer opens itself; sockets and streams are the host's | PASS |
+| II. Schema is the contract | One contract drives server schema and browser validation. Rejected a second, lighter browser validator for exactly this reason (R7) | PASS |
+| III. Capability negotiated | Not touched | PASS |
+| IV. Model output untrusted | "Validation MUST happen on the server" cannot be satisfied for a static document or a WebSocket, which never pass through the SDK's server | **FAIL as written** |
+| V. The edge is a target | Core untouched. But nothing said what a *browser* package or a *connector* package may depend on | **UNDERSPECIFIED** |
+| VI. Spec precedes implementation | spec → clarify (12 answers) → this plan → tasks; no code yet | PASS |
+| VII. Every behaviour has a test | Plan requires refusal tests for every configuration error and property tests for the reconciler | PASS |
+
+**Resolution**: constitution amended to **v1.2.0** (MINOR) in this change.
+Principle IV gains three clauses — foreign documents are validated in full in the
+browser; skipping is allowed only for a same-origin SDK route on request; a
+connector styles validated nodes and never decides validity. Principle V gains
+three — protocol package has no dependencies, connectors may take only their
+library as a peer, a page that renders nothing loads no component. Every new
+clause adds an obligation; none relaxes an existing one.
+
+---
+
+## Spec revisions from research
+
+Spec Kit allows planning to feed back into the specification when research
+contradicts it. Two did:
+
+| Spec item | Was | Now | Why |
+|---|---|---|---|
+| FR-207 | validation may be skipped "only for the SDK's own route" | only for a **same-origin URL** source, on request | A browser cannot prove a stream came from the SDK; origin is the only meaningful boundary (R4) |
+| FR-222, scenario 15 | styles MUST be isolated | isolation in `shadow` mode, the default; `light` mode permitted, and required for framework connectors | Global theme libraries and Shadow DOM cannot both be fully satisfied (R3) |
+
+Both are recorded in spec.md under *Planning revisions*.
+
+---
+
+## Project Structure
+
+```
+packages/
+  protocol/        new — events, accumulator, JSON Patch, readers (SSE, stream, socket, document)
+  contract/        new — the twelve schemas, extend(), budget; Zod peer
+  render/          new — render core: catalog, lazy loader, validation tiers, keyed reconciler,
+                         defineConnector (class + element kinds)
+  element/         new — <gen-ui>: attributes, events, shadow/light modes, DOM backend
+  theme-base/      new — tokens CSS, light/dark/compact, twelve DOM implementations, SVG chart
+  connect-react/   new — reactConnector (mount via createRoot)
+  connect-angular/ new — angularConnector (createComponent + hostElement)
+  connect-vue/     new — vueConnector (createApp / render)
+  core/            re-exports protocol; otherwise unchanged
+  react/           uses render core + contract; public API unchanged
+examples/
+  next-app/        existing; gains a theme switcher
+  angular-host/    new — Angular Material via connector
+  vue-host/        new — a Vue library via connector
+  html-host/       new — Bootstrap and Shoelace via connectors, no framework
+```
+
+**Structure decision**: one package per *reason to change*. The protocol changes
+with the wire format, the contract with the vocabulary, the render core with
+rendering rules, each connector with its framework. A host pays for exactly the
+ones it imports, and Principle V's dependency rule can be checked per package by
+CI rather than argued per file.
+
+**Rejected shape**: *one `relax-ui-browser` package with optional sub-paths.*
+Fewer manifests, and every host would install React, Angular and Vue peer
+declarations it does not use.
+
+---
+
+## Design decisions
+
+### D1 — Own reconciler on structural sharing (R2)
+Identity check per node plus keyed children. Spike first in phase 4; Lit is the
+fallback if the spike fails its property tests.
+
+### D2 — Two element modes: `shadow` (default) and `light` (R3)
+Isolation where the library allows it; container scoping where it does not.
+
+### D3 — Same-origin is the trust boundary for skipping validation (R4)
+
+### D4 — Framework components via a mount contract (R5)
+The render core owns the tree; connectors mount framework components into host
+elements it creates.
+
+### D5 — Lazy by type, triggered on the first exact type match (R6)
+
+### D6 — The validator is lazy too, and never loaded for a trusted route (R7)
+
+### D7 — Themes are CSS custom properties, Material-3-aligned names (R8)
+
+### D8 — Size is reported from esbuild metafiles; no new tooling (R10)
+
+---
+
+## Phase plan
+
+Five releases, each usable on its own. Order is by dependency, then by value.
+
+| Phase | Delivers | Usable for | Depends on |
+|---|---|---|---|
+| **1 — Protocol & inputs** | `protocol` package; document / stream / socket sources for the existing React hook; browser validation for foreign sources; size report job | React hosts with any data source; first real size numbers | — |
+| **2 — Contract & base theme** | `contract` (twelve); `theme-base` tokens + variants; React renderer on the contract; next-app theme switcher | React hosts with themes | 1 |
+| **3 — Render core & lazy loading** | `render`: catalog, lazy loader, validation tiers, reconciler; React moves onto it | smaller React bundles | 2 |
+| **4 — Element & generic connectors** | `<gen-ui>`; shadow/light; class and element connectors; Bootstrap + Shoelace examples; html-host | **any framework, any MFE**, class- and WC-based libraries | 3 |
+| **5 — Framework connectors** | `connect-react`, `connect-angular`, `connect-vue`; angular-host, vue-host | Angular Material, MUI, Vuetify-style libraries | 4 |
+
+**Effort shape** (relative, not dated): phase 5 is the largest — three
+frameworks, three example builds, three browser test setups. Phases 1 and 2 are
+the smallest and deliver the most immediately.
+
+---
+
+## Constitution Check — post-design
+
+Against v1.2.0. Evidence is *planned*; it becomes evidence when the tasks that
+produce it are done.
+
+| Principle | Planned evidence | Verdict |
+|---|---|---|
+| I | No package opens a connection except to a same-origin URL the host gave it; CI egress grep extended to new packages | PASS |
+| II | One `contract` package feeds server JSON Schema and browser validation; no second validator | PASS |
+| III | Unchanged | PASS |
+| IV | Refusal tests: `validate="server"` with each non-same-origin source; connector receiving an invalid node; `dom` implementation helper refusing markup; URL guard under every connector kind | PASS |
+| V | CI asserts `protocol`, `render`, `element`, `theme-base` have no `dependencies`; connector packages have only peers; a test page with no `<gen-ui>` loads zero component chunks | PASS |
+| VI | This chain, gated both ends | PASS |
+| VII | Reconciler property test over every prefix of realistic streams; connector conformance suite run against every connector | PASS |
+
+### Complexity Tracking
+
+| Violation | Why needed | Simpler alternative rejected because |
+|---|---|---|
+| Spec FR-222 weakened: isolation is not guaranteed in `light` mode | Framework theme libraries inject styles into `document.head`, which no shadow root sees (R3) | Copying head styles into each shadow root relies on private framework behaviour and breaks on upgrade; refusing framework connectors contradicts a clarification answer |
+| A hand-written reconciler | Keeps render core dependency-free and able to drive mount-based connectors | Lit adds a layer between the core and framework mounts without removing one; kept as the fallback |
+
+---
+
+## Verification (to be filled when implemented)
+
+| Gate | How |
+|---|---|
+| Existing suites | features 001 and 002 tests pass unmodified (NFR-206) |
+| Reconciler | property test: DOM after every prefix equals a fresh render of that prefix |
+| Connector conformance | one suite, run against base, Bootstrap, Shoelace, React, Angular, Vue connectors: every component renders, text stays text, unknown type renders nothing, URL guard holds |
+| Hosts | Playwright: same document in next-app, angular-host, vue-host, html-host |
+| Lazy loading | a page without `<gen-ui>` loads no chunk; a three-component document loads three |
+| Trust | each refusal in the contract's Refusals table has a test |
+| CSP | html-host served with `script-src 'self'`, no `unsafe-eval` |
+| Accessibility | axe in Playwright, all three variants (NFR-205) |
+| Size | report present on every CI run |
+
+---
+
+## Known limitations (expected)
+
+1. `light` mode gives up style isolation; scoping relies on a container class.
+2. Framework connectors create one framework root per node; batching may be
+   needed for large documents.
+3. Class-based libraries in `shadow` mode cost one stylesheet parse per page
+   (shared via adopted stylesheets), not per instance — but a library that
+   expects global scripts (Bootstrap's JS components) will not work there; the
+   twelve need none.
+4. Sizes in research are estimates until phase 1 measures them.
+5. Size is reported, not enforced (clarification).
+6. Read-only components only; interaction is a later feature.
