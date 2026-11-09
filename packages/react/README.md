@@ -37,6 +37,40 @@ export default function Page() {
 }
 ```
 
+## Any source, not only your route
+
+`api` reads your own route, as it always has. `source` reads anything else:
+
+```tsx
+useGenerativeObject({ source: { url: "/api/ui" }, schema });            // same-origin SSE
+useGenerativeObject({ source: { stream: response.body }, schema });     // any ReadableStream in SSE framing
+useGenerativeObject({ source: { socket: ws }, schema });                // a WebSocket, one event per message
+useGenerativeObject({ source: { document: saved }, schema });           // a complete document
+useGenerativeObject({ source: { url: "/api/ui" }, validate: "server" }); // trust your own origin's validation
+```
+
+A source other than a same-origin route is **validated in full in the
+browser** — every frame, before it reaches state — so `schema` is required.
+The first invalid frame stops the stream and sets `error` to
+`schema_violation` with the field's path and issue code, never its value.
+
+`validate: "server"` skips that, and is accepted **only for a same-origin
+URL**. For a document, a stream, a socket or another origin it is refused with
+`config_invalid` before anything is read: a browser cannot prove where those
+came from.
+
+| `api` / `source` | default | `validate: "server"` |
+|---|---|---|
+| `api` on this origin | trusted, as in earlier releases; `schema` re-checks the result only | same |
+| `api` on another origin | full — needs `schema` | refused |
+| `source: { url }` on this origin | full — needs `schema` | trusted |
+| `source: { url }` elsewhere, `{ stream }`, `{ socket }`, `{ document }` | full — needs `schema` | refused |
+
+How each ends: a socket or stream that stops before `complete` or `error` sets
+`error` to `truncated`. A socket is never closed by the hook — `stop()` and
+unmount only stop listening. A `document` has no generation behind it, so
+`metadata` stays undefined and `onComplete` is not called.
+
 ## What the renderer guarantees
 
 - A component the application did not register renders **nothing** (or your

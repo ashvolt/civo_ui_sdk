@@ -58,11 +58,21 @@ jobs:
 
       - name: Assert published entry points exist
         run: |
-          for pkg in core react next; do
+          for pkg in protocol core react next; do
             for f in dist/index.js dist/index.cjs dist/index.d.ts; do
               test -f "packages/$pkg/$f" || { echo "missing packages/$pkg/$f"; exit 1; }
             done
           done
+
+      # Core takes no runtime dependency (NFR-203), so it compiles protocol in
+      # rather than importing it. A build that imports it would install fine in
+      # this workspace and break for anyone installing core alone.
+      - name: "V — core's build does not import relax-ui-protocol"
+        run: |
+          if grep -n 'relax-ui-protocol' packages/core/dist/index.js packages/core/dist/index.cjs packages/core/dist/index.d.ts; then
+            echo "::error::core's build refers to relax-ui-protocol; it must be bundled in (NFR-203)."
+            exit 1
+          fi
 
   constitution:
     name: Constitutional invariants
@@ -76,10 +86,25 @@ jobs:
 
       - name: "V — core imports no node: module"
         run: |
-          if grep -rn 'from "node:' packages/core/src packages/react/src; then
+          if grep -rn 'from "node:' packages/protocol/src packages/core/src packages/react/src; then
             echo "::error::A node: import breaks Edge and Workers compatibility (Principle V)."
             exit 1
           fi
+
+      - name: "V — the browser protocol package has no runtime dependencies"
+        run: |
+          # Not even a peer: every host loads it, so whatever it declares every
+          # host inherits (NFR-202).
+          node -e '
+            const p = require("./packages/protocol/package.json");
+            const bad = ["dependencies", "peerDependencies", "optionalDependencies"]
+              .filter((k) => p[k] && Object.keys(p[k]).length);
+            if (bad.length) {
+              console.log("::error::Principle V: relax-ui-protocol declares " + bad.join(", "));
+              process.exit(1);
+            }
+            console.log("relax-ui-protocol has no runtime dependencies");
+          '
 
       - name: "V — core has no runtime dependencies"
         run: |
@@ -116,8 +141,11 @@ jobs:
         run: |
           # Any absolute URL in core outside the sovereignty default is suspicious:
           # the SDK must make no network call the application did not ask for.
-          hits=$(grep -rnoE 'https?://[a-zA-Z0-9.-]+' packages/core/src \
-                 | grep -vE 'api\.relax\.ai|json-schema\.org|localhost|127\.0\.0\.1' || true)
+          # `relative.invalid` is the placeholder base the protocol's same-origin
+          # check resolves against when there is no page; `.invalid` is reserved
+          # (RFC 2606) and nothing is ever fetched from it.
+          hits=$(grep -rnoE 'https?://[a-zA-Z0-9.-]+' packages/core/src packages/protocol/src \
+                 | grep -vE 'api\.relax\.ai|json-schema\.org|localhost|127\.0\.0\.1|relative\.invalid' || true)
           if [ -n "$hits" ]; then
             echo "$hits"
             echo "::error::Principle I: no SDK-initiated egress beyond the configured relaxAI endpoint."
@@ -179,6 +207,51 @@ jobs:
           name: playwright-report
           path: examples/next-app/playwright-report/
           retention-days: 7
+
+  size:
+    name: Size report
+    runs-on: ubuntu-latest
+    # Reported, never enforced (NFR-201): a size change must not block a merge.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      # The last main build's report. A pull request may read caches saved on
+      # its base branch, so a PR compares against main; main against itself.
+      - name: Restore previous report
+        uses: actions/cache/restore@v4
+        with:
+          path: .size/previous.json
+          key: size-report-main-${{ github.sha }}
+          restore-keys: size-report-main-
+
+      - name: Measure
+        run: node scripts/size-report.mjs --out .size/current.json --previous .size/previous.json
+
+      - name: Keep this report for the next comparison
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: cp .size/current.json .size/previous.json
+
+      - name: Save report
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: .size/previous.json
+          key: size-report-main-${{ github.sha }}
 
   diagrams:
     name: Mermaid diagrams render

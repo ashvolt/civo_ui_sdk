@@ -236,8 +236,9 @@ generation left running after the SDK had stopped reading it.
 
 | Package | Responsibility | Runtime deps |
 |---|---|---|
-| [`relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards, wire protocol | none (Zod is a peer) |
-| [`relax-ui-react`](./packages/react) | Streaming object hook, allowlist-only renderer | core, React |
+| [`relax-ui-protocol`](./packages/protocol) | Browser half of the wire protocol: events, accumulator, JSON Patch, readers for SSE, byte streams, WebSockets and static documents | none |
+| [`relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards; re-exports the protocol | none (Zod is a peer; protocol is compiled in) |
+| [`relax-ui-react`](./packages/react) | Streaming object hook (any source), allowlist-only renderer | core, protocol, React |
 | [`relax-ui-next`](./packages/next) | App Router handler factories | core |
 
 Core runs unchanged on **Node ≥ 20, Vercel Edge, Cloudflare Workers, Bun and

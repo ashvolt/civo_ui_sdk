@@ -32,6 +32,21 @@ reuse?
 is the first five rows: by line count roughly a tenth of core. **Estimate: 2–3
 KB gzip**, to be measured once split.
 
+**Measured in phase 1** (T-218, `pnpm size`: esbuild, minified, gzip level 9,
+2026-11-09). The method differs from the 24.4 KB figure above, which was not
+minified; compare rows within this table only.
+
+| Bundle | gzip | Notes |
+|---|---:|---|
+| `relax-ui-protocol`, whole package | 3.71 KB | includes the four source readers and the trust check, which the estimate did not |
+| `readSource` + accumulator + `resolveValidation` | 3.28 KB | the minimum a non-React host needs |
+| `relax-ui-core`, own code (protocol compiled in) | 16.96 KB | |
+| React hook only, core and protocol bundled | 4.74 KB | core contributes 0.9 KB (partial validation) |
+| React hook + renderer | 5.11 KB | |
+
+The estimate was low by about 1 KB because it predates the sources. The
+conclusion stands: the browser subset is a fifth of core's size.
+
 **Decision**: extract the browser subset into a `protocol` package with no
 dependencies. `core` re-exports it, so nothing that imports from `core` today
 breaks (NFR-206).
@@ -228,8 +243,9 @@ completes before the props it will render have finished streaming.
 `validate: "server"` never loads it (FR-208). Any other source loads the
 contract's schemas before rendering the first node.
 
-**Cost** — estimate, to be measured: Zod 3 contributes roughly 13–14 KB gzip;
-Zod 4's smaller entry point less. The contract package's schemas are small by
+**Cost** — estimated at 13–14 KB gzip for Zod 3; **measured 13.85 KB** (Zod
+3.25, one small strict object schema, T-218). Zod 4's smaller entry point is
+not yet measured. The contract package's schemas are small by
 comparison. This is the single largest optional cost on the client, which is why
 it is the one most worth not paying when the server already paid it.
 
@@ -315,4 +331,5 @@ connector may map it onto one, lazily.
 2. One root per framework-rendered node (R5) — measure; batch if needed.
 3. Class-based libraries in `shadow` mode re-parse their stylesheet per instance
    unless adopted once and shared (R3) — test with Bootstrap.
-4. Every size in this document is an estimate until phase 1 measures it.
+4. Every size in this document was an estimate until phase 1. R1 and R7 are now
+   measured; R2's reconciler and Lit figures remain estimates until phase 4.

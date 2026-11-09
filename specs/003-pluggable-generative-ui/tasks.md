@@ -22,20 +22,46 @@ Numbered from T-201.
 
 ## Phase 1 — Protocol and inputs
 
-- [ ] **T-210** Tests: `protocol` exports equal `core`'s current protocol exports; `core`
+- [x] **T-210** Tests: `protocol` exports equal `core`'s current protocol exports; `core`
   re-exports them; feature 001/002 suites unchanged.
-- [ ] **T-211** Extract `packages/protocol`: events, accumulator, JSON Patch, SSE decoder,
+- [x] **T-211** Extract `packages/protocol`: events, accumulator, JSON Patch, SSE decoder,
   `readUIStream`. Zero `dependencies`.
-- [ ] **T-212** [P] Tests: socket source — one event per message; `[DONE]`, `complete` and
+- [x] **T-212** [P] Tests: socket source — one event per message; `[DONE]`, `complete` and
   `error` end the document; renderer never closes the socket; close mid-document reports
   incomplete.
-- [ ] **T-213** [P] Tests: stream source and document source.
-- [ ] **T-214** Sources in `protocol`; `useGenerativeObject` accepts `source`.
-- [ ] **T-215** Tests (refusals): `validate: "server"` rejected for document, stream, socket
+- [x] **T-213** [P] Tests: stream source and document source.
+- [x] **T-214** Sources in `protocol`; `useGenerativeObject` accepts `source`.
+- [x] **T-215** Tests (refusals): `validate: "server"` rejected for document, stream, socket
   and cross-origin URL; accepted for same-origin URL.
-- [ ] **T-216** Browser validation for foreign sources in the React path.
-- [ ] **T-217** [P] Size report CI job (esbuild metafile, gzip, previous-build comparison).
-- [ ] **T-218** Measure and replace research R1/R7 estimates with real numbers.
+- [x] **T-216** Browser validation for foreign sources in the React path.
+- [x] **T-217** [P] Size report CI job (esbuild metafile, gzip, previous-build comparison).
+- [x] **T-218** Measure and replace research R1/R7 estimates with real numbers.
+
+### Phase 1 notes
+
+- **Core bundles protocol rather than depending on it.** Constitution V gives
+  core no runtime dependency, so `protocol` is a devDependency of core,
+  compiled in by tsup (`noExternal`, types resolved). Core's old module paths
+  (`errors.ts`, `protocol.ts`, `stream/sse.ts`, `stream/json-patch.ts`) remain
+  as re-export files, so every existing import, and every 001/002 test, is
+  untouched. CI checks core's build never imports `relax-ui-protocol`.
+- **`RelaxUIError` is recognised across copies.** Bundling means an application
+  can hold two copies of the class (core's, and the one `relax-ui-react`
+  imports). A registered-symbol brand and `Symbol.hasInstance` keep
+  `instanceof` and `isRelaxUIError` true for both; verified against the built
+  packages.
+- **One deliberate behaviour change.** `useGenerativeObject({ api })` with a
+  *cross-origin* `api` and no `schema` is now refused with `config_invalid`.
+  NFR-206 asks for unchanged behaviour, but Constitution IV v1.2.0 requires full
+  browser validation for anything but a same-origin route, and the constitution
+  takes precedence. A same-origin `api`, the case in every example and test,
+  behaves exactly as before.
+- **Ending rules.** A `stream` or `socket` that ends without `complete` or
+  `error` is `truncated`. A `url` is read exactly as before (stream close ends
+  it), to keep NFR-206. A `document` has no generation, so no metadata and no
+  `onComplete`.
+- **Size report** runs as its own CI job, `continue-on-error`, comparing with
+  the last `main` report through the Actions cache.
 
 ## Phase 2 — Contract and base theme
 
@@ -115,6 +141,6 @@ Numbered from T-201.
           └─ T-217 size report runs from phase 1 onward
 ```
 
-## Outstanding at the end of this change
+## Outstanding
 
-Everything from T-210. This change is governance and design only.
+Phase 0 and phase 1 are done. Everything from T-220 is outstanding.

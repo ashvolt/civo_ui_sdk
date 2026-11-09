@@ -84,6 +84,9 @@ importers:
 
   packages/core:
     devDependencies:
+      relax-ui-protocol:
+        specifier: workspace:*
+        version: link:../protocol
       tsup:
         specifier: ^8.3.5
         version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
@@ -110,11 +113,23 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
 
+  packages/protocol:
+    devDependencies:
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   packages/react:
     dependencies:
       relax-ui-core:
         specifier: workspace:^
         version: link:../core
+      relax-ui-protocol:
+        specifier: workspace:^
+        version: link:../protocol
     devDependencies:
       '@types/react':
         specifier: ^19.0.2
