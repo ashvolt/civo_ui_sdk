@@ -20,6 +20,7 @@
  *   pip install piper-tts
  *   python -m piper.download_voices en_US-ryan-high --data-dir ~/.cache/piper-voices
  * (`PIPER_VOICES` overrides the directory; `PYTHON` the interpreter.)
+ * ffmpeg is fetched on first use; `FFMPEG_PATH` uses one you already have.
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -98,9 +99,30 @@ function record() {
 }
 
 // --- 3. mux ---------------------------------------------------------------------
+
+/**
+ * The ffmpeg binary, fetched the first time the recorder needs it.
+ *
+ * `ffmpeg-static` downloads its binary in an install script. That script is
+ * deliberately not allowed to run on `pnpm install`: the download is ~80 MB
+ * from GitHub, only this script uses it, and when it failed on a CI runner it
+ * failed the install for everything else. So it runs here instead, on demand.
+ * `FFMPEG_PATH` points at a binary you already have.
+ */
+function locateFfmpeg() {
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+  const require = createRequire(import.meta.url);
+  const binary = require("ffmpeg-static");
+  if (!binary) throw new Error("ffmpeg-static has no binary for this platform; set FFMPEG_PATH.");
+  if (!existsSync(binary)) {
+    console.log("ffmpeg   downloading the binary (first run only)");
+    run(process.execPath, [join(dirname(require.resolve("ffmpeg-static/package.json")), "install.js")]);
+  }
+  return binary;
+}
 function mux(manifest) {
   const timeline = JSON.parse(readFileSync(join(WORK, "timeline.json"), "utf8"));
-  const ffmpeg = createRequire(import.meta.url)("ffmpeg-static");
+  const ffmpeg = locateFfmpeg();
 
   const inputs = ["-i", join(WORK, "picture.webm")];
   const filters = [];
