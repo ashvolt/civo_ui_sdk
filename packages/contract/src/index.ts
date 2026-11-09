@@ -16,3 +16,6 @@ export { displayText, urlString } from "./fields.js";
 
 export { STANDARD_COMPONENT_NAMES, STANDARD_COMPONENTS, standardContract } from "./standard.js";
 export type { StandardComponentName, StandardProps } from "./standard.js";
+
+export { createValidator } from "./validator.js";
+export type { PropsValidator } from "./validator.js";

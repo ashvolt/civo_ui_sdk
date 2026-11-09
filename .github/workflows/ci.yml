@@ -58,7 +58,7 @@ jobs:
 
       - name: Assert published entry points exist
         run: |
-          for pkg in protocol contract theme-base core react next; do
+          for pkg in protocol contract theme-base render core react next; do
             for f in dist/index.js dist/index.cjs dist/index.d.ts; do
               test -f "packages/$pkg/$f" || { echo "missing packages/$pkg/$f"; exit 1; }
             done
@@ -67,10 +67,12 @@ jobs:
       # Core takes no runtime dependency (NFR-203), so it compiles protocol in
       # rather than importing it. A build that imports it would install fine in
       # this workspace and break for anyone installing core alone.
-      - name: "V — core's build does not import relax-ui-protocol"
+      - name: "V — core's and render's builds do not import workspace packages"
         run: |
-          if grep -nE 'relax-ui-(protocol|contract)' packages/core/dist/index.js packages/core/dist/index.cjs packages/core/dist/index.d.ts; then
-            echo "::error::core's build refers to a workspace package; it must be bundled in (NFR-203)."
+          # Both compile in what they use (protocol; core also contract), so
+          # neither takes a runtime dependency (NFR-203, T-260).
+          if grep -nE 'relax-ui-(protocol|contract)' packages/core/dist/index.js packages/core/dist/index.cjs packages/core/dist/index.d.ts                packages/render/dist/index.js packages/render/dist/index.cjs packages/render/dist/index.d.ts; then
+            echo "::error::a build refers to a workspace package it must bundle in (NFR-203)."
             exit 1
           fi
 
@@ -86,16 +88,16 @@ jobs:
 
       - name: "V — core imports no node: module"
         run: |
-          if grep -rn 'from "node:' packages/protocol/src packages/core/src packages/react/src; then
+          if grep -rn 'from "node:' packages/protocol/src packages/core/src packages/react/src packages/render/src packages/contract/src packages/theme-base/src; then
             echo "::error::A node: import breaks Edge and Workers compatibility (Principle V)."
             exit 1
           fi
 
-      - name: "V — protocol and theme-base have no runtime dependencies"
+      - name: "V — protocol, theme-base and render have no runtime dependencies"
         run: |
           # Not even a peer: every host loads them, so whatever they declare
           # every host inherits (NFR-202).
-          for pkg in protocol theme-base; do
+          for pkg in protocol theme-base render; do
             PKG="$pkg" node -e '
               const p = require("./packages/" + process.env.PKG + "/package.json");
               const bad = ["dependencies", "peerDependencies", "optionalDependencies"]

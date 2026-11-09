@@ -108,20 +108,51 @@ Numbered from T-201.
 
 ## Phase 3 — Render core and lazy loading
 
-- [ ] **T-230** Property test: for every prefix of three realistic streams, reconciled DOM
+- [x] **T-230** Property test: for every prefix of three realistic streams, reconciled DOM
   equals a fresh render of that prefix.
-- [ ] **T-231** Tests: identity skip — an untouched subtree's DOM nodes are the same
+- [x] **T-231** Tests: identity skip — an untouched subtree's DOM nodes are the same
   objects after a frame.
-- [ ] **T-232** Reconciler (keyed children, identity skip).
-- [ ] **T-233** Tests: loader called once per type per page; triggered on exact type
+- [x] **T-232** Reconciler (keyed children, identity skip).
+- [x] **T-233** Tests: loader called once per type per page; triggered on exact type
   match only; partial type triggers nothing; failed load renders fallback, reported once,
   retried on next document only; `preload` loads eagerly.
-- [ ] **T-234** Catalog and lazy loader.
-- [ ] **T-235** Tests: validator never loaded for same-origin `server`; always loaded for
+- [x] **T-234** Catalog and lazy loader.
+- [x] **T-235** Tests: validator never loaded for same-origin `server`; always loaded for
   others; connector never receives an invalid node.
-- [ ] **T-236** Validation tiers in render core.
-- [ ] **T-237** React renderer moves onto render core; its public API unchanged.
-- [ ] **T-238** Test: a page with no renderer loads zero component chunks.
+- [x] **T-236** Validation tiers in render core.
+- [x] **T-237** React renderer moves onto render core; its public API unchanged.
+- [x] **T-238** Test: a page with no renderer loads zero component chunks.
+
+### Phase 3 notes
+
+- **`relax-ui-render` has no dependencies.** It compiles in the protocol's URL
+  guard and error type, as core does; CI checks its build imports neither.
+- **One resolver, two renderers.** The resolver (contract-only, validation by
+  tier, catalog, reports) is framework-neutral; the DOM backend and React both
+  call it, so they cannot disagree about what a document shows. React's public
+  API is unchanged; it keeps eager components and full validation, and gains
+  `React.memo` on each node, so unchanged subtrees skip on identity as in the
+  DOM backend.
+- **Not done: lazy loading for React.** The resolver supports it, but React
+  hosts still pass eager components. A lazy React renderer is a small follow-up;
+  the DOM path, which phase 4's element uses, is lazy now.
+- **Reconciler, verified.** Every prefix of three realistic streams (two
+  characters per frame, both tiers) renders identically to a fresh render, by
+  a canonical form that sorts attributes (an `href` refused mid-stream and set
+  later is appended last; order carries no meaning). Three deliberate mutations
+  were each caught. This de-risks T-240: the own reconciler holds, so Lit is not
+  needed.
+- **Report timing.** Unknown types and invalid props are reported only when a
+  document completes: mid-stream they are usually a name or a value still
+  arriving. Load failures and depth are reported at once.
+- **Base theme split** into five lazily loaded groups. Two bundle leaks were
+  found and fixed by the T-238 bundle test and the size report: `describeChart`
+  re-exported from the chart module kept the whole Chart chunk static, and the
+  CSS strings, built with a helper call, could not be dropped until annotated
+  pure. A page with the renderer and lazy theme, rendering nothing, is 4.1 KB
+  gzip with no component code; each group costs 0.4–1.3 KB on first use.
+- **Templates tolerate partial props**, for the `server` tier, where a
+  same-origin stream's nodes reach templates unvalidated mid-stream.
 
 ## Phase 4 — Element and generic connectors
 
@@ -173,4 +204,4 @@ Numbered from T-201.
 
 ## Outstanding
 
-Phases 0, 1 and 2 are done. Everything from T-230 is outstanding.
+Phases 0 to 3 are done. Everything from T-240 is outstanding.

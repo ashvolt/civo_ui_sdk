@@ -47,6 +47,7 @@ const PACKAGES = [
   { name: "relax-ui-protocol", entry: dist("protocol"), note: "browser protocol, no dependencies" },
   { name: "relax-ui-contract", entry: dist("contract"), note: "twelve components and the schema builder" },
   { name: "relax-ui-theme-base", entry: dist("theme-base"), note: "tokens, variants, twelve templates" },
+  { name: "relax-ui-render", entry: dist("render"), note: "render core and DOM backend; protocol's guard compiled in" },
   { name: "relax-ui-core", entry: dist("core"), note: "server engine; includes protocol" },
   { name: "relax-ui-react", entry: dist("react"), note: "hook and renderer" },
   { name: "relax-ui-next", entry: dist("next"), note: "route handler (server)" },
@@ -79,6 +80,13 @@ const SCENARIOS = [
     external: [...FRAMEWORK, "zod"],
   },
   {
+    name: "dom: renderer + lazy base theme, nothing rendered",
+    note: "what a non-React page loads before its first document: no component code",
+    code: `export { createCatalog, DomRenderer } from ${JSON.stringify(dist("render"))}; export { baseLoaders } from ${JSON.stringify(dist("theme-base"))};`,
+    external: [],
+    splitting: true,
+  },
+  {
     name: "contract: browser validation",
     note: "the standard contract's schemas, Zod included: what full validation costs",
     code: `export { standardContract } from ${JSON.stringify(dist("contract"))};`,
@@ -92,8 +100,9 @@ const SCENARIOS = [
   },
 ];
 
-async function measure({ entry, code, external }) {
+async function measure({ entry, code, external, splitting = false }) {
   const result = await esbuild.build({
+    ...(splitting ? { splitting: true, outdir: "out" } : {}),
     ...(entry ? { entryPoints: [entry] } : { stdin: { contents: code, resolveDir: root, loader: "js" } }),
     bundle: true,
     write: false,
@@ -105,8 +114,11 @@ async function measure({ entry, code, external }) {
     logLevel: "silent",
     external,
   });
-  const bytes = result.outputFiles[0].contents;
-  const output = Object.values(result.metafile.outputs)[0];
+  // With splitting, the entry is the file built from stdin or the entry point;
+  // lazily loaded chunks are measured separately below.
+  const index = splitting ? result.outputFiles.findIndex((f) => /stdin\.js$|index\.js$/.test(f.path)) : 0;
+  const bytes = result.outputFiles[index].contents;
+  const output = Object.entries(result.metafile.outputs).find(([, o]) => o.entryPoint !== undefined)?.[1] ?? Object.values(result.metafile.outputs)[0];
   const byPackage = {};
   for (const [input, { bytesInOutput }] of Object.entries(output.inputs)) {
     const key = owner(input);
@@ -157,6 +169,29 @@ for (const scenario of SCENARIOS) {
   }
 }
 
+/**
+ * Each lazily loaded base-theme component group (NFR-201): what the first
+ * document using one of its components fetches. Measured from source, one group
+ * at a time, each with the small helpers it shares with the others, so a row
+ * slightly over-counts and never under-counts.
+ */
+const GROUPS = {
+  "layout (Stack, Grid, Card)": "layout",
+  "text (Heading, Text, List, Link, Badge, Callout)": "text",
+  Metric: "metric",
+  Table: "table",
+  Chart: "chart",
+};
+report.chunks = {};
+for (const [name, file] of Object.entries(GROUPS)) {
+  try {
+    const entry = join(root, "packages", "theme-base", "src", "components", `${file}.ts`);
+    report.chunks[name] = await measure({ entry, external: [] });
+  } catch (error) {
+    console.error(`skip chunk ${name}: ${error.message.split("\n")[0]}`);
+  }
+}
+
 const previous = previousPath && existsSync(previousPath) ? JSON.parse(readFileSync(previousPath, "utf8")) : undefined;
 
 const lines = [];
@@ -181,6 +216,11 @@ for (const [name, r] of Object.entries(report.scenarios)) {
     .map(([p, n]) => `${p} ${kb(n)}`)
     .join(", ");
   lines.push(`| ${name} | ${kb(r.gzip)} | ${delta(r.gzip, previous?.scenarios?.[name]?.gzip)} | ${kb(r.min)} | ${parts} |`);
+}
+lines.push("", "### Lazily loaded base-theme chunks", "");
+lines.push("| Chunk | gzip | change | minified |", "|---|---:|---:|---:|");
+for (const [name, r] of Object.entries(report.chunks ?? {}).sort()) {
+  lines.push(`| ${name} | ${kb(r.gzip)} | ${delta(r.gzip, previous?.chunks?.[name]?.gzip)} | ${kb(r.min)} |`);
 }
 lines.push("");
 const markdown = lines.join("\n");

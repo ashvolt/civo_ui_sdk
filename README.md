@@ -239,8 +239,9 @@ generation left running after the SDK had stopped reading it.
 | [`relax-ui-protocol`](./packages/protocol) | Browser half of the wire protocol: events, accumulator, JSON Patch, readers for SSE, byte streams, WebSockets and static documents | none |
 | [`relax-ui-contract`](./packages/contract) | The twelve standard components, `extend()`, and the schema builder server and browser share | protocol (Zod is a peer) |
 | [`relax-ui-theme-base`](./packages/theme-base) | Design tokens, light/dark/compact variants, the twelve as markup templates | none |
+| [`relax-ui-render`](./packages/render) | Render core (contract-only resolution, validation tiers, lazy loading) and a keyed DOM reconciler | none |
 | [`relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards; re-exports the protocol | none (Zod is a peer; protocol and contract are compiled in) |
-| [`relax-ui-react`](./packages/react) | Streaming object hook (any source), allowlist-only renderer, base theme for React | core, protocol, theme-base, React |
+| [`relax-ui-react`](./packages/react) | Streaming object hook (any source), allowlist-only renderer on the render core, base theme for React | core, protocol, render, theme-base, React |
 | [`relax-ui-next`](./packages/next) | App Router handler factories | core |
 
 Core runs unchanged on **Node ≥ 20, Vercel Edge, Cloudflare Workers, Bun and
