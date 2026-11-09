@@ -37,6 +37,26 @@ export default function Page() {
 }
 ```
 
+## The standard components, themed
+
+```tsx
+import "relax-ui-theme-base/theme.css";
+import { standardContract } from "relax-ui-contract";
+import { baseComponents, createGenerativeRenderer, GenerativeTheme } from "relax-ui-react";
+
+const Dashboard = createGenerativeRenderer(standardContract, baseComponents);
+
+<GenerativeTheme variant="auto" density="comfortable">
+  <Dashboard node={object?.root} />
+</GenerativeTheme>;
+```
+
+The renderer takes a `Contract` or a `UIRegistry`. `baseComponents` draws the
+twelve standard components from the base theme's tokens; replace any one with
+your own (`{ ...baseComponents, Metric: MyMetric }`), or turn your own templates
+into components with `fromTemplates`. Changing `variant` or `density` restyles
+without re-rendering.
+
 ## Any source, not only your route
 
 `api` reads your own route, as it always has. `source` reads anything else:

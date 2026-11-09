@@ -58,6 +58,15 @@ describe("sanitizeUrl", () => {
     expect(sanitizeUrl("./next")).toBe("./next");
   });
 
+  it("rejects protocol-relative URLs, which leave the origin", () => {
+    // Found in feature 003: these start with "/" and were passed as relative.
+    expect(sanitizeUrl("//evil.example/x")).toBeNull();
+    expect(sanitizeUrl("/\\evil.example/x")).toBeNull();
+    expect(sanitizeUrl("\\\\evil.example/x")).toBeNull();
+    expect(sanitizeUrl("  //evil.example")).toBeNull();
+    expect(sanitizeUrl("//evil.example/x", { allowedHosts: ["civo.com"] })).toBeNull();
+  });
+
   it("rejects script-bearing schemes", () => {
     expect(sanitizeUrl("javascript:alert(1)")).toBeNull();
     expect(sanitizeUrl("JaVaScRiPt:alert(1)")).toBeNull();

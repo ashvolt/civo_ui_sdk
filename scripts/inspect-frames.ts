@@ -136,7 +136,7 @@ async function main(): Promise<number> {
     schema: dashboardSchema,
     system:
       "You design compact analytics dashboards. Return one UI document built only from the " +
-      "components in the schema. Prefer a Stack root containing a Grid of 3 Metrics, then a Prose note.",
+      "components in the schema. Prefer a Stack root containing a Grid of 3 Metrics, then a Text note.",
     prompt: `Build a dashboard about: ${args.topic}`,
     sampling: { temperature: 0.2, max_tokens: args.maxTokens },
     frameIntervalMs: args.interval,

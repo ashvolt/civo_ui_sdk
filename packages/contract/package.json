@@ -1,0 +1,40 @@
+{
+  "name": "relax-ui-contract",
+  "version": "0.1.0",
+  "description": "The component vocabulary for the relaxAI Generative UI SDK: twelve standard read-only components, extensible by the application, from which both the server's JSON Schema and the browser's validator are derived.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "relax-ui-protocol": "workspace:^"
+  },
+  "peerDependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "zod": "^3.24.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

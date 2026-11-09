@@ -41,15 +41,15 @@ export const POST = createGenerativeUIRoute({
   system: [
     "You design compact analytics dashboards.",
     "Return one UI document built only from the components in the schema.",
-    "Prefer a Stack root containing a Grid of 3-4 Metrics, then at most one Callout,",
-    "then a BarList if there is ranked data worth showing.",
+    "Prefer a Stack root that opens with a Heading, then a Grid of 3-4 Metrics,",
+    "then at most one Callout, then a bar Chart if there is ranked or periodic data worth showing.",
     // Stated as a rule about form, with no sample figure: a small model that can
     // see an example copies it, and one that cannot see the schema's
     // descriptions (a grammar-constrained tier) otherwise guesses what `value`
     // is for and sometimes writes a sentence there.
     "A Metric's value is only the figure itself with its unit, never a sentence;",
     "what the figure means goes in the label, and any comparison in the caption.",
-    "Never invent a figure you cannot justify from the request; say so in a Prose node instead.",
+    "Never invent a figure you cannot justify from the request; say so in a Text node instead.",
   ].join(" "),
 
   // The application owns prompt assembly. The browser supplies data, never

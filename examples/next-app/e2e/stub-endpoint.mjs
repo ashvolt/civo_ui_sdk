@@ -36,15 +36,23 @@ import { createServer } from "node:http";
 const MODE = process.env["MODE"] ?? "ok";
 const PORT = Number(process.argv[2] ?? process.env["PORT"] ?? 11437);
 
-/** Satisfies the Dashboard registry: a Stack of Metrics plus a Prose note. */
+/** Satisfies the Dashboard contract: a heading, a grid of Metrics and a note. */
 const VALID = {
   root: {
     type: "Stack",
-    props: { gap: "md", heading: "UK public cloud spend" },
+    props: { gap: "md" },
     children: [
-      { type: "Metric", key: "m1", props: { label: "Total spend", value: "£4.1bn", trend: "up" } },
-      { type: "Metric", key: "m2", props: { label: "YoY growth", value: "18%", trend: "up" } },
-      { type: "Prose", key: "p1", props: { text: "Figures illustrative — served by a local stand-in." } },
+      { type: "Heading", key: "h1", props: { text: "UK public cloud spend", level: 2 } },
+      {
+        type: "Grid",
+        key: "g1",
+        props: { columns: 2 },
+        children: [
+          { type: "Metric", key: "m1", props: { label: "Total spend", value: "£4.1bn", trend: "up" } },
+          { type: "Metric", key: "m2", props: { label: "YoY growth", value: "18%", trend: "up" } },
+        ],
+      },
+      { type: "Text", key: "p1", props: { text: "Figures illustrative — served by a local stand-in." } },
     ],
   },
 };
@@ -53,7 +61,7 @@ const VALID = {
 const BAD_TYPE = {
   root: {
     type: "Stack",
-    props: { gap: "md", heading: "UK public cloud spend" },
+    props: { gap: "md" },
     children: [{ type: "Metric", key: "m1", props: { label: "Total spend", value: 4_100_000_000, trend: "up" } }],
   },
 };

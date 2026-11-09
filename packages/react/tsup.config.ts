@@ -7,6 +7,6 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   target: "es2022",
-  external: ["react", "zod", "relax-ui-core", "relax-ui-protocol"],
+  external: ["react", "zod", "relax-ui-core", "relax-ui-protocol", "relax-ui-theme-base"],
   banner: { js: '"use client";' },
 });

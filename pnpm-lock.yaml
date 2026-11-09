@@ -53,6 +53,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.0(react@19.3.0)
+      relax-ui-contract:
+        specifier: workspace:^
+        version: link:../../packages/contract
       relax-ui-core:
         specifier: workspace:^
         version: link:../../packages/core
@@ -62,10 +65,16 @@ importers:
       relax-ui-react:
         specifier: workspace:^
         version: link:../../packages/react
+      relax-ui-theme-base:
+        specifier: workspace:^
+        version: link:../../packages/theme-base
       zod:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.10.2
+        version: 4.10.2(playwright-core@1.63.0)
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.4
@@ -82,8 +91,27 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  packages/contract:
+    dependencies:
+      relax-ui-protocol:
+        specifier: workspace:^
+        version: link:../protocol
+    devDependencies:
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+
   packages/core:
     devDependencies:
+      relax-ui-contract:
+        specifier: workspace:*
+        version: link:../contract
       relax-ui-protocol:
         specifier: workspace:*
         version: link:../protocol
@@ -130,6 +158,9 @@ importers:
       relax-ui-protocol:
         specifier: workspace:^
         version: link:../protocol
+      relax-ui-theme-base:
+        specifier: workspace:^
+        version: link:../theme-base
     devDependencies:
       '@types/react':
         specifier: ^19.0.2
@@ -147,7 +178,21 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
 
+  packages/theme-base:
+    devDependencies:
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
 packages:
+
+  '@axe-core/playwright@4.10.2':
+    resolution: {integrity: sha512-6/b5BJjG6hDaRNtgzLIfKr5DfwyiLHO4+ByTLB0cJgWSM8Ll7KqtdblIS6bEkwSF642/Ex91vNqIl3GLXGlceg==}
+    peerDependencies:
+      playwright-core: '>= 1.0.0'
 
   '@derhuerst/http-basic@8.2.4':
     resolution: {integrity: sha512-F9rL9k9Xjf5blCz8HsJRO4diy111cayL2vkY2XE4r4t3n0yPXVYy3KD3nJ1qbrSn9743UWSXH4IwuCa/HWlGFw==}
@@ -895,6 +940,10 @@ packages:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
 
+  axe-core@4.10.3:
+    resolution: {integrity: sha512-Xm7bpRXnDSX2YE2YFfBk2FnF0ep6tmG7xPh8iHee8MIcrgq762Nkce856dYtJYLkuIoYZvGfTs/PbZhideTcEg==}
+    engines: {node: '>=4'}
+
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
 
@@ -1376,6 +1425,11 @@ packages:
 
 snapshots:
 
+  '@axe-core/playwright@4.10.2(playwright-core@1.63.0)':
+    dependencies:
+      axe-core: 4.10.3
+      playwright-core: 1.63.0
+
   '@derhuerst/http-basic@8.2.4':
     dependencies:
       caseless: 0.12.0
@@ -1835,6 +1889,8 @@ snapshots:
   any-promise@1.3.0: {}
 
   assertion-error@2.0.1: {}
+
+  axe-core@4.10.3: {}
 
   buffer-from@1.1.2: {}
 

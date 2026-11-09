@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentSpecMap, UINode, UIRegistry } from "relax-ui-core";
+import type { ComponentSpec, ComponentSpecMap, UINode } from "relax-ui-core";
 import * as React from "react";
 
 /**
@@ -17,6 +17,17 @@ import * as React from "react";
  * A single `dangerouslySetInnerHTML` would make every other control in this SDK
  * decorative.
  */
+
+/**
+ * What the renderer needs from a vocabulary: a spec per type and a depth
+ * limit. A `UIRegistry` from `relax-ui-core` and a `Contract` from
+ * `relax-ui-contract` both satisfy it, so either can drive rendering (FR-224).
+ */
+export interface RenderVocabulary<M extends ComponentSpecMap = ComponentSpecMap> {
+  readonly specs: M;
+  readonly limits: { readonly maxDepth: number };
+  spec(type: string): ComponentSpec | undefined;
+}
 
 export interface GenerativeComponentProps<P = Record<string, unknown>> {
   props: P;
@@ -40,7 +51,7 @@ export interface RenderFailure {
 }
 
 export interface GenerativeUIProps<M extends ComponentSpecMap> {
-  registry: UIRegistry<M>;
+  registry: RenderVocabulary<M>;
   components: ComponentImplementations<M>;
   /** The node to render. `undefined` while the first frame is in flight. */
   node: UINode | undefined;
@@ -77,7 +88,7 @@ export function GenerativeUI<M extends ComponentSpecMap>(
 }
 
 interface RenderNodeProps<M extends ComponentSpecMap> {
-  registry: UIRegistry<M>;
+  registry: RenderVocabulary<M>;
   components: ComponentImplementations<M>;
   node: UINode;
   depth: number;
@@ -146,7 +157,7 @@ function RenderNode<M extends ComponentSpecMap>({
  * per-node re-validation exists to catch, and this makes it hard to write.
  */
 export function createGenerativeRenderer<M extends ComponentSpecMap>(
-  registry: UIRegistry<M>,
+  registry: RenderVocabulary<M>,
   components: ComponentImplementations<M>,
   defaults?: Pick<GenerativeUIProps<M>, "onInvalidNode" | "placeholder">,
 ): (props: Pick<GenerativeUIProps<M>, "node"> & Partial<GenerativeUIProps<M>>) => React.ReactElement | null {

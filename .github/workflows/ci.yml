@@ -58,7 +58,7 @@ jobs:
 
       - name: Assert published entry points exist
         run: |
-          for pkg in protocol core react next; do
+          for pkg in protocol contract theme-base core react next; do
             for f in dist/index.js dist/index.cjs dist/index.d.ts; do
               test -f "packages/$pkg/$f" || { echo "missing packages/$pkg/$f"; exit 1; }
             done
@@ -69,8 +69,8 @@ jobs:
       # this workspace and break for anyone installing core alone.
       - name: "V — core's build does not import relax-ui-protocol"
         run: |
-          if grep -n 'relax-ui-protocol' packages/core/dist/index.js packages/core/dist/index.cjs packages/core/dist/index.d.ts; then
-            echo "::error::core's build refers to relax-ui-protocol; it must be bundled in (NFR-203)."
+          if grep -nE 'relax-ui-(protocol|contract)' packages/core/dist/index.js packages/core/dist/index.cjs packages/core/dist/index.d.ts; then
+            echo "::error::core's build refers to a workspace package; it must be bundled in (NFR-203)."
             exit 1
           fi
 
@@ -91,19 +91,34 @@ jobs:
             exit 1
           fi
 
-      - name: "V — the browser protocol package has no runtime dependencies"
+      - name: "V — protocol and theme-base have no runtime dependencies"
         run: |
-          # Not even a peer: every host loads it, so whatever it declares every
-          # host inherits (NFR-202).
+          # Not even a peer: every host loads them, so whatever they declare
+          # every host inherits (NFR-202).
+          for pkg in protocol theme-base; do
+            PKG="$pkg" node -e '
+              const p = require("./packages/" + process.env.PKG + "/package.json");
+              const bad = ["dependencies", "peerDependencies", "optionalDependencies"]
+                .filter((k) => p[k] && Object.keys(p[k]).length);
+              if (bad.length) {
+                console.log("::error::Principle V: " + p.name + " declares " + bad.join(", "));
+                process.exit(1);
+              }
+              console.log(p.name + " has no runtime dependencies");
+            '
+          done
+
+      - name: "V — contract depends only on protocol, with Zod as its peer"
+        run: |
           node -e '
-            const p = require("./packages/protocol/package.json");
-            const bad = ["dependencies", "peerDependencies", "optionalDependencies"]
-              .filter((k) => p[k] && Object.keys(p[k]).length);
-            if (bad.length) {
-              console.log("::error::Principle V: relax-ui-protocol declares " + bad.join(", "));
+            const p = require("./packages/contract/package.json");
+            const deps = Object.keys(p.dependencies ?? {}).join();
+            const peers = Object.keys(p.peerDependencies ?? {}).join();
+            if (deps !== "relax-ui-protocol" || peers !== "zod") {
+              console.log("::error::relax-ui-contract may depend only on relax-ui-protocol, with zod as a peer.");
               process.exit(1);
             }
-            console.log("relax-ui-protocol has no runtime dependencies");
+            console.log("relax-ui-contract: relax-ui-protocol, zod as peer");
           '
 
       - name: "V — core has no runtime dependencies"
@@ -132,7 +147,7 @@ jobs:
         run: |
           # measureTree walks a model-supplied tree. A recursive walk overflows the
           # stack while measuring, i.e. the guard fails before it can fire.
-          if ! grep -q 'const stack:' packages/core/src/ui/contract.ts; then
+          if ! grep -q 'const stack:' packages/protocol/src/ui.ts; then
             echo "::error::measureTree must use an explicit stack (Principle IV)."
             exit 1
           fi

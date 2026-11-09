@@ -1,6 +1,6 @@
 "use client";
 
-import { useGenerativeObject } from "relax-ui-react";
+import { GenerativeTheme, useGenerativeObject } from "relax-ui-react";
 import { useCallback, useRef, useState } from "react";
 import { Dashboard } from "./components";
 import { FrameInspector, toFrameEntry, type FrameEntry } from "./frame-inspector";
@@ -36,6 +36,10 @@ export default function DashboardPage({
   const [topic, setTopic] = useState("UK public cloud spend, 2024 vs 2025");
   const [audience, setAudience] = useState<"executive" | "engineering" | "finance">("executive");
   const [showFrames, setShowFrames] = useState(showFramesInitially);
+  // The base theme's variants. Switching changes two attributes on the themed
+  // root and nothing else: the dashboard restyles without re-rendering.
+  const [variant, setVariant] = useState<"light" | "dark" | "auto">("auto");
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
 
   // The frame log. Kept beside the hook rather than inside it: the hook's job
   // is the document, and most applications never want the frames at all.
@@ -143,6 +147,25 @@ export default function DashboardPage({
           <input type="checkbox" checked={showFrames} onChange={(event) => setShowFrames(event.target.checked)} />
           Show frames
         </label>
+        <select
+          value={variant}
+          onChange={(event) => setVariant(event.target.value as typeof variant)}
+          aria-label="Theme"
+          style={{ padding: "0.6rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)" }}
+        >
+          <option value="auto">Theme: system</option>
+          <option value="light">Theme: light</option>
+          <option value="dark">Theme: dark</option>
+        </select>
+        <select
+          value={density}
+          onChange={(event) => setDensity(event.target.value as typeof density)}
+          aria-label="Density"
+          style={{ padding: "0.6rem 0.75rem", borderRadius: 8, border: "1px solid var(--border)" }}
+        >
+          <option value="comfortable">Comfortable</option>
+          <option value="compact">Compact</option>
+        </select>
       </form>
 
       {error ? (
@@ -180,9 +203,11 @@ export default function DashboardPage({
           time and props fill in mid-word. The renderer handles that because the
           schema's optional/required rules are enforced only at completion.
         */}
-        <div data-testid="document">
-          <Dashboard node={object?.root} />
-        </div>
+        <GenerativeTheme variant={variant} density={density} className="dashboard-surface">
+          <div data-testid="document">
+            <Dashboard node={object?.root} />
+          </div>
+        </GenerativeTheme>
 
         {showFrames ? <FrameInspector frames={frames} /> : null}
       </div>

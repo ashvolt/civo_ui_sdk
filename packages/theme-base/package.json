@@ -1,0 +1,36 @@
+{
+  "name": "relax-ui-theme-base",
+  "version": "0.1.0",
+  "description": "The base theme for the relaxAI Generative UI SDK: CSS design tokens with light, dark and compact variants, and the twelve standard components as framework-neutral markup templates. No dependencies.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./theme.css": "./dist/theme.css"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
