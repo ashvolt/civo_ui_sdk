@@ -58,7 +58,7 @@ interface Rendered {
 const SVG_NS = "http://www.w3.org/2000/svg";
 const SVG_TAGS = new Set(["svg", "g", "rect", "line", "polyline", "circle", "text"]);
 // Elements that execute, embed, submit or load: never created, whatever a
-// template asks for. Custom elements (`sl-card`) pass, for phase 4 connectors.
+// template asks for. Custom elements (`sl-card`) pass, for element connectors.
 const DENIED_TAGS = new Set([
   "script", "style", "iframe", "frame", "frameset", "object", "embed", "applet", "link", "meta", "base",
   "template", "noscript", "form", "input", "button", "textarea", "select", "option", "portal",

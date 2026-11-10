@@ -4,9 +4,9 @@
 
 **Stream schema-validated, model-designed interfaces from [Civo relaxAI](https://www.civo.com/ai/relaxai) — safely, on the edge, without leaving UK jurisdiction.**
 
-`relax-ui-core` · `relax-ui-react` · `relax-ui-next`
+`relax-ui-core` · `relax-ui-react` · `relax-ui-next` · `<gen-ui>` for any host · connectors for any theme library
 
-TypeScript · Zod 3 & 4 · Next.js App Router · zero runtime dependencies in core
+TypeScript · Zod 3 & 4 · Next.js App Router · plain HTML, Angular, Vue · zero runtime dependencies in core
 
 </div>
 
@@ -230,6 +230,52 @@ generation left running after the SDK had stopped reading it.
 [ADR-0008](./docs/adr/0008-wire-schema-dialects.md) ·
 [what was measured](./specs/002-provider-agnostic-inference/research.md)
 
+### Any host, any source, any theme library
+
+A generated document can also be rendered outside React: by a standard Web
+Component, in any page, from any source, in the look of the design system the
+page already uses.
+
+```html
+<script type="module">import "relax-ui-element/define";</script>
+<gen-ui source="/api/ui" validate="server" variant="dark"></gen-ui>
+```
+
+```ts
+el.source = { socket: ws };                 // or { stream }, { document }, { url }
+el.connectors = [bootstrap5, shoelace];     // or MUI, Element Plus, Angular Material
+```
+
+- **Any host.** One element works in plain HTML, Angular and Vue, with no
+  framework package. The same document is checked, in a real browser, to
+  produce the same markup in all of them and in React.
+- **Validated wherever it comes from.** Only a same-origin URL may skip browser
+  validation, and only on request. Any other source is validated in full
+  against the same contract the server uses. Asking to skip validation for a
+  foreign source is an error, not a silent upgrade.
+- **Any theme library.** A connector maps the twelve standard components onto a
+  library:
+  - class-based (Bootstrap): a declarative class mapping, no code;
+  - Web Components (Shoelace): the library's own elements;
+  - framework components (React, Vue, Angular): mounted per node.
+  A type the library lacks falls back to the base theme, and the fallback is
+  reported. No connector can render markup from model text.
+- **Isolated by default.** Each element renders in a shadow root. `light` mode
+  exists for libraries whose styles are global, and gives up style isolation,
+  but not validation or output safety.
+- **Small, and lazy.** A page with `<gen-ui>` and no document loads 13.6 KB
+  gzip and no component code. A component's code is fetched once, the moment
+  its type name appears in a stream. Every example runs under
+  `script-src 'self'`.
+
+→ [ADR-0009](./docs/adr/0009-own-reconciler-on-structural-sharing.md) ·
+[ADR-0010](./docs/adr/0010-shadow-and-light-modes.md) ·
+[ADR-0011](./docs/adr/0011-same-origin-trust-boundary.md) ·
+[ADR-0012](./docs/adr/0012-mount-contract-for-framework-components.md) ·
+examples: [plain HTML](./examples/html-host), [Vue](./examples/vue-host),
+[Angular](./examples/angular-host) ·
+[what was measured](./specs/003-pluggable-generative-ui/research.md)
+
 ---
 
 ## Packages
@@ -292,7 +338,7 @@ constitution to v1.1.0.
 | [HLD](./docs/hld.md) | Context, containers, lifecycle, quality attributes, risks |
 | [LLD](./docs/lld.md) | Module internals, algorithms, complexity, the cases that motivated them |
 | [Security model](./docs/security-model.md) | Assets, adversaries, controls — and what is *not* defended |
-| [ADRs](./docs/adr/) | Eight load-bearing decisions, each with its rejected alternatives |
+| [ADRs](./docs/adr/) | Twelve load-bearing decisions, each with its rejected alternatives |
 | [Diagrams](./docs/diagrams/) | Eight Mermaid diagrams, all render-verified |
 | [API reference](./docs/api-reference.md) | Every export, with examples |
 | [Troubleshooting](./docs/troubleshooting.md) | Symptoms first |
@@ -390,6 +436,12 @@ know:
    diffing, no built-in rate limiting — are listed in
    [plan.md](./specs/001-generative-ui-sdk/plan.md#known-limitations) rather than
    left to be discovered.
+4. **Feature 003's limits**, also listed in its
+   [plan](./specs/003-pluggable-generative-ui/plan.md#known-limitations):
+   - `light` mode gives up style isolation.
+   - A connector's library runs with the page's privileges, and its palette is
+     its own. Shoelace's badges fall short of WCAG AA contrast.
+   - The components are read-only; interaction is a later feature.
 
 ---
 

@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Eight decisions this SDK turns on. Each records the alternatives and why they were
+Twelve decisions this SDK turns on. Each records the alternatives and why they were
 rejected — the rejections are the useful part, because they are what a reviewer
 would otherwise have to ask about.
 
@@ -14,6 +14,10 @@ would otherwise have to ask about.
 | [0006](./0006-json-patch-streaming-transport.md) | Stream JSON Patch frames, not snapshots | V |
 | [0007](./0007-provider-profiles-and-inference-interface.md) | The endpoint is a provider profile behind an inference interface | I, III, V |
 | [0008](./0008-wire-schema-dialects.md) | Send a constrained decoder only what it can enforce | II, III |
+| [0009](./0009-own-reconciler-on-structural-sharing.md) | A hand-written reconciler, built on the protocol's structural sharing | IV, V, VII |
+| [0010](./0010-shadow-and-light-modes.md) | Two element modes: isolated `shadow` by default, `light` for global stylesheets | IV, V |
+| [0011](./0011-same-origin-trust-boundary.md) | Same origin is the only boundary for skipping browser validation | IV |
+| [0012](./0012-mount-contract-for-framework-components.md) | Framework components are mounted per node through one contract | IV, V |
 
 Principles are from the [constitution](../../.specify/memory/constitution.md).
 
