@@ -29,13 +29,26 @@ the ticket.
 
 ### 1.2 What this SDK is
 
-Three TypeScript packages that close that gap:
+TypeScript packages that close that gap. Three for the server and React
+(features 001 and 002):
 
 | Package | Responsibility | Depends on |
 |---|---|---|
 | `relax-ui-core` | Transport, capability negotiation, structuring strategies, streaming parse + validate, guards, wire protocol | nothing at runtime (Zod is a peer) |
-| `relax-ui-react` | Streaming object hook, allowlist-only renderer | core, React |
+| `relax-ui-react` | Streaming object hook (any source), allowlist-only renderer on the render core, base theme for React | core, protocol, render, theme-base, React |
 | `relax-ui-next` | App Router handler factories | core |
+
+And, since feature 003, the browser packages that render a document in any host,
+from any source, in any design system (§14):
+
+| Package | Responsibility | Depends on |
+|---|---|---|
+| `relax-ui-protocol` | The wire protocol for browsers: readers for every source, the trust decision | nothing |
+| `relax-ui-contract` | The twelve standard components, extension, browser validation | protocol (Zod is a peer) |
+| `relax-ui-theme-base` | Design tokens, variants, templates, lazy loaders | nothing |
+| `relax-ui-render` | Resolver, catalog, DOM reconciler, `defineConnector` | nothing |
+| `relax-ui-element` | `<gen-ui>` | nothing (contract and Zod optional peers) |
+| `relax-ui-connect-react`, `-vue`, `-angular` | Framework component libraries as connectors | their framework, as a peer |
 
 ### 1.3 Out of scope
 
@@ -484,3 +497,33 @@ graph LR
 | V Edge is a target | `client/http.ts`, zero deps | CI greps; `next build` on Edge |
 | VI Spec first | `specs/001-generative-ui-sdk/` | This artefact chain |
 | VII Tested behaviour | 154 tests | `pnpm test` |
+
+---
+
+## 14. Browser rendering (feature 003)
+
+Features 001 and 002 render on React, from the SDK's own route. Feature 003
+takes the same documents to any web host, from any source, in the host's own
+design system ([spec](../specs/003-pluggable-generative-ui/spec.md),
+[diagram](./diagrams/09-browser-rendering.md),
+[comparison with other projects](./comparison.md)).
+
+| Concern | Decision | Record |
+|---|---|---|
+| Sources | One reader for a same-origin route, another origin, a `ReadableStream`, a WebSocket and a static document; every kind is folded by the same accumulator | `relax-ui-protocol` |
+| Trust | Full browser validation by default; skipped only for a same-origin URL on request; a foreign source asking to skip it is refused | [ADR-0011](./adr/0011-same-origin-trust-boundary.md) |
+| Rendering | One resolver for every renderer; a keyed DOM reconciler on the protocol's structural sharing; output safety in the DOM backend | [ADR-0009](./adr/0009-own-reconciler-on-structural-sharing.md) |
+| Hosts | `<gen-ui>`, a standard Web Component, for plain HTML, Angular and Vue with no framework package; React keeps its renderer on the same resolver | [element README](../packages/element/README.md) |
+| Styles | `shadow` mode isolated by default; `light` for global stylesheets and framework libraries | [ADR-0010](./adr/0010-shadow-and-light-modes.md) |
+| Design systems | Connectors: a class mapping, a Web-Component mapping, or framework components mounted per node; unimplemented types fall back to the base theme, reported | [ADR-0012](./adr/0012-mount-contract-for-framework-components.md) |
+| Loading | Component code fetched once, when its exact type name first arrives; the validator loaded only for full validation | [research R6, R7](../specs/003-pluggable-generative-ui/research.md) |
+
+**Measured:**
+- A page with `<gen-ui>` and no document is 13.6 KB gzip and contains no
+  component code.
+- Each connector is about 1.9 KB gzip.
+- One React root per node renders 300 nodes in 14 ms.
+- The same document produces identical markup in four hosts.
+- Every example runs under `script-src 'self'`.
+
+The full table is in the [plan's Verification](../specs/003-pluggable-generative-ui/plan.md#verification).

@@ -2,7 +2,7 @@
   "name": "relax-ui-sdk",
   "version": "0.1.0",
   "private": true,
-  "description": "Generative UI SDK for Civo relaxAI — schema-enforced, streaming, sovereign-by-default.",
+  "description": "Generative UI SDK for Civo relaxAI — schema-enforced, streaming, sovereign-by-default; rendered by <gen-ui> in any web host and any design system.",
   "license": "Apache-2.0",
   "type": "module",
   "engines": {

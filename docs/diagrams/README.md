@@ -13,6 +13,7 @@ GitHub without a build step.
 | [Trust boundaries](./06-trust-boundaries.md) | Threat model and where each control sits |
 | [Partial JSON state machine](./07-partial-json-state.md) | The scanner that makes streaming possible |
 | [Schema derivation](./08-schema-derivation.md) | One declaration, four consumers |
+| [Browser rendering](./09-browser-rendering.md) | Any source, trust decided first, one resolver, connectors, shadow or light |
 
 Each diagram is accompanied by the prose that makes it worth having. A diagram
 that needs no explanation is usually not showing a mechanism.
