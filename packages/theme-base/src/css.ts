@@ -7,7 +7,7 @@
  *
  * Kept in TypeScript rather than a .css file so there is one source for both
  * ways a host takes them: the build writes `dist/theme.css` for a page to link,
- * and phase 4's Web Component adopts the same text into its shadow root.
+ * and `<gen-ui>` adopts the same text into its shadow root.
  *
  * Two layers with one rule between them (T1): `tokens` is the only place a
  * colour is written; `components` reads tokens and nothing else. A theme is

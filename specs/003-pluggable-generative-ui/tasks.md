@@ -264,12 +264,39 @@ Numbered from T-201.
 
 ## Phase 6 — Documentation and CI
 
-- [ ] **T-260** CI: no `dependencies` in protocol, render, element, theme-base; only peers in
+- [x] **T-260** CI: no `dependencies` in protocol, render, element, theme-base; only peers in
   connectors; egress grep extended to new packages.
-- [ ] **T-261** [P] `docs/security-model.md`: browser validation tiers, `light` mode trade-off.
-- [ ] **T-262** [P] ADRs: own reconciler; shadow vs light; same-origin trust; mount contract.
-- [ ] **T-263** [P] README, API reference, per-package READMEs, troubleshooting.
-- [ ] **T-264** Fill plan.md Verification with measured results.
+- [x] **T-261** [P] `docs/security-model.md`: browser validation tiers, `light` mode trade-off.
+- [x] **T-262** [P] ADRs: own reconciler; shadow vs light; same-origin trust; mount contract.
+- [x] **T-263** [P] README, API reference, per-package READMEs, troubleshooting.
+- [x] **T-264** Fill plan.md Verification with measured results.
+
+### Phase 6 notes
+
+- **T-260** was built up phase by phase. CI asserts:
+  - protocol, theme-base and render declare no dependencies or peers;
+  - the element declares none, with the contract and Zod as optional peers;
+  - each connector's only peer is its framework;
+  - no build imports a workspace package it must compile in;
+  - no `node:` import and no raw-HTML sink in any browser package;
+  - the egress grep covers every browser package.
+- **T-261** `docs/security-model.md` 1.1 adds §4.7, the browser:
+  - trust tiers;
+  - output safety, whatever the renderer or connector;
+  - what connectors cannot do;
+  - the `light` mode trade-off;
+  - CSP.
+  Three items were added to "not defended": page styles in light mode, a
+  connector library's own code, a library's palette.
+- **T-262** ADR-0009 (own reconciler), ADR-0010 (shadow and light),
+  ADR-0011 (same-origin trust), ADR-0012 (mount contract), each with its
+  rejected alternatives and its unhappy consequences.
+- **T-263** API reference gains the browser packages and the hook's `source`
+  option; troubleshooting gains a browser section, symptoms first; the README
+  gains "Any host, any source, any theme library"; every new package and
+  example has a README.
+- **T-264** plan.md's Verification table holds the measured results, and its
+  known limitations are updated from expected to measured.
 
 ---
 
@@ -283,4 +310,4 @@ Numbered from T-201.
 
 ## Outstanding
 
-Phases 0 to 5 are done. Phase 6 (T-260 to T-264, documentation and CI) is outstanding; parts of T-260 already run in CI.
+All phases, 0 to 6, are done.

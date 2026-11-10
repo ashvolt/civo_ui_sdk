@@ -270,6 +270,134 @@ renderer falls back to `type:index`, which remounts siblings when a list grows.
 
 ---
 
+## Browser rendering: `<gen-ui>`, connectors, hosts
+
+### `config_invalid: validate: "server" is allowed only for a URL on this page's own origin`
+
+Or `…allowed only for a same-origin URL; this source is a document` (or
+`stream`, `socket`). Browser validation may be
+skipped only for an http(s) URL on the page's origin ([ADR-0011](./adr/0011-same-origin-trust-boundary.md)).
+Nothing was fetched or rendered. Remove `validate="server"`, and the document is
+validated in the browser instead. That loads `relax-ui-contract` and Zod on the
+first node.
+
+### `<gen-ui source="/api/ui">` shows nothing, and no request is made
+
+A URL source waits for `submit(body)`, because the route needs a POST body. Every
+other source kind starts reading as soon as it is set and the element is on the
+page.
+
+### `config_invalid: The "…" library is not on this page`
+
+The connector's `requires` check failed. Load the library before rendering:
+- Bootstrap's stylesheet, in light mode.
+- Shoelace's elements, registered, before setting `connectors`.
+
+### `config_invalid: The "…" connector needs mode="light"`
+
+The library's styles are global, so they cannot reach a shadow root
+([ADR-0010](./adr/0010-shadow-and-light-modes.md)). Either set `mode="light"` in
+the markup, or, for a class library, give the connector `stylesheets` to adopt.
+Framework connectors always need `light`.
+
+### `config_invalid: \`mode\` is fixed once the element is on the page`
+
+Set `mode` in the markup, or before inserting the element. Changing it later is
+refused rather than half-applied.
+
+### A node shows a grey placeholder and never fills in
+
+It is waiting for code. Check `el.state.loadFailures`:
+
+- **A type is listed**: its chunk failed to load. A failed chunk is retried on
+  the next document, not on every frame.
+  - Check the chunk is served from the page's origin.
+  - Check the policy allows `script-src 'self'`.
+- **`validator` is listed**: the contract chunk failed. Without a validator,
+  nothing from a foreign source renders. That is fail-closed, by design.
+
+### `state.fallbacks` lists types you thought the connector covered
+
+Those types were drawn by the base theme, because no attached connector
+implements them. Check the type names: they are case-sensitive (`Metric`, not
+`metric`). A later connector overriding an earlier one is listed in
+`state.overrides`.
+
+### Bootstrap (or another class library) looks unstyled in shadow mode
+
+The adopted stylesheet did not load: its URL is in `state.loadFailures`. A
+stylesheet that keys colours off `html` or `body` rather than `:root` may also
+need its own adaptation. The element only rewrites `:root` to `:host`.
+
+### Switching `variant` restyles the base theme but not the library
+
+The library has its own switch. Declare it on the connector:
+
+- Bootstrap: `variants: { dark: { "data-bs-theme": "dark" } }`.
+- Shoelace: `variants: { dark: { class: "sl-theme-dark" } }`, plus its dark sheet
+  in `stylesheets`.
+
+Shoelace's own `dark.css` also targets `:host`. Serve a copy without that
+selector, or the element will always be dark.
+
+### A framework component renders, but its children do not appear
+
+The component must place them:
+
+- React: render `children`.
+- Vue: render the default slot.
+- Angular: include `<ng-content />`.
+
+The renderer draws children into a host element and the component decides
+where that host goes. It never renders model children itself.
+
+### Angular: `Refused to apply inline style` under a strict policy
+
+Angular adds component styles to `<head>` at runtime. Give them a nonce: put
+`ngCspNonce="…"` on the root element, with a fresh value per response, and
+`'nonce-…'` in `style-src`. Do not add `unsafe-inline`. Also disable critical
+CSS inlining (`optimization.styles.inlineCritical: false`): its `onload`
+handler is an inline script.
+
+### Angular: `base-uri` violation
+
+`<base href="/">` needs `base-uri 'self'`. `'none'` blocks it.
+
+### Angular Material text renders in a serif font
+
+Material's prebuilt themes name `Roboto` with no fallback, and expect the page to
+load it. Load Roboto from your own origin, or give each typography role a
+fallback (`--mat-sys-body-large-font: Roboto, system-ui, sans-serif;` and the
+other fourteen). `examples/angular-host/src/styles.css` does the latter.
+
+### The Angular CLI refuses to run: `requires a minimum Node.js version of v22.22.3`
+
+Angular 22's CLI needs Node 22.22.3 or later, or Node 24. The connector itself
+only needs `@angular/core`.
+
+### Zod is downloaded although every element uses `validate="server"`
+
+- Another element on the page validates in full.
+- Or a source is not a same-origin URL, and was therefore refused or validated.
+
+`state.status`, and the absence of `gen-ui:error`, tell which.
+
+### Vue sets `source` to a string
+
+That is expected. Vue sets a custom element's property whenever the property
+exists. A string assigned to `source` is a URL, exactly as the attribute is.
+
+### axe reports colour contrast inside a library's components
+
+A library's palette is its own. The base theme meets WCAG 2.2 AA in every
+variant. Shoelace's badges and Element Plus's default text colours do not.
+- **Element Plus**: theme it through its CSS variables (`--el-color-info` and
+  others), as `examples/vue-host/public/app.css` does.
+- **Shoelace badges**: there is no such fix; the example excludes only those
+  badges from the contrast rule.
+
+---
+
 ## HTTP
 
 ### `payment_required` (402)

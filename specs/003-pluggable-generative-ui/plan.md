@@ -178,32 +178,45 @@ produce it are done.
 
 ---
 
-## Verification (to be filled when implemented)
+## Verification
 
-| Gate | How |
-|---|---|
-| Existing suites | features 001 and 002 tests pass unmodified (NFR-206) |
-| Reconciler | property test: DOM after every prefix equals a fresh render of that prefix |
-| Connector conformance | one suite, run against base, Bootstrap, Shoelace, React, Angular, Vue connectors: every component renders, text stays text, unknown type renders nothing, URL guard holds |
-| Hosts | Playwright: same document in next-app, angular-host, vue-host, html-host |
-| Lazy loading | a page without `<gen-ui>` loads no chunk; a three-component document loads three |
-| Trust | each refusal in the contract's Refusals table has a test |
-| CSP | html-host served with `script-src 'self'`, no `unsafe-eval` |
-| Accessibility | axe in Playwright, all three variants (NFR-205) |
-| Size | report present on every CI run |
+Measured at the end of phase 5. Unit and integration: 736 tests (`pnpm verify`);
+in the browser: 42 Playwright tests in five suites; all run in CI.
+
+| Gate | How | Result |
+|---|---|---|
+| Existing suites | features 001 and 002 tests run unmodified (NFR-206) | Pass. The 24 Next.js browser tests are unchanged and pass |
+| Reconciler | property test: the DOM after every prefix of three realistic streams (2 characters per frame, both tiers) equals a fresh render of that prefix; unchanged nodes keep their DOM | Pass, in the DOM backend and inside `<gen-ui>` (WebSocket; SSE split at arbitrary bytes). Deliberate bugs in text patching, key matching and the waiting check were each caught |
+| Mount contract | mount, update, unmount counts; subtree disposal; a final pass updates nothing | Pass. Deliberate bugs in disposal and update-on-change were each caught |
+| Connector conformance | one suite: every component renders with its contract role; text stays text; unknown type renders nothing; URL guard holds in both tiers; fallbacks reported | Pass for 8 configurations: base theme (shadow, light), Bootstrap 5 (light; shadow with adopted sheet), Shoelace, Bootstrap + Shoelace layered, MUI, Element Plus, Angular Material |
+| Hosts | Playwright: the same document in four hosts, compared structurally | Pass. Plain HTML, Vue and Angular through `<gen-ui>`, and React through `relax-ui-react`, serialise identically. The React host is a page of `html-host`, not `next-app`, whose route is model-driven. A one-word difference fails the test |
+| Lazy loading | a page with the element and no document loads no component chunk and no validator | Pass: bundle tests (esbuild) and Chromium. Component code is requested on the exact type name and loaded once per page. A same-origin route never downloads Zod; a page with foreign sources downloads it once |
+| Trust | each refusal in the contract's Refusals table has a test | Pass: `validate="server"` with a document, stream, socket or another origin; a missing library; a light-only connector in shadow mode; an unknown type. Nothing is fetched or rendered after a refusal |
+| CSP | every example served with `script-src 'self'`, no `unsafe-eval`, no `unsafe-inline` | Pass, with no violation in html-host, vue-host and angular-host. Styles are `'self'`, plus a per-page nonce for Angular's runtime component styles. The Angular app ships no compiler (asserted) |
+| Style isolation | four elements, three looks, one page | Pass in Chromium, in both directions |
+| Accessibility | axe in Playwright (NFR-205) | Pass: the base theme in light, dark and compact; Bootstrap; Element Plus (host palette); Angular Material. Shoelace passes all rules except contrast on its own badges (security model, §5) |
+| Size | report on every CI run, compared with `main` | Present. Gzip: `<gen-ui>` with nothing rendered 13.6 KB; the render core 4.1 KB with the lazy base theme; each lazy component group 0.4–1.3 KB; each connector about 1.9 KB; the React hook alone 4.8 KB (unchanged) |
+| Framework roots (T-254) | one root per node against one shared root, 20/100/300 nodes, Chromium | One root per node: 14 ms to complete 300 nodes against 70 ms for a shared root; worst streamed frame 6 ms. No batching (research R5) |
 
 ---
 
-## Known limitations (expected)
+## Known limitations
 
 1. `light` mode gives up style isolation; scoping relies on a container class.
-2. Framework connectors create one framework root per node; batching may be
-   needed for large documents.
+2. Framework connectors create one framework root per node. Measured fine at 300
+   nodes (T-254); documents far beyond the 500-node default budget were not
+   measured.
 3. Class-based libraries in `shadow` mode cost one stylesheet parse per page
    (shared via adopted stylesheets), not per instance — but a library that
    expects global scripts (Bootstrap's JS components) will not work there; the
    twelve need none.
-4. Sizes in research were estimates until phase 1. R1 and R7 are measured
-   (T-218); R2's remain estimates until the phase 4 spike.
+4. Sizes are measured (research R1, R2, R7; the size report). The research
+   tables' original estimates are kept beside the measurements.
 5. Size is reported, not enforced (clarification).
 6. Read-only components only; interaction is a later feature.
+7. A connector's library palette is the library's: Shoelace's badges fall below
+   WCAG AA contrast, and Element Plus's defaults needed host CSS.
+8. Adopting a global stylesheet into a shadow root rewrites `:root` to `:host`;
+   a library keyed to `html` or `body` selectors needs its own adaptation.
+9. The Angular example's CLI needs Node 22.22.3 or later; the connector does
+   not.

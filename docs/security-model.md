@@ -1,7 +1,7 @@
 # Security model
 
-**Version**: 1.0 · **Date**: 2026-09-29
-**See also**: [Trust boundaries diagram](./diagrams/06-trust-boundaries.md) · [ADR-0001](./adr/0001-server-side-validation-boundary.md) · [ADR-0004](./adr/0004-closed-component-vocabulary.md)
+**Version**: 1.1 · **Date**: 2026-11-10 (1.0: 2026-09-29; 1.1 adds the browser, section 4.7)
+**See also**: [Trust boundaries diagram](./diagrams/06-trust-boundaries.md) · [ADR-0001](./adr/0001-server-side-validation-boundary.md) · [ADR-0004](./adr/0004-closed-component-vocabulary.md) · [ADR-0011](./adr/0011-same-origin-trust-boundary.md) · [ADR-0010](./adr/0010-shadow-and-light-modes.md)
 
 ---
 
@@ -154,6 +154,104 @@ influence either.
 **Residual risk**: no built-in rate limiting or quota. `authorize` is the seam;
 quota policy belongs to the application.
 
+### 4.7 The browser renders documents it did not ask for (feature 003)
+
+Feature 003 lets a page render a document that never passed through this SDK's
+server: a static JSON file, a stream from another service, a WebSocket message.
+The server-side controls in 4.3 cannot have run on those. The browser therefore
+carries the same controls, and decides for itself when it may skip them.
+
+#### Who validates: the trust tier
+
+| Source | Validation in the browser | Why |
+|---|---|---|
+| A URL on the page's own origin, with `validate="server"` | Not repeated; the validator's code is never downloaded | It is served by the application that served the page. If that is compromised, so is the page, and re-validating would protect nothing (research R4) |
+| A same-origin URL without `validate="server"` | Full | The default |
+| A URL on another origin | Full; `validate="server"` is **refused** | Another origin is someone else's server |
+| A static document, a `ReadableStream`, a WebSocket | Full; `validate="server"` is **refused** | The browser cannot tell where it came from |
+
+A refusal is `config_invalid`, raised before anything is fetched, listened to or
+rendered, never a silent upgrade to full validation. A silent upgrade would hide
+the mistake from whoever made it (Constitution IV, data model S1). Full
+validation is the default; skipping it is the exception that must be asked for,
+and is only granted where the origin check says it is safe.
+
+What full validation checks in the browser is what the server checks:
+
+- the closed component vocabulary;
+- `.strict()` props, so an unexpected key is a failure;
+- the URL guard;
+- display-text control characters;
+- the node budget and the depth budget.
+
+A node that fails is not drawn and is reported with its field paths, never its
+values. Its siblings still render.
+
+#### What the renderer allows into the DOM
+
+Whatever the validation tier, every renderer (the DOM backend, React, a
+connector's output) passes through the same checks. The checks hold even if a
+theme or connector misbehaves:
+
+| Control | Implementation |
+|---|---|
+| Text is text | A string becomes a text node, never parsed. There is no code path from a string to markup; CI greps for every raw-HTML sink |
+| Tag allowlist | `script`, `style`, `iframe`, `object`, `embed`, form controls, `template`, SVG `use`/`image`/`foreignObject`/animation are never created, whatever a template returns |
+| Attribute allowlist | No `on*`, no `style`, no `srcdoc`, no `formaction` |
+| URLs again | `href`, `src` and other URL attributes pass the URL guard at render time too, so a `server`-tier document cannot place `javascript:` in a link |
+| Mounted framework components | They set their own attributes, out of the renderer's reach, so their `href`/`src` props pass the URL guard before the component sees them |
+| Depth | The resolver refuses nodes past the depth limit before any implementation runs |
+
+#### Connectors cannot widen what is accepted
+
+A connector maps the contract onto a theme library. By construction it cannot
+render a node outside the contract, skip validation, or turn model text into
+markup (FR-238):
+
+- `class` implementations only rename the base theme's classes;
+- `element` implementations only replace the root tag with a custom element and
+  set attributes from props, and `defineConnector` refuses `on*`, `style`,
+  `href` and `src` mappings;
+- `template` implementations return markup as data, checked like any other;
+- framework components (React, Vue, Angular) receive validated props only, and
+  never receive the model's children: the renderer draws those into a host the
+  component merely places.
+
+A connector whose library is missing is a configuration error naming the
+library, not a blank screen.
+
+#### Style isolation: `shadow` and `light`
+
+`<gen-ui>` renders into a shadow root by default. The page's styles cannot reach
+the document, and the document's styles cannot reach the page or another
+instance; this is tested in Chromium in both directions.
+
+`light` mode renders into the page's own DOM. Global theme libraries need it:
+Bootstrap without an adopted sheet, and every framework library, because they
+inject styles into `document.head`. **In light mode isolation is given up.** The
+page's CSS can restyle the generated document, and selectors in it can reach the
+document's elements. The base theme still only styles under `.gen-theme`.
+
+The integrity controls above do not depend on the mode. Light mode trades away
+style isolation, not validation or output safety. The risk is limited to
+appearance, such as a page rule hiding or restyling a generated element, and
+the page's author controls those rules.
+
+#### Content Security Policy
+
+The element, its lazy loading and every example work under `script-src 'self'`,
+with no `unsafe-eval` and no `unsafe-inline`.
+
+- **Lazy loading** is a plain `import()` of same-origin chunks.
+- **Styles** are constructed stylesheets, adopted into each shadow root, not
+  inline `<style>`.
+- **Connector stylesheets** are fetched from the URLs the connector declares
+  and adopted once per page.
+- **Framework hosts** follow the same policy: the Vue example uses render
+  functions with no template compiler, and the Angular example is compiled
+  ahead of time and ships no compiler (tested). Angular's runtime component
+  styles take a per-page nonce, not `unsafe-inline`.
+
 ---
 
 ## 5. What is deliberately not defended
@@ -169,6 +267,9 @@ misleading.
 | **Model-side data leakage** | Whether relaxAI retains prompts is Civo's contract, not something an SDK can enforce. Redaction reduces exposure; it does not replace the contract |
 | **Supply-chain compromise of Zod or React** | Out of scope. Core's zero runtime dependencies shrink the surface it contributes |
 | **Client-side denial of self** | A user can make their own browser slow |
+| **Page styles in `light` mode** | Light mode exists for libraries whose styles are global, and gives up style isolation in exchange (4.7). The page's own CSS can restyle or hide generated elements; it cannot run script or change what the document says |
+| **A connector's library code** | A connector's library (Bootstrap, Shoelace, MUI, Element Plus, Angular Material) runs with the page's privileges. Its components receive validated props and text, but the SDK cannot audit what a library does with them. Choose libraries as you would any dependency |
+| **A theme library's colour contrast** | The base theme meets WCAG 2.2 AA in every variant. A library's own palette is the library's: Shoelace's badges and Element Plus's defaults fall below 4.5:1 and were fixed, where possible, by the host's CSS |
 
 ---
 
@@ -183,6 +284,11 @@ misleading.
 | Depth guard survives a pathological tree | `measureTree` tested against 200,000 levels |
 | Request surface is fixed | `route.test.ts` asserts smuggled `model`/`system` are ignored and `authorize` short-circuits before any upstream call |
 | Sovereignty opt-in cannot widen | Test asserts `allowInsecureTransport` still refuses a remote host |
+| Browser trust tiers | `protocol/test/trust.test.ts` and the element's refusal tests: `validate="server"` with a document, a stream, a socket or another origin is `config_invalid`, and nothing is fetched or rendered; the server tier never loads the validator |
+| Connector output safety | One conformance suite, run against the base theme, Bootstrap (light and shadow), Shoelace, MUI, Element Plus and Angular Material: markup in every text prop stays text, unknown types render nothing, `javascript:` links are refused in both tiers |
+| No raw-HTML sink in the browser packages | The same CI grep covers `render`, `element` and the connectors |
+| Style isolation | Chromium test: four elements with three themes on one page; nothing crosses a shadow boundary in either direction |
+| CSP | Every example served with `script-src 'self'`; Playwright asserts no violation |
 
 A guard tested only against valid input is not tested. Every control above has a
 test that asserts the refusal path.
@@ -203,3 +309,10 @@ test that asserts the refusal path.
    capabilities changed.
 7. Review each registered component as a security boundary: it receives
    model-influenced props and decides what reaches the DOM.
+8. In the browser, leave validation at its default unless the document comes
+   from your own route on your own origin. Ship the validator lazily
+   (`relax-ui-element` does) rather than switching it off.
+9. Prefer `<gen-ui>`'s default `shadow` mode. Use `light` only for a library
+   that needs it, and treat the page's CSS as able to touch the generated
+   document.
+10. Serve pages with `script-src 'self'`. Nothing in the SDK needs more.

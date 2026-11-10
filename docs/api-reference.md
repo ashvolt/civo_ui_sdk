@@ -326,6 +326,18 @@ const { object, value, isStreaming, error, metadata, strategy, provider, submit,
   });
 ```
 
+Any source, not only the route (feature 003):
+
+```tsx
+useGenerativeObject<{ root: UINode }>({ source: { socket: ws }, schema: contract.documentSchema });
+useGenerativeObject<{ root: UINode }>({ source: { url: "/api/ui" }, validate: "server" }); // same origin only
+```
+
+`source` takes `{ url }`, `{ stream }`, `{ socket }` or `{ document }`. Anything
+but a same-origin URL is validated in full against `schema` (required there).
+`validate: "server"` with any other source is `config_invalid`. A same-origin
+`api` keeps its original behaviour.
+
 | Field | Notes |
 |---|---|
 | `object` | `Partial<T>` while streaming, full `T` after `complete` |
@@ -352,6 +364,15 @@ const Dashboard = createGenerativeRenderer(registry, {
 });
 
 <Dashboard node={object?.root} />
+```
+
+`createGenerativeRenderer` also takes a contract (`standardContract.extend(…)`),
+and the base theme as components:
+
+```tsx
+import { baseComponents, createGenerativeRenderer, GenerativeTheme } from "relax-ui-react";
+const Doc = createGenerativeRenderer(contract, baseComponents);
+<GenerativeTheme variant="dark" density="compact"><Doc node={object?.root} /></GenerativeTheme>
 ```
 
 Components receive props already validated twice. `onInvalidNode` fires for
@@ -399,6 +420,205 @@ short-circuits.
 Same config, returns `{ object, metadata }` as JSON. Status mapping:
 `rate_limited` → 429, `timeout` → 504, `aborted` → 499,
 `schema_violation`/`unrepairable`/`truncated` → 502, `config_invalid` → 500.
+
+---
+
+## Browser packages (feature 003)
+
+Render generated documents in any host, from any source, with any theme library.
+[ADR-0009](./adr/0009-own-reconciler-on-structural-sharing.md) to
+[ADR-0012](./adr/0012-mount-contract-for-framework-components.md) record why
+they are built this way. The [security model, §4.7](./security-model.md)
+records what they defend.
+
+| Package | Use it for | Runtime deps |
+|---|---|---|
+| `relax-ui-protocol` | Reading a document from any source; the trust decision | none |
+| `relax-ui-contract` | The twelve standard components, your additions, and browser validation | protocol (Zod is a peer) |
+| `relax-ui-theme-base` | The base theme: tokens, variants, templates, lazy loaders, `theme.css` | none |
+| `relax-ui-render` | The render core, the DOM renderer, `defineConnector` | none |
+| `relax-ui-element` | `<gen-ui>` | none (contract and Zod are optional peers) |
+| `relax-ui-connect-react` / `-vue` / `-angular` | React, Vue or Angular component libraries as connectors | their framework, as a peer |
+
+### `relax-ui-protocol`
+
+```ts
+import { readSource, resolveValidation, UIStreamAccumulator, type Source } from "relax-ui-protocol";
+
+const source: Source = { socket: ws };       // or { url }, { stream }, { document }
+const tier = resolveValidation(source, "full"); // "server" is refused here: a socket is foreign
+
+const doc = new UIStreamAccumulator();
+for await (const event of readSource(source, { body: { topic }, signal })) {
+  doc.apply(event);
+  render(doc.current());
+}
+```
+
+| Export | Notes |
+|---|---|
+| `Source` | Exactly one of `{ document }`, `{ url }` (POSTed, SSE response), `{ stream }` (SSE bytes) or `{ socket }` (one event per message) |
+| `readSource(source, options?)` | Protocol 1 events from any source. A stream or socket that ends before `complete` throws `truncated`. A socket is never closed: the host owns it |
+| `resolveValidation(source, requested)` | `"full"`, or `"server"` only for an http(s) URL on the page's origin. Anything else with `"server"` is `config_invalid` ([ADR-0011](./adr/0011-same-origin-trust-boundary.md)) |
+| `isSameOriginUrl(url, origin?)` | The check behind it. Protocol-relative URLs to another host are not same-origin |
+| `UIStreamAccumulator`, `applyPatch`, `encodeUIStreamEvent`, `sanitizeUrl`, `measureTree` | The wire protocol's primitives, as in `relax-ui-core`, which re-exports all of them |
+
+### `relax-ui-contract`
+
+```ts
+import { createValidator, standardContract, urlString, displayText } from "relax-ui-contract";
+import { z } from "zod";
+
+export const contract = standardContract.extend(
+  {
+    Timeline: {
+      description: "Dated events, oldest first.",
+      role: "list",                           // required: the ARIA role a theme gives its root
+      children: "none",
+      props: z.object({ events: z.array(z.object({ date: displayText(20), text: displayText(120) })).max(20) }).strict(),
+    },
+  },
+  { maxNodes: 120 },
+);
+
+export const validator = createValidator(contract); // load lazily: it pulls in Zod
+```
+
+| Export | Notes |
+|---|---|
+| `standardContract` | Stack, Grid, Card, Heading, Text, Metric, List, Table, Callout, Badge, Link, Chart, each with a role and a schema |
+| `defineContract(specs, limits?)` / `contract.extend(additions, limits?)` | Adds or overrides components and never removes one. Refuses a malformed name, a missing role, or an action prop (`onClick`, `action`, …) |
+| `contract.names`, `contract.spec(type)`, `contract.role(type)`, `contract.documentSchema` | What the server's registry and the browser read |
+| `createValidator(contract)` | `{ props(type, raw) }` for `<gen-ui>`'s `validator` or `DomRenderer`. Failures report field paths, never values |
+| `buildUISchemas(specs, limits)` | The one schema builder both `createUIRegistry` (server) and the browser use |
+
+On the server, `createUIRegistry(contract.specs, contract.limits)`
+derives the JSON Schema the model is constrained by. Both ends read one
+declaration.
+
+### `relax-ui-theme-base`
+
+| Export | Notes |
+|---|---|
+| `relax-ui-theme-base/theme.css` | Tokens and component styles for a page that links a stylesheet. Every rule is scoped under `.gen-theme` |
+| `baseTemplates` | The twelve, loaded up front |
+| `baseLoaders` | The twelve, loaded on first use, in five chunks: layout, text, Metric, Table, Chart |
+| `themeAttributes(variant, density)` | `class` and `data-gen-*` for a root: variants `light`, `dark`, `auto`; densities `comfortable`, `compact` |
+| `tokens`, `components`, `themeCss` | The CSS as strings, e.g. for an adopted stylesheet |
+
+Override any `--gen-*` token in CSS to re-brand. Nothing re-renders.
+
+### `relax-ui-render`
+
+```ts
+import { createCatalog, DomRenderer } from "relax-ui-render";
+import { baseLoaders } from "relax-ui-theme-base";
+
+const renderer = new DomRenderer(container, {
+  catalog: createCatalog({ loaders: baseLoaders, preload: ["Stack"] }),
+  types: contract.names,
+  validate: "full",
+  validator: () => import("./validator").then((m) => m.validator),
+  onReport: (r) => console.warn(r.reason, r.type, r.detail),
+});
+renderer.render(doc.current()?.root, { complete: done });
+```
+
+| Export | Notes |
+|---|---|
+| `DomRenderer` | Keyed reconciler on the protocol's structural sharing. `render(root, { complete })`, `startDocument()` (failed loads may retry), `destroy()` (also unmounts framework components) |
+| `createCatalog({ templates?, loaders?, preload? })` | A loader is called once per page, when its exact type first appears in a document |
+| `Resolver` | The per-node decision every renderer shares, React included |
+| `RenderReport.reason` | `unknown_type`, `invalid_props`, `depth_exceeded`, `load_failed`, plus the notices `fallback` and `override` |
+| `defineConnector(options)` | See below |
+| `layerConnectors({ types, base, connectors })` | Base theme first, then connectors in order; reports overrides and fallbacks |
+
+Output safety applies whatever a template or connector returns: text is a text
+node; tags and attributes pass allowlists; `href`/`src` pass the URL guard again.
+
+### `relax-ui-element`
+
+```html
+<script type="module">import "relax-ui-element/define";</script>
+
+<gen-ui id="ui" source="/api/ui" validate="server" variant="dark" density="compact" preload="Stack Metric"></gen-ui>
+```
+
+```ts
+el.connectors = [bootstrap5];
+el.contract = contract;                  // default: the standard contract
+el.source = { stream: response.body };   // a string is a URL, as the attribute is
+await el.submit({ topic });              // URL sources: POST the body, then read
+el.stop();
+el.addEventListener("gen-ui:state", (e) => console.log(e.detail.status, e.detail.fallbacks));
+```
+
+| Attribute | Values |
+|---|---|
+| `source` | a URL; or set the `source` property to any `Source` |
+| `validate` | `full` (default) · `server`, same-origin URL only |
+| `mode` | `shadow` (default) · `light`. Fixed once on the page |
+| `variant` / `density` | `light` · `dark` · `auto` / `comfortable` · `compact`. Restyles, never re-renders |
+| `preload` | types to load now |
+
+| Property | Notes |
+|---|---|
+| `source` | Any kind except a URL starts reading as soon as the element is on the page; a URL waits for `submit()` |
+| `connectors` | Layered after the base theme |
+| `contract` | Anything with `names` (and optionally `limits`, `spec`) |
+| `validator` | Overrides the default, which lazily imports `relax-ui-contract` |
+| `fallback` | `(report) => Node \| null` for a node that will not render |
+| `state` | `{ status, strategy, provider, metadata, error, fallbacks, loadFailures, overrides, refused }`, a copy |
+
+| Event (bubbles, composed) | `detail` |
+|---|---|
+| `gen-ui:state` | the state above |
+| `gen-ui:frame` | one protocol event |
+| `gen-ui:complete` | `{ value, metadata }` |
+| `gen-ui:error` | `{ code, message, details? }` |
+
+`defineGenUI(name = "gen-ui")` registers the element under a name, once.
+
+### `defineConnector(options)`
+
+```ts
+defineConnector({
+  name: "bootstrap-5",
+  kind: "class",                         // "class" | "element" | "framework"
+  mode: "light",                         // what the library needs
+  stylesheets: ["/vendor/bootstrap.css"],// adopted into a shadow root, once per page
+  variants: { dark: { "data-bs-theme": "dark" } },
+  requires: () => getComputedStyle(document.documentElement).getPropertyValue("--bs-primary") !== "",
+  implementations: {
+    Callout: { classes: { root: "alert", tone: { warning: "alert-warning" }, title: "alert-heading" } },
+    Badge:   () => import("./badge").then((m) => m.badge), // a loader
+  },
+});
+```
+
+| Implementation | Kind | What it can do |
+|---|---|---|
+| `{ tag?, classes }` | `class` | Map the base theme's classes. `gen-x` maps to `root`, `gen-x__part` to `part`, `gen-tone--v` to `tone.v`, and `gen-x--v` to `variant.v`. Unmapped `gen-` classes are dropped |
+| `{ tag, props?, slots? }` | `element` | The root becomes a custom element. Attributes come from props (`{ from, map }`); base parts go into named slots. `on*`, `style`, `href`, `src` are refused |
+| `{ template }` | any | Markup as data |
+| `{ mount }` | `framework` | See the connector packages |
+
+A missing library (`requires` false) is `config_invalid` naming it. A `light`
+connector with no stylesheet, used in `shadow` mode, is refused.
+
+### `relax-ui-connect-react`, `-vue`, `-angular`
+
+```tsx
+reactConnector({ name: "mui", implementations: { Card: GenCard, Table: lazyComponent(() => import("./GenTable")) } });
+vueConnector({ name: "element-plus", app, implementations: { Card: GenCard } });
+angularConnector({ name: "angular-material", injector: inject(EnvironmentInjector), implementations: { Card: GenMatCard } });
+```
+
+A component receives the node's validated props. The renderer's children go
+into React's `children`, Vue's default slot, or Angular's `<ng-content>`. Each
+component's root should carry the contract's role. The element must be in
+`mode="light"`. Samples: MUI (`packages/connect-react/samples`), Element Plus
+(`examples/vue-host`) and Angular Material (`examples/angular-host`).
 
 ---
 
