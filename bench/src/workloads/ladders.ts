@@ -26,6 +26,12 @@ export const LADDERS: readonly Ladder[] = [
   { id: "frame-rate", steps: [5, 10, 25, 50, 100], frames: 40, rate: 0, seed: 4015 },
   { id: "text-churn", steps: [1, 10, 50, 100], frames: 40, rate: 25, seed: 4016 },
   { id: "tone-density", steps: [0, 25, 50, 100], frames: 20, rate: 20, seed: 4017 },
+  // Heavy visuals (spec scenario 5): one visual growing over 20 frames, or
+  // counters that appear, then all change every frame while they animate.
+  { id: "heatmap-cells", steps: [25, 100, 1_000, 5_000, 10_000, 25_000, 50_000, 100_000], frames: 20, rate: 20, seed: 4021 },
+  { id: "scatter-points", steps: [25, 100, 1_000, 2_500, 5_000, 10_000, 20_000], frames: 20, rate: 20, seed: 4022 },
+  { id: "sparklines", steps: [5, 25, 100, 250, 500, 1_000], frames: 20, rate: 20, seed: 4023 },
+  { id: "counters", steps: [5, 10, 50, 100, 200, 500, 1_000, 2_500], frames: 40, rate: 25, seed: 4024 },
 ];
 
 export function planStep(ladder: Ladder, size: number): StepPlan {

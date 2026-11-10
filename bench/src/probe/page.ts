@@ -83,12 +83,16 @@ export function installHarness(adapter: PageAdapter): void {
       if (!data) throw new Error("no step loaded");
       const host = document.getElementById("host")!;
       let mounted: Mounted;
+      // Where the run begins: before the mount for cold start, after the
+      // warm-up for a ladder step.
+      let begin = performance.now();
       if (data.warmup) {
         const warm = await adapter.mount(host);
         for (const chunk of data.warmup) warm.push(chunk);
         warm.end();
         await warm.done();
         await new Promise((r) => setTimeout(r, 100));
+        begin = performance.now();
         if (warm.next) {
           mounted = await warm.next();
         } else {
@@ -102,8 +106,18 @@ export function installHarness(adapter: PageAdapter): void {
 
       const longFrames: number[] = [];
       const events: number[] = [];
+      // Entries arrive after their frame ends, so a long frame of the warm-up
+      // (lazy component code, the first style pass) can be delivered after
+      // this observer starts. Only frames that began in the run are the run's.
       const lof = new PerformanceObserver((list) => {
-        for (const e of list.getEntries()) longFrames.push(e.duration);
+        for (const e of list.getEntries() as (PerformanceEntry & { blockingDuration?: number })[]) {
+          if (e.startTime < begin) continue;
+          // A long animation frame is a long task only if something in it
+          // blocked: a frame stretched by idle time (an input dispatched by the
+          // test driver, say) has a blocking duration of zero.
+          if (e.blockingDuration === 0) continue;
+          longFrames.push(e.duration);
+        }
       });
       try {
         lof.observe({ type: "long-animation-frame" });
@@ -112,7 +126,7 @@ export function installHarness(adapter: PageAdapter): void {
       }
       const evo = new PerformanceObserver((list) => {
         for (const e of list.getEntries() as (PerformanceEventTiming & { interactionId?: number })[]) {
-          if (e.interactionId) events.push(e.duration);
+          if (e.interactionId && e.startTime >= begin) events.push(e.duration);
         }
       });
       evo.observe({ type: "event", durationThreshold: 16 } as PerformanceObserverInit);

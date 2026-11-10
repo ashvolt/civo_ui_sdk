@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createValidator, standardContract } from "relax-ui-contract";
-import { benchContract } from "../src/workloads/contract.ts";
+import { benchContract, KIT_TYPES } from "../src/workloads/contract.ts";
 import { countNodes, depthOf, documentFor, framesFor, type Node } from "../src/workloads/generator.ts";
 import { contractFor, LADDERS, planStep } from "../src/workloads/ladders.ts";
 
@@ -36,7 +36,8 @@ describe("workloads", () => {
     const step = planStep(ladder, size);
     const frames = framesFor(step);
     expect(frames).toHaveLength(step.frames);
-    if (ladder.id !== "text-churn") expect(frames.at(-1)).toEqual(documentFor(step));
+    // Churn and counters rewrite the finished document; every other ladder ends on it.
+    if (ladder.id !== "text-churn" && ladder.id !== "counters") expect(frames.at(-1)).toEqual(documentFor(step));
   });
 
   it("frames grow, never shrink, outside the churn workload (F1)", () => {
@@ -53,6 +54,34 @@ describe("workloads", () => {
     const rows = table.map((f) => ((f.root.children![1]!.props.rows as unknown[]) ?? []).length);
     expect(rows[0]!).toBeLessThan(rows.at(-1)!);
     expect(rows.at(-1)).toBe(500);
+  });
+
+  it("heavy visuals grow their cells, points and items over the frames", () => {
+    const sizeOf = (id: string, size: number, read: (props: Record<string, unknown>) => number) => {
+      const frames = framesFor(planStep(LADDERS.find((l) => l.id === id)!, size));
+      return frames.map((f) => read(f.root.children![1]!.props));
+    };
+    const heat = sizeOf("heatmap-cells", 5_000, (p) => (p.rows as unknown[]).length * (p.columns as unknown[]).length);
+    expect(heat[0]!).toBeLessThan(heat.at(-1)!);
+    expect(heat.at(-1)!).toBeGreaterThanOrEqual(4_900);
+    const scatter = sizeOf("scatter-points", 1_000, (p) => (p.series as { points: unknown[] }[]).reduce((n, s) => n + s.points.length, 0));
+    expect(scatter[0]!).toBeLessThan(scatter.at(-1)!);
+    expect(scatter.at(-1)).toBe(1_000);
+    const sparks = sizeOf("sparklines", 100, (p) => (p.items as unknown[]).length);
+    expect(sparks[0]!).toBeLessThan(sparks.at(-1)!);
+    expect(sparks.at(-1)).toBe(100);
+  });
+
+  it("counters appear, then every value changes on every frame", () => {
+    const frames = framesFor(planStep(LADDERS.find((l) => l.id === "counters")!, 50));
+    const half = frames.length / 2;
+    expect(countNodes(frames[0]!.root)).toBeLessThan(countNodes(frames[half - 1]!.root));
+    const values = (f: (typeof frames)[number]) => f.root.children!.map((c) => c.props.value);
+    for (let i = half; i < frames.length; i++) {
+      expect(countNodes(frames[i]!.root)).toBe(51);
+      const [a, b] = [values(frames[i - 1]!), values(frames[i]!)];
+      expect(a.every((v, j) => v !== b[j])).toBe(true);
+    }
   });
 
   it("text churn keeps untouched subtrees as the same objects", () => {
@@ -79,7 +108,8 @@ describe("workloads", () => {
       const doc = documentFor(planStep(ladder, size));
       const nodes = countNodes(doc.root);
       const which = contractFor(nodes, depthOf(doc.root));
-      const big = ladder.id === "table-cells" || ladder.id === "chart-points";
+      // Raised array limits, or the bench contract's own types.
+      const big = ["table-cells", "chart-points", "heatmap-cells", "scatter-points", "sparklines", "counters"].includes(ladder.id);
       const validator = which === "standard" && !big ? standard : bench;
       walk(doc.root, (n) => {
         const r = validator.props(n.type, n.props);
@@ -103,7 +133,8 @@ describe("workloads", () => {
   it("the bench contract leaves the standard twelve unchanged", () => {
     expect(standardContract.limits).toEqual({ maxNodes: 500, maxDepth: 24 });
     expect(benchContract.limits).toEqual({ maxNodes: 200_000, maxDepth: 200 });
-    expect([...benchContract.names].sort()).toEqual([...standardContract.names].sort());
+    expect([...benchContract.names].sort()).toEqual([...standardContract.names, ...KIT_TYPES].sort());
+    for (const type of KIT_TYPES) expect(standardContract.names).not.toContain(type);
     expect(standardContract.spec("Table")!.props.safeParse({ columns: ["a"], rows: Array(51).fill(["x"]) }).success).toBe(false);
   });
 });

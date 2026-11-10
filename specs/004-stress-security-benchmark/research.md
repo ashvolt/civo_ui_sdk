@@ -86,6 +86,18 @@ made before any result was kept.
    table cells, 8 chart points and depth 2, so the phone profile has steps to
    pass.
 
+**Measured in phase 2**: two more corrections, each with a self-test case
+that fails without it.
+
+5. **Only frames that begin in the run.** Long-animation-frame entries are
+   delivered after their frame ends. The warm-up's slowest frame (lazy
+   component code and a first style pass, about 200 ms at 4× CPU) could be
+   delivered after the run's observer started, and was counted.
+6. **A long task must block.** The test driver's half-way click stretches its
+   frame to about 57 ms on the phone profile with a blocking duration of zero:
+   no script, no rendering. Such a frame is not a long task. A frame counts
+   only when its `blockingDuration` is above zero.
+
 **Finding: Chromium's nesting limit.** Past a certain depth the browser tab
 itself crashes, with or without this SDK. Nested-element depth at which the
 tab crashed:
@@ -156,10 +168,10 @@ set), so using them would compare designs, not renderers.
 | Depth | 2, 4, 8, 16, 24, 48, 96, 128, 160, 192 | 200 nodes |
 | Table cells | 20, 100, 1k, 5k, 10k, 25k, 50k, 100k | one table, 10 columns |
 | Chart points | 8, 50, 250, 1k, 2.5k, 5k, 10k, 20k | line and bar, 4 series |
-| Heatmap cells | 100, 1k, 5k, 10k, 25k | one heatmap, toned colour scale |
-| Scatter points | 100, 1k, 2.5k, 5k, 10k | one plot |
-| Sparkline grid | 25, 100, 250, 500, 1k sparklines | 30 points each |
-| Animated counters | 10, 50, 100, 200, 500 | CSS-only animation |
+| Heatmap cells | 25, 100, 1k, 5k, 10k, 25k, 50k, 100k | one heatmap, five-step colour scale, grows by rows over 20 frames |
+| Scatter points | 25, 100, 1k, 2.5k, 5k, 10k, 20k | one plot, two series, grows by points over 20 frames |
+| Sparkline grid | 5, 25, 100, 250, 500, 1k sparklines | 30 points each, grows by sparklines over 20 frames |
+| Animated counters | 5, 10, 50, 100, 200, 500, 1k, 2.5k | CSS-only animation; counters appear over 20 frames, then every value changes on each of 20 frames at 25/s |
 | Frames per second | 5, 10, 25, 50, 100 | 500 nodes |
 | Text churn | 1, 10, 50, 100% of text props changed per frame | 500 nodes built over 20 frames, then 20 churn frames at 25/s |
 | Tone density | 0, 25, 50, 100% of nodes toned | 1k nodes |

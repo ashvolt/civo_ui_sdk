@@ -5,6 +5,7 @@
  */
 import { defineGenUI, type GenUIElement } from "relax-ui-element";
 import { type Mounted, type PageAdapter } from "../probe/page.ts";
+import { kitConnector } from "../kit/index.ts";
 import { referenceMarkup } from "../probe/reference.ts";
 import { benchContract } from "../workloads/contract.ts";
 
@@ -66,6 +67,8 @@ export function elementAdapter(id = "ours-element"): PageAdapter {
     async mount(host) {
       const el = document.createElement("gen-ui") as GenUIElement;
       el.contract = benchContract as never;
+      // The heavy visuals, as any host adds its own components.
+      el.connectors = [kitConnector()];
       host.replaceChildren(el);
       return feed(el);
     },

@@ -58,6 +58,9 @@ phase is releasable on its own (plan, phase 3).
   - The churn ladder first delivered a whole document in one frame.
 - **First results** (`bench/results/local-2026-11-10.json`). Laptop: Intel
   i7-1165G7, 16 GB, Windows, Chromium 153. Budget v2, five repetitions, medians.
+  **Superseded by the phase 2 rerun:** two measurement bugs found in phase 2
+  undercounted the phone profile in particular. The corrected table is in the
+  phase 2 notes; this one is kept as first published.
 
   | Ladder | Element, desktop | Element, phone (CPU 4×) | React, desktop | React, phone |
   |---|---|---|---|---|
@@ -90,14 +93,71 @@ phase is releasable on its own (plan, phase 3).
 
 ## Phase 2 — Heavy visuals
 
-- [ ] **T-410** Tests: the bench contract. It extends the standard twelve (they
+- [x] **T-410** Tests: the bench contract. It extends the standard twelve (they
   are unchanged and still pass their own suite); each heavy visual has a schema
   and a role; under `prefers-reduced-motion`, counters do not animate; contrast
   in every variant.
-- [ ] **T-411** Heatmap, Scatter, SparklineGrid and AnimatedCounter as kit
+- [x] **T-411** Heatmap, Scatter, SparklineGrid and AnimatedCounter as kit
   templates, with styles from base-theme tokens only.
-- [ ] **T-412** Their ladders, for both of this SDK's renderers, on both
+- [x] **T-412** Their ladders, for both of this SDK's renderers, on both
   profiles.
+
+### Phase 2 notes
+
+- **The kit** (`bench/src/kit`): the four heavy visuals as templates (markup as
+  data), styled from base-theme tokens only. `<gen-ui>` takes them as a
+  template connector with an adopted stylesheet, the route any host takes to
+  add its own components; React takes them through `fromTemplates`. The
+  reference drawing uses the same templates, so correctness covers them.
+- **Counters animate with CSS only**: a roll-in when they appear and a
+  pulsing live bar while on screen, declared only under
+  `prefers-reduced-motion: no-preference`. The self-test checks it in the
+  browser: 10 running animations normally, none under `reduce`. Chromium's
+  `document.getAnimations()` leaves out shadow trees, so the check asks each
+  shadow root.
+- **Contrast is tested from the tokens**, in light and dark: text 4.5:1 on
+  every background the kit draws; series colours, tones and the top heat level
+  3:1 against the surface; heat levels step monotonically.
+- **Two measurement bugs, found because the phone ladders stopped at their
+  first step once the warm-up included the kit.** Both are fixed, both have a
+  self-test case that fails without the fix, and every ladder was rerun.
+  1. A long frame from the warm-up (lazy component code and the first style
+     pass, about 200 ms at 4× CPU) is reported after its frame ends, which can
+     be after the run's observer has started. Only frames that start in the
+     run now count.
+  2. The half-way click stretches its frame to about 57 ms on the phone
+     profile, with nothing blocking it (blocking duration zero, no script, no
+     rendering). A frame now counts as a long task only if something in it
+     blocked.
+- **Corrected results, every ladder** (`bench/results/local-2026-11-10.json`,
+  same laptop and browser):
+
+  | Ladder | Element, desktop | Element, phone (CPU 4×) | React, desktop | React, phone |
+  |---|---|---|---|---|
+  | Nodes, streamed | not reached (10,000) | 250 | 500 | 10 |
+  | Nodes, one frame | 1,000 | 10 | 500 | below 10 |
+  | Depth | 96, then the tab crashes | 48 | 96, then crash | below 2 |
+  | Table cells | 10,000 | 100 | 25,000 | 20 |
+  | Chart points | 1,000 | 50 | 250 | 8 |
+  | Frame rate (500 nodes) | not reached (100/s) | 25/s | 25/s | below 5/s |
+  | Text churn (500 nodes) | not reached (100%) | 1% | not reached (100%) | below 1% |
+  | Tone density (1,000 nodes) | not reached | below 0% | below 0% | below 0% |
+  | Heatmap cells | 10,000 | 100 | 10,000 | 100 |
+  | Scatter points | 5,000 | 100 | 5,000 | 100 |
+  | Sparklines (30 points each) | not reached (1,000) | 100 | not reached (1,000) | 25 |
+  | Animated counters | 500 | 10 | 100 | 10 |
+  | Cold start (first node; longest task) | 61 ms; none over 50 | 70 ms; 118 ms | 73 ms; none | 118 ms; 298 ms |
+
+  "Below" means the first step already broke. Tone density holds 1,000 nodes,
+  above where React and the phone profile break, so its zero there says no
+  more than the nodes ladder does.
+- **What the heavy visuals show.** On the desktop both renderers draw the same
+  heavy visuals to the same size: a heatmap of 10,000 cells and a scatter of
+  5,000 points are each one SVG node whose cost is the browser's, not the
+  renderer's. Counters differ: with every value changing on every frame, the
+  element holds 500 and React 100, where React's next step breaks on a long
+  task. The hook's whole-document validation per frame (phase 1 finding 2) is
+  the likely cost; not yet attributed.
 
 ## Phase 3 — Soak
 
@@ -170,4 +230,4 @@ phase is releasable on its own (plan, phase 3).
 
 ## Outstanding
 
-Phases 2 to 6 (T-410 onwards).
+Phases 3 to 6 (T-420 onwards).
