@@ -1,6 +1,9 @@
 packages:
   - "packages/*"
   - "examples/*"
+  # The benchmark (spec 004): private, outside packages/, so the release build
+  # never sees it.
+  - "bench"
 
 # esbuild ships a platform-specific binary via its postinstall script; tsup needs it.
 onlyBuiltDependencies:

@@ -27,7 +27,10 @@
     "frames": "node --env-file-if-exists=.env --experimental-strip-types --no-warnings scripts/inspect-frames.ts",
     "demo:record": "pnpm --filter relax-ui-example-next demo:record",
     "demo:narrated": "pnpm --filter relax-ui-example-next demo:narrated",
-    "size": "pnpm build && node scripts/size-report.mjs"
+    "size": "pnpm build && node scripts/size-report.mjs",
+    "bench": "pnpm --filter relax-ui-bench bench",
+    "bench:smoke": "pnpm --filter relax-ui-bench bench:smoke",
+    "bench:selftest": "pnpm --filter relax-ui-bench bench:selftest"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

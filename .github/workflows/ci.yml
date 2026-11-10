@@ -160,6 +160,26 @@ jobs:
             process.exit(failed ? 1 : 0);
           '
 
+      - name: "V — the benchmark is private and no published package depends on it"
+        run: |
+          # bench/ carries contenders and tools (spec 004, NFR-401). It lives
+          # outside packages/, so the release build never sees it; nothing
+          # published may depend on it.
+          node -e '
+            const fs = require("fs");
+            const bench = require("./bench/package.json");
+            if (bench.private !== true) { console.log("::error::bench/package.json must be private."); process.exit(1); }
+            let bad = [];
+            for (const dir of fs.readdirSync("packages")) {
+              const p = require("./packages/" + dir + "/package.json");
+              for (const k of ["dependencies", "peerDependencies", "optionalDependencies", "devDependencies"]) {
+                if (p[k] && bench.name in p[k]) bad.push(p.name + " (" + k + ")");
+              }
+            }
+            if (bad.length) { console.log("::error::depends on the benchmark: " + bad.join(", ")); process.exit(1); }
+            console.log(bench.name + " is private; no published package depends on it");
+          '
+
       - name: "V — the element has no dependencies; the contract and Zod are optional peers"
         run: |
           # The validator is the application's choice and loads only for full
@@ -292,6 +312,13 @@ jobs:
       # page with no style crossing a shadow boundary (T-247).
       - name: Browser tests (plain HTML host)
         run: pnpm --filter relax-ui-example-html test:e2e
+
+      # Spec 004, T-408: before any benchmark result is trusted, the harness
+      # must classify four renderers correctly: an untouched one passes, a slow
+      # one breaks on a long task, a wrong one on correctness, a hung one on
+      # its timeout.
+      - name: Benchmark harness self-test
+        run: pnpm bench:selftest
 
       # T-255: <gen-ui> in a Vue app (Element Plus) and an Angular app (Angular
       # Material, compiled ahead of time), each under a strict policy.

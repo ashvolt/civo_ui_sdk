@@ -27,6 +27,8 @@ export default defineConfig({
       // The example's model-selection ordering decides what a reviewer sees on
       // first run, so it is covered here rather than left to a manual check.
       "examples/*/test/**/*.test.ts",
+      // The benchmark's pure logic: generator, statistics, budgets, ladder.
+      "bench/test/**/*.test.ts",
     ],
     globals: false,
   },

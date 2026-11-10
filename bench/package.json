@@ -1,0 +1,26 @@
+{
+  "name": "relax-ui-bench",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stress, soak and security benchmark for the relaxAI Generative UI SDK (spec 004). Never published.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "bench": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/cli.ts",
+    "bench:smoke": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/cli.ts --suite smoke",
+    "bench:selftest": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/selftest.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "esbuild": "^0.27.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "relax-ui-contract": "workspace:*",
+    "relax-ui-element": "workspace:*",
+    "relax-ui-protocol": "workspace:*",
+    "relax-ui-react": "workspace:*",
+    "relax-ui-render": "workspace:*",
+    "relax-ui-theme-base": "workspace:*",
+    "zod": "^3.24.1"
+  }
+}

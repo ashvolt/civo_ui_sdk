@@ -27,6 +27,12 @@ interface Mounted {
   done(): Promise<void>;
   /** Tear down; the soak checks this leaves nothing behind. */
   unmount(): void;
+  /**
+   * A new document into the same mounted renderer, as a page already showing
+   * generated UI receives the next one. Ladders measure this, after a warm-up
+   * document; the first mount is measured once, as cold start.
+   */
+  next?(): Promise<Mounted>;
 }
 ```
 
