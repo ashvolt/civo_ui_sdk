@@ -1,0 +1,27 @@
+/* The host page's own styles. None of them reaches inside a shadow-mode <gen-ui>. */
+:root { color-scheme: light; }
+body { margin: 0; font: 15px/1.5 Georgia, "Times New Roman", serif; color: #222; background: #f3f1ec; }
+header, main { max-width: 1100px; margin: 0 auto; padding: 16px 24px; }
+header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+header h1 { font-size: 22px; margin: 0; }
+main { display: grid; gap: 28px; }
+section > h2 { font-size: 17px; margin: 0 0 4px; }
+section > p { margin: 0 0 8px; color: #555; }
+output { display: block; font: 12px/1.4 ui-monospace, Consolas, monospace; color: #555; margin-top: 6px; }
+gen-ui { display: block; border: 1px solid #d8d4cc; border-radius: 10px; overflow: hidden; }
+gen-ui::part(surface) { padding: 16px; }
+.host-sample { border: 1px dashed #aaa; padding: 8px 12px; }
+
+/* The page re-brands one instance with tokens alone. */
+gen-ui#custom {
+  --gen-color-primary: #6b2fb3;
+  --gen-color-chart-1: #6b2fb3;
+  --gen-radius-m: 0;
+  --gen-radius-l: 0;
+  --gen-font-family: Georgia, "Times New Roman", serif;
+}
+/* A brand colour needs a dark-mode partner that still reads on a dark surface. */
+gen-ui#custom[variant="dark"] {
+  --gen-color-primary: #c7a4f2;
+  --gen-color-chart-1: #c7a4f2;
+}

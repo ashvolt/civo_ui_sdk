@@ -1,0 +1,26 @@
+{
+  "name": "relax-ui-example-html",
+  "version": "0.1.0",
+  "private": true,
+  "description": "<gen-ui> in a plain HTML page, no framework: the base theme, Bootstrap 5 and Shoelace through connectors, under a strict Content Security Policy.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node serve.mjs",
+    "dev": "node build.mjs && node serve.mjs",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@shoelace-style/shoelace": "^2.20.1",
+    "bootstrap": "^5.3.8",
+    "relax-ui-contract": "workspace:^",
+    "relax-ui-element": "workspace:^",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.63.0",
+    "esbuild": "^0.27.7",
+    "relax-ui-core": "workspace:^"
+  }
+}

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gen-ui in plain HTML</title>
+  <link rel="stylesheet" href="/app.css">
+  <!-- Shoelace's tokens: custom properties on :root, which inherit into shadow roots. -->
+  <link rel="stylesheet" href="/vendor/shoelace-light.css">
+  <script type="module" src="/dist/main.js"></script>
+</head>
+<body>
+  <header>
+    <h1>One document, four looks, no framework</h1>
+    <label>Variant
+      <select id="variant">
+        <option value="light">light</option>
+        <option value="dark">dark</option>
+      </select>
+    </label>
+  </header>
+  <main>
+    <section>
+      <h2 id="host-heading">Base theme · the SDK's route, validate="server"</h2>
+      <p>Isolated in a shadow root. The browser trusts the same-origin route and never loads the validator.</p>
+      <gen-ui id="base" source="/api/ui" validate="server"></gen-ui>
+      <output for="base"></output>
+    </section>
+    <section>
+      <h2>Bootstrap 5 · static document, validated in the browser</h2>
+      <p>Bootstrap's stylesheet adopted into this element's shadow root only. Chart falls back to the base theme.</p>
+      <gen-ui id="bootstrap"></gen-ui>
+      <output for="bootstrap"></output>
+    </section>
+    <section>
+      <h2>Shoelace · a ReadableStream, validated in the browser</h2>
+      <p>Card, Metric, Callout and Badge are Shoelace's own elements.</p>
+      <gen-ui id="shoelace"></gen-ui>
+      <output for="shoelace"></output>
+    </section>
+    <section>
+      <h2>Base theme · re-branded by the page's tokens</h2>
+      <p>Two lines of the page's CSS, no code.</p>
+      <gen-ui id="custom"></gen-ui>
+      <output for="custom"></output>
+    </section>
+    <section>
+      <h2>The host page's own markup</h2>
+      <div class="card host-sample" id="host-card">A host element with Bootstrap's class name, outside any gen-ui.</div>
+      <p class="gen-text gen-callout" id="host-gen-text">A host paragraph with base-theme class names, outside any gen-ui.</p>
+    </section>
+  </main>
+</body>
+</html>

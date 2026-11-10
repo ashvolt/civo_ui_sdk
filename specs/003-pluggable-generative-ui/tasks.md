@@ -156,20 +156,61 @@ Numbered from T-201.
 
 ## Phase 4 — Element and generic connectors
 
-- [ ] **T-240** Spike: own reconciler driving the DOM backend inside a custom element; pass
+- [x] **T-240** Spike: own reconciler driving the DOM backend inside a custom element; pass
   T-230 there, or switch to Lit and record why.
-- [ ] **T-241** Tests: element attributes, `source` property, `submit`, `stop`, events,
+- [x] **T-241** Tests: element attributes, `source` property, `submit`, `stop`, events,
   refusal table from the contract.
-- [ ] **T-242** `packages/element` with `shadow` and `light` modes.
-- [ ] **T-243** Connector conformance suite: every component renders; text stays text;
+- [x] **T-242** `packages/element` with `shadow` and `light` modes.
+- [x] **T-243** Connector conformance suite: every component renders; text stays text;
   unknown type renders nothing; URL guard holds; fallback reported.
-- [ ] **T-244** `defineConnector` for `class` and `element` kinds; `requires` check.
-- [ ] **T-245** [P] Bootstrap 5 connector; passes T-243 in `light` and in `shadow` with
+- [x] **T-244** `defineConnector` for `class` and `element` kinds; `requires` check.
+- [x] **T-245** [P] Bootstrap 5 connector; passes T-243 in `light` and in `shadow` with
   adopted stylesheet.
-- [ ] **T-246** [P] Shoelace connector; passes T-243.
-- [ ] **T-247** Test: two elements, two themes, one page — no style leak in `shadow` mode.
-- [ ] **T-248** `examples/html-host`; Playwright under `script-src 'self'` (no
+- [x] **T-246** [P] Shoelace connector; passes T-243.
+- [x] **T-247** Test: two elements, two themes, one page — no style leak in `shadow` mode.
+- [x] **T-248** `examples/html-host`; Playwright under `script-src 'self'` (no
   `unsafe-eval`).
+
+### Phase 4 notes
+
+- **T-240 settled for the own reconciler.** Inside `<gen-ui>` the DOM backend
+  passes the same check as T-230: a streamed document, delivered over a
+  WebSocket and over SSE with chunk boundaries at arbitrary bytes, ends
+  identical to a fresh render, and unchanged nodes keep their DOM. Lit is not
+  used.
+- **One connector interface, three implementation forms.** `class` restyles
+  the base theme's markup by mapping its BEM classes (`gen-card__title`,
+  `gen-tone--warning`, `gen-heading--2`); `element` swaps the root for a library
+  element, sets attributes from props and slots named parts; `template` is
+  markup as data. Both declarative forms start from the base theme's template,
+  so text handling and the contract's ARIA role are never re-implemented per
+  library, and a connector cannot write markup at all (FR-238).
+- **Connector variants.** Found by axe in dark mode: Bootstrap and Shoelace have
+  their own dark switches, which the base theme's tokens do not reach. A
+  connector declares `variants` (`data-` attributes or classes for the surface
+  per variant), so a library follows the element's `variant` attribute, still
+  without re-rendering. Shoelace's dark sheet targets `:host` too; the example
+  serves a copy without it.
+- **Adopted global stylesheets.** A global stylesheet declares its custom
+  properties on `:root`, which matches nothing in a shadow root; the element
+  rewrites `:root` to `:host` when adopting one. Each URL is fetched once per
+  page and the parsed sheet shared by every instance.
+- **The element's only peers** are `relax-ui-contract` and Zod, both optional:
+  the default full-tier validator is a dynamic import of the contract, so a page
+  using `validate="server"` installs and ships neither. CI asserts this.
+- **Shoelace's badge colours** (white on its 600 shades) fall just short of
+  4.5:1. That is the library's palette inside its own shadow root; the axe check
+  excludes only those badges, and still checks contrast for everything else the
+  connector renders, which is what caught Shoelace surfaces staying light in
+  dark mode.
+- **Sizes (gzip):** `<gen-ui>` registered on a page, nothing rendered, 13.1 KB
+  (protocol, render core, base theme CSS and the element), no component code
+  and no validator, checked by a bundle test and in Chromium. The connector
+  code adds about 2 KB to `relax-ui-render`'s own size, and nothing to a page
+  that does not use it (the DOM scenario stays at 4.1 KB).
+- **Mutation checks:** keeping unmapped `gen-` classes (3 failures), skipping
+  `requires` (4), dropping fallback reports (6), and serving Shoelace without
+  its dark sheet (caught by the e2e contrast check).
 
 ## Phase 5 — Framework connectors
 
@@ -204,4 +245,4 @@ Numbered from T-201.
 
 ## Outstanding
 
-Phases 0 to 3 are done. Everything from T-240 is outstanding.
+Phases 0 to 4 are done. Everything from T-250 is outstanding.

@@ -63,6 +63,10 @@ jobs:
               test -f "packages/$pkg/$f" || { echo "missing packages/$pkg/$f"; exit 1; }
             done
           done
+          # The element is ESM only: a browser module with a side-effect entry.
+          for f in dist/index.js dist/index.d.ts dist/define.js dist/define.d.ts; do
+            test -f "packages/element/$f" || { echo "missing packages/element/$f"; exit 1; }
+          done
 
       # Core takes no runtime dependency (NFR-203), so it compiles protocol in
       # rather than importing it. A build that imports it would install fine in
@@ -73,6 +77,12 @@ jobs:
           # neither takes a runtime dependency (NFR-203, T-260).
           if grep -nE 'relax-ui-(protocol|contract)' packages/core/dist/index.js packages/core/dist/index.cjs packages/core/dist/index.d.ts                packages/render/dist/index.js packages/render/dist/index.cjs packages/render/dist/index.d.ts; then
             echo "::error::a build refers to a workspace package it must bundle in (NFR-203)."
+            exit 1
+          fi
+          # The element compiles in protocol, render and theme-base; only the
+          # contract (and Zod) stay outside, loaded when a document is validated.
+          if grep -nE 'relax-ui-(protocol|render|theme-base)' packages/element/dist/*.js packages/element/dist/*.d.ts; then
+            echo "::error::relax-ui-element's build refers to a package it must bundle in (T-260)."
             exit 1
           fi
 
@@ -88,7 +98,7 @@ jobs:
 
       - name: "V — core imports no node: module"
         run: |
-          if grep -rn 'from "node:' packages/protocol/src packages/core/src packages/react/src packages/render/src packages/contract/src packages/theme-base/src; then
+          if grep -rn 'from "node:' packages/protocol/src packages/core/src packages/react/src packages/render/src packages/contract/src packages/theme-base/src packages/element/src; then
             echo "::error::A node: import breaks Edge and Workers compatibility (Principle V)."
             exit 1
           fi
@@ -109,6 +119,23 @@ jobs:
               console.log(p.name + " has no runtime dependencies");
             '
           done
+
+      - name: "V — the element has no dependencies; the contract and Zod are optional peers"
+        run: |
+          # The validator is the application's choice and loads only for full
+          # validation, so a page using validate="server" installs and ships
+          # neither (FR-208).
+          node -e '
+            const p = require("./packages/element/package.json");
+            const deps = Object.keys(p.dependencies ?? {});
+            const peers = Object.keys(p.peerDependencies ?? {}).sort().join();
+            const optional = Object.keys(p.peerDependencies ?? {}).every((k) => p.peerDependenciesMeta?.[k]?.optional === true);
+            if (deps.length || (peers !== "" && peers !== "relax-ui-contract,zod") || !optional) {
+              console.log("::error::relax-ui-element may declare only relax-ui-contract and zod, as optional peers.");
+              process.exit(1);
+            }
+            console.log("relax-ui-element: no dependencies; optional peers " + peers);
+          '
 
       - name: "V — contract depends only on protocol, with Zod as its peer"
         run: |
@@ -161,8 +188,10 @@ jobs:
           # `relative.invalid` is the placeholder base the protocol's same-origin
           # check resolves against when there is no page; `.invalid` is reserved
           # (RFC 2606) and nothing is ever fetched from it.
+          # `www.w3.org` is the SVG namespace name: an identifier, never fetched.
           hits=$(grep -rnoE 'https?://[a-zA-Z0-9.-]+' packages/core/src packages/protocol/src \
-                 | grep -vE 'api\.relax\.ai|json-schema\.org|localhost|127\.0\.0\.1|relative\.invalid' || true)
+                 packages/render/src packages/element/src packages/theme-base/src packages/contract/src \
+                 | grep -vE 'api\.relax\.ai|json-schema\.org|localhost|127\.0\.0\.1|relative\.invalid|www\.w3\.org' || true)
           if [ -n "$hits" ]; then
             echo "$hits"
             echo "::error::Principle I: no SDK-initiated egress beyond the configured relaxAI endpoint."
@@ -217,12 +246,20 @@ jobs:
       - name: Browser tests
         run: pnpm test:e2e
 
+      # <gen-ui> in a plain HTML page under script-src 'self' (T-248): the base
+      # theme, Bootstrap 5 and Shoelace through connectors, four elements on one
+      # page with no style crossing a shadow boundary (T-247).
+      - name: Browser tests (plain HTML host)
+        run: pnpm --filter relax-ui-example-html test:e2e
+
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: examples/next-app/playwright-report/
+          path: |
+            examples/next-app/playwright-report/
+            examples/html-host/test-results/
           retention-days: 7
 
   size:

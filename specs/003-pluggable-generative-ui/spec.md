@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-pluggable-generative-ui`
 **Created**: 2026-11-09
-**Status**: In progress — phases 1 (protocol and inputs), 2 (contract and base theme) and 3 (render core and lazy loading) implemented; phases 4–5 outstanding
+**Status**: In progress — phases 1 (protocol and inputs), 2 (contract and base theme), 3 (render core and lazy loading) and 4 (element and generic connectors) implemented; phases 5–6 outstanding
 **Input**: "Can this SDK become a plugin, MFE or library that drops into any
 system, with selectable themes the way Angular Material has them, while staying
 lightweight — lazy loading, performance and size in mind — taking a JSON

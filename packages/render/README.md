@@ -27,7 +27,25 @@ for await (const event of readSource({ socket })) {
 }
 ```
 
-Phase 4 wraps this in a `<gen-ui>` Web Component, so a host can skip this wiring.
+[`relax-ui-element`](../element) wraps this in `<gen-ui>`, so a host can skip
+this wiring.
+
+## Connectors
+
+`defineConnector` attaches a theme library; `layerConnectors` builds the table
+of implementations a catalog takes. The base theme comes first, then each
+connector in order. A later connector wins a type, and the override is
+reported. A type that no connector implements is drawn by the base theme, and
+that fallback is reported once per document when it renders.
+
+- `class`: renames the base theme's classes. Its markup, its text handling
+  and the contract's roles are kept.
+- `element`: the root becomes a library element, with attributes from props
+  and parts in named slots.
+- `template`: markup as data, checked like any other.
+
+None of the three can produce markup from a string. See the
+[element README](../element/README.md) for the mapping rules.
 
 ## What it decides, per node
 

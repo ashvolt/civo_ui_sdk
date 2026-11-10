@@ -62,7 +62,9 @@ const DENIED_TAGS = new Set([
 ]);
 const TAG = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const ATTRIBUTE = /^(?!on)[a-z][a-z0-9-]*$/i;
-const DENIED_ATTRIBUTES = new Set(["style", "srcdoc", "formaction", "action", "is", "slot", "xmlns"]);
+// `slot` is allowed: Web-Component connectors place base parts in a library
+// element's named slots. Its value comes from the connector, never a prop.
+const DENIED_ATTRIBUTES = new Set(["style", "srcdoc", "formaction", "action", "is", "xmlns"]);
 const URL_ATTRIBUTES = new Set(["href", "src", "poster", "cite", "data"]);
 
 export class DomRenderer {
