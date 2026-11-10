@@ -98,6 +98,11 @@ feature 001 mitigated the partial parser: property tests that apply every prefix
 of realistic streams and assert the DOM equals a from-scratch render of the same
 document.
 
+**Measured (phases 3 and 4)**: the render core and DOM backend are 3.8 KB gzip on
+their own, 4.1 KB for a page with the lazy base theme. The property tests pass
+in the DOM backend and inside `<gen-ui>`, and three deliberate reconciler bugs
+were each caught. The spike did not need the Lit fallback.
+
 ---
 
 ## R3. Style isolation versus global theme libraries — **changes the spec**
@@ -130,6 +135,14 @@ global. The two cannot both be fully satisfied for the third and fourth rows.
 required in `shadow` mode and is the default; `light` mode is permitted, and
 required for framework connectors, with scoping by container rather than by
 shadow root. Recorded in spec.md as a planning revision.
+
+**Measured (phase 4)**: Bootstrap 5 works in `shadow` mode once its sheet is
+adopted, with one rewrite: its custom properties are declared on `:root`, which
+matches nothing in a shadow root, so the element adopts the sheet with `:root`
+read as `:host`. The sheet is fetched once per page and shared by every
+instance. In Chromium, four elements on one page (base theme, Bootstrap,
+Shoelace, the base theme re-branded) leak no style into each other or the host
+page, in either direction.
 
 **Rejected**: *copying head-injected framework styles into each shadow root.*
 Possible with a `MutationObserver` on `document.head`, and fragile: it depends on

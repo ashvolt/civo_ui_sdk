@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gen-ui light mode with Bootstrap</title>
+  <link rel="stylesheet" href="/vendor/bootstrap.min.css">
+  <script type="module" src="/dist/light.js"></script>
+</head>
+<body class="p-4">
+  <h1 class="h4">Bootstrap 5, light mode</h1>
+  <p class="text-body-secondary">The page loads Bootstrap; the element renders into the page's DOM, where Bootstrap's global stylesheet reaches it.</p>
+  <select id="variant" class="form-select w-auto mb-3" aria-label="Variant">
+    <option value="light">light</option>
+    <option value="dark">dark</option>
+  </select>
+  <gen-ui id="bootstrap-light" mode="light" source="/api/ui" validate="server"></gen-ui>
+  <output for="bootstrap-light" class="small text-body-secondary"></output>
+</body>
+</html>

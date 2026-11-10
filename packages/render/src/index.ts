@@ -23,5 +23,21 @@ export type {
 export { DomRenderer } from "./dom.js";
 export type { DomRendererOptions, RenderOptions } from "./dom.js";
 
+export { checkConnector, compileImplementation, defineConnector, layerConnectors } from "./connector.js";
+export type {
+  ClassImplementation,
+  ClassMapping,
+  Connector,
+  ConnectorKind,
+  ConnectorMode,
+  ConnectorOptions,
+  ElementImplementation,
+  Implementation,
+  Layered,
+  LayerOptions,
+  PropMapping,
+  TemplateImplementation,
+} from "./connector.js";
+
 export { CHILDREN } from "./vnode.js";
 export type { Template, VChild, VNode } from "./vnode.js";

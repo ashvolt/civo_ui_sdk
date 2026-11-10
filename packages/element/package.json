@@ -1,0 +1,55 @@
+{
+  "name": "relax-ui-element",
+  "version": "0.1.0",
+  "description": "<gen-ui>: the standard Web Component for the relaxAI Generative UI SDK. Renders a generated document from a static document, an SSE route, a ReadableStream or a WebSocket, in any host, with any theme library attached through a connector. No dependencies.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": [
+    "./dist/define.js",
+    "./dist/chunk-*.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./define": {
+      "types": "./dist/define.d.ts",
+      "import": "./dist/define.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
+  "peerDependencies": {
+    "relax-ui-contract": "workspace:*",
+    "zod": "^3.23.0"
+  },
+  "peerDependenciesMeta": {
+    "relax-ui-contract": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "relax-ui-contract": "workspace:*",
+    "relax-ui-protocol": "workspace:*",
+    "relax-ui-render": "workspace:*",
+    "relax-ui-theme-base": "workspace:*",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "zod": "^3.24.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

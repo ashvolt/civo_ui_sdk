@@ -25,7 +25,12 @@ export interface Validator {
 /** A validator, or a loader for one, so its code (Zod) can stay out of the bundle. */
 export type ValidatorSource = Validator | (() => Promise<Validator>);
 
-export type RenderReason = "unknown_type" | "invalid_props" | "load_failed" | "depth_exceeded";
+/**
+ * Why a node was not rendered — or, for `fallback` and `override`, a notice:
+ * the base theme drew a type a connector does not implement (K1), or a later
+ * connector took a type from an earlier one (K4).
+ */
+export type RenderReason = "unknown_type" | "invalid_props" | "load_failed" | "depth_exceeded" | "fallback" | "override";
 
 export interface RenderReport {
   reason: RenderReason;
@@ -49,6 +54,11 @@ export interface ResolverOptions<I> {
    * still being written and props not yet finished are not faults.
    */
   onReport?: (report: RenderReport) => void;
+  /**
+   * Types drawn by the base theme although connectors are attached. Reported
+   * once per type per document, when one is first rendered (FR-237).
+   */
+  fallbacks?: ReadonlySet<string>;
 }
 
 export type Resolution<I> =
@@ -64,6 +74,7 @@ export class Resolver<I> {
   readonly tier: "full" | "server";
   private readonly types: ReadonlySet<string>;
   private readonly onReport: ((report: RenderReport) => void) | undefined;
+  private readonly fallbacks: ReadonlySet<string>;
   private validator: Validator | undefined;
   private validatorLoader: (() => Promise<Validator>) | undefined;
   private validatorState: "idle" | "loading" | "ready" | "failed" = "idle";
@@ -76,6 +87,7 @@ export class Resolver<I> {
     this.maxDepth = options.maxDepth ?? 24;
     this.tier = options.validate ?? "full";
     this.onReport = options.onReport;
+    this.fallbacks = options.fallbacks ?? new Set();
 
     if (this.tier !== "full" && this.tier !== "server") {
       throw new RelaxUIError({ code: "config_invalid", message: `Unknown validation tier "${String(this.tier)}".` });
@@ -134,7 +146,10 @@ export class Resolver<I> {
     }
 
     const state = this.catalog.state(type);
-    if (state === "ready") return { kind: "render", implementation: this.catalog.get(type)!, props };
+    if (state === "ready") {
+      if (this.fallbacks.has(type)) this.report({ reason: "fallback", type });
+      return { kind: "render", implementation: this.catalog.get(type)!, props };
+    }
     if (state === "failed") return this.skip({ reason: "load_failed", type }, true);
     if (state === "absent") return this.skip({ reason: "unknown_type", type, detail: "no implementation" }, true);
     return { kind: "pending" };
@@ -153,14 +168,17 @@ export class Resolver<I> {
   }
 
   private skip(failure: RenderReport, emit: boolean): Resolution<I> {
-    if (emit && this.onReport) {
-      const id = `${failure.reason}\u0000${failure.type}`;
-      if (!this.reported.has(id)) {
-        this.reported.add(id);
-        this.onReport(failure);
-      }
-    }
+    if (emit) this.report(failure);
     return { kind: "skip", failure };
+  }
+
+  /** Once per reason and type per document. */
+  private report(report: RenderReport): void {
+    if (!this.onReport) return;
+    const id = `${report.reason}\u0000${report.type}`;
+    if (this.reported.has(id)) return;
+    this.reported.add(id);
+    this.onReport(report);
   }
 
   private loadValidator(): void {
