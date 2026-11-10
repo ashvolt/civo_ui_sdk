@@ -1,4 +1,5 @@
 import { sanitizeUrl, type UINode } from "relax-ui-protocol";
+import { isMount, type Mounted, type MountImplementation, type Renderable } from "./connector.js";
 import { Resolver, type RenderReport, type ResolverOptions } from "./resolver.js";
 import { CHILDREN, type Template, type VChild, type VNode } from "./vnode.js";
 
@@ -21,7 +22,7 @@ import { CHILDREN, type Template, type VChild, type VNode } from "./vnode.js";
  * text node. There is no code path from a string to markup.
  */
 
-export interface DomRendererOptions extends ResolverOptions<Template> {
+export interface DomRendererOptions extends ResolverOptions<Renderable> {
   /**
    * What to show for a node that will not render (unknown type, invalid props,
    * failed load). Default: nothing.
@@ -42,6 +43,9 @@ interface Rendered {
   type: string;
   dom: Node;
   template?: Template;
+  /** A mounted framework component, and what mounted it. */
+  mount?: MountImplementation;
+  mounted?: Mounted;
   rawProps?: unknown;
   vnode?: VNode;
   childHost: Element | null;
@@ -68,7 +72,7 @@ const DENIED_ATTRIBUTES = new Set(["style", "srcdoc", "formaction", "action", "i
 const URL_ATTRIBUTES = new Set(["href", "src", "poster", "cite", "data"]);
 
 export class DomRenderer {
-  readonly resolver: Resolver<Template>;
+  readonly resolver: Resolver<Renderable>;
   private readonly container: Element;
   private readonly fallback: ((failure: RenderReport) => Node | null) | undefined;
   private readonly doc: Document;
@@ -91,6 +95,7 @@ export class DomRenderer {
     this.last = root;
     this.lastOptions = options;
     if (root === undefined || root === null) {
+      if (this.root) dispose(this.root);
       this.root = undefined;
       this.container.replaceChildren();
       return;
@@ -106,14 +111,27 @@ export class DomRenderer {
     this.resolver.startDocument();
   }
 
-  /** Stops listening for loads. The container is left as it is. */
+  /**
+   * Stops listening for loads and unmounts every mounted framework component.
+   * The rest of the container is left as it is.
+   */
   destroy(): void {
     this.unsubscribe();
+    if (this.root) dispose(this.root);
+    this.root = undefined;
   }
 
   // --- reconciliation -------------------------------------------------------
 
   private reconcile(prev: Rendered | undefined, node: unknown, key: string, depth: number, final: boolean): Rendered {
+    const next = this.reconcileNode(prev, node, key, depth, final);
+    // A node that was a mounted component and is no longer that same mount:
+    // unmount it. Its children were adopted by `next`, not disposed.
+    if (prev?.mounted && next.mounted !== prev.mounted) unmount(prev);
+    return next;
+  }
+
+  private reconcileNode(prev: Rendered | undefined, node: unknown, key: string, depth: number, final: boolean): Rendered {
     if (prev && prev.node === node && !prev.waiting && !final) return prev;
 
     const resolution = this.resolver.resolve(node, depth, final);
@@ -144,8 +162,11 @@ export class DomRenderer {
       return { node, key, kind: "pending", type, dom, childHost: dom, children: kids, waiting: true };
     }
 
-    const template = resolution.implementation;
     const rawProps = (node as { props?: unknown }).props;
+    if (isMount(resolution.implementation)) {
+      return this.reconcileMount(prev, node, key, type, resolution.implementation, resolution.props, rawProps, children, depth, final);
+    }
+    const template = resolution.implementation;
     let dom: Node;
     let vnode: VNode;
     let childHost: Element | null;
@@ -185,6 +206,64 @@ export class DomRenderer {
     };
   }
 
+  /**
+   * A framework component: mounted once into a host the renderer creates,
+   * updated when its props change, unmounted when its node goes. Its children
+   * are reconciled here, into the child host it placed.
+   */
+  private reconcileMount(
+    prev: Rendered | undefined,
+    node: unknown,
+    key: string,
+    type: string,
+    mount: MountImplementation,
+    parsed: Record<string, unknown>,
+    rawProps: unknown,
+    children: unknown[],
+    depth: number,
+    final: boolean,
+  ): Rendered {
+    let host: Element;
+    let childHost: Element;
+    let mounted: Mounted;
+    if (prev && prev.kind === "render" && prev.mount === mount && prev.mounted && prev.childHost) {
+      host = prev.dom as Element;
+      childHost = prev.childHost;
+      mounted = prev.mounted;
+      if (prev.rawProps !== rawProps) mounted.update(guardUrls(parsed));
+    } else {
+      host = this.doc.createElement("gen-mount");
+      childHost = this.doc.createElement("gen-children");
+      try {
+        mounted = mount.mount(host, guardUrls(parsed), childHost);
+      } catch (cause) {
+        const failure: RenderReport = {
+          reason: "load_failed",
+          type,
+          detail: `mount: ${cause instanceof Error ? cause.message : String(cause)}`.slice(0, 200),
+        };
+        this.resolver.report(failure);
+        const dom = this.fallback?.(failure) ?? this.doc.createComment("");
+        return { node, key, kind: "skip", type, dom, childHost: null, children: [], waiting: false, failureKey: `mount:${type}` };
+      }
+    }
+    const previousKids = prev?.childHost === childHost ? prev.children : adopt(prev);
+    const kids = this.reconcileChildren(childHost, previousKids, children, depth, final);
+    return {
+      node,
+      key,
+      kind: "render",
+      type,
+      dom: host,
+      mount,
+      mounted,
+      rawProps,
+      childHost,
+      children: kids,
+      waiting: kids.some((k) => k.waiting),
+    };
+  }
+
   private reconcileChildren(host: Element, prev: Rendered[], nodes: unknown[], depth: number, final: boolean): Rendered[] {
     const byKey = new Map<string, Rendered>();
     for (const r of prev) byKey.set(r.key, r);
@@ -201,6 +280,8 @@ export class DomRenderer {
 
     // Place each child's DOM node at its position; drop the rest. Only nodes
     // that moved are touched.
+    // Nodes that left the document: unmount any framework component in them.
+    for (const gone of byKey.values()) dispose(gone);
     const wanted = new Set(next.map((r) => r.dom));
     for (const existing of [...host.childNodes]) if (!wanted.has(existing)) existing.remove();
     next.forEach((r, i) => {
@@ -280,6 +361,45 @@ export class DomRenderer {
 }
 
 // --- helpers ----------------------------------------------------------------
+
+function unmount(r: Rendered): void {
+  const mounted = r.mounted;
+  r.mounted = undefined;
+  try {
+    mounted?.unmount();
+  } catch {
+    // A component that fails to unmount must not stop the rest of the document.
+  }
+}
+
+/** Unmounts every framework component in a subtree that left the document. */
+function dispose(r: Rendered): void {
+  const stack = [r];
+  while (stack.length > 0) {
+    const item = stack.pop()!;
+    unmount(item);
+    stack.push(...item.children);
+  }
+}
+
+/**
+ * A mounted component sets its own attributes, out of the renderer's reach, so
+ * the URL guard runs on its props instead: a string `href` or `src` that fails
+ * the guard is removed (defence in depth for the `server` tier).
+ */
+function guardUrls(props: Record<string, unknown>): Record<string, unknown> {
+  let out = props;
+  for (const name of ["href", "src"]) {
+    const value = props[name];
+    if (typeof value !== "string") continue;
+    const safe = sanitizeUrl(value);
+    if (safe === value) continue;
+    if (out === props) out = { ...props };
+    if (safe === null) delete out[name];
+    else out[name] = safe;
+  }
+  return out;
+}
 
 function childNodes(node: unknown): unknown[] {
   const children = (node as { children?: unknown })?.children;

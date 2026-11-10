@@ -241,6 +241,7 @@ generation left running after the SDK had stopped reading it.
 | [`relax-ui-theme-base`](./packages/theme-base) | Design tokens, light/dark/compact variants, the twelve as markup templates | none |
 | [`relax-ui-render`](./packages/render) | Render core (contract-only resolution, validation tiers, lazy loading), a keyed DOM reconciler, and `defineConnector` for class- and element-based theme libraries | none |
 | [`relax-ui-element`](./packages/element) | `<gen-ui>`, the standard Web Component: any source, any host, isolated in a shadow root or `light` for global stylesheets; [example](./examples/html-host) with Bootstrap 5 and Shoelace | none (contract and Zod are optional peers, loaded for browser validation) |
+| [`relax-ui-connect-react`](./packages/connect-react) · [`-vue`](./packages/connect-vue) · [`-angular`](./packages/connect-angular) | Framework connectors: React, Vue or Angular component libraries (MUI, Element Plus, Angular Material) mounted per node in `<gen-ui>`; examples for [Vue](./examples/vue-host) and [Angular](./examples/angular-host) | their framework only, as a peer |
 | [`relax-ui-core`](./packages/core) | Transport, negotiation, strategies, streaming parse + validate, guards; re-exports the protocol | none (Zod is a peer; protocol and contract are compiled in) |
 | [`relax-ui-react`](./packages/react) | Streaming object hook (any source), allowlist-only renderer on the render core, base theme for React | core, protocol, render, theme-base, React |
 | [`relax-ui-next`](./packages/next) | App Router handler factories | core |

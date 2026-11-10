@@ -67,6 +67,12 @@ jobs:
           for f in dist/index.js dist/index.d.ts dist/define.js dist/define.d.ts; do
             test -f "packages/element/$f" || { echo "missing packages/element/$f"; exit 1; }
           done
+          # Framework connectors: ESM, one entry each.
+          for pkg in connect-react connect-vue connect-angular; do
+            for f in dist/index.js dist/index.d.ts; do
+              test -f "packages/$pkg/$f" || { echo "missing packages/$pkg/$f"; exit 1; }
+            done
+          done
 
       # Core takes no runtime dependency (NFR-203), so it compiles protocol in
       # rather than importing it. A build that imports it would install fine in
@@ -85,6 +91,15 @@ jobs:
             echo "::error::relax-ui-element's build refers to a package it must bundle in (T-260)."
             exit 1
           fi
+          # Connectors compile in defineConnector; their only imports are their
+          # framework. Usage examples in doc comments are not imports.
+          hits=$(grep -nE "(from |import\()[\"']relax-ui-" packages/connect-*/dist/*.js packages/connect-*/dist/*.d.ts \
+                 | grep -vE ':[0-9]+:[[:space:]]*(\*|//)' || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::error::a connector's build refers to a workspace package it must bundle in (T-260)."
+            exit 1
+          fi
 
   constitution:
     name: Constitutional invariants
@@ -98,7 +113,7 @@ jobs:
 
       - name: "V — core imports no node: module"
         run: |
-          if grep -rn 'from "node:' packages/protocol/src packages/core/src packages/react/src packages/render/src packages/contract/src packages/theme-base/src packages/element/src; then
+          if grep -rn 'from "node:' packages/protocol/src packages/core/src packages/react/src packages/render/src packages/contract/src packages/theme-base/src packages/element/src packages/connect-react/src packages/connect-vue/src packages/connect-angular/src; then
             echo "::error::A node: import breaks Edge and Workers compatibility (Principle V)."
             exit 1
           fi
@@ -119,6 +134,31 @@ jobs:
               console.log(p.name + " has no runtime dependencies");
             '
           done
+
+      - name: "V — framework connectors take only their framework, as peers"
+        run: |
+          # A connector is attached to an application that already has its
+          # framework; it must not bring another copy (T-260).
+          node -e '
+            const allowed = {
+              "connect-react": ["react", "react-dom"],
+              "connect-vue": ["vue"],
+              "connect-angular": ["@angular/core"],
+            };
+            let failed = false;
+            for (const [dir, peers] of Object.entries(allowed)) {
+              const p = require("./packages/" + dir + "/package.json");
+              const deps = Object.keys(p.dependencies ?? {});
+              const declared = Object.keys(p.peerDependencies ?? {}).sort();
+              if (deps.length || declared.join() !== [...peers].sort().join()) {
+                console.log("::error::" + p.name + " may declare only " + peers.join(", ") + " as peers, and no dependencies.");
+                failed = true;
+              } else {
+                console.log(p.name + ": peers " + declared.join(", "));
+              }
+            }
+            process.exit(failed ? 1 : 0);
+          '
 
       - name: "V — the element has no dependencies; the contract and Zod are optional peers"
         run: |
@@ -191,6 +231,7 @@ jobs:
           # `www.w3.org` is the SVG namespace name: an identifier, never fetched.
           hits=$(grep -rnoE 'https?://[a-zA-Z0-9.-]+' packages/core/src packages/protocol/src \
                  packages/render/src packages/element/src packages/theme-base/src packages/contract/src \
+                 packages/connect-react/src packages/connect-vue/src packages/connect-angular/src \
                  | grep -vE 'api\.relax\.ai|json-schema\.org|localhost|127\.0\.0\.1|relative\.invalid|www\.w3\.org' || true)
           if [ -n "$hits" ]; then
             echo "$hits"
@@ -252,6 +293,18 @@ jobs:
       - name: Browser tests (plain HTML host)
         run: pnpm --filter relax-ui-example-html test:e2e
 
+      # T-255: <gen-ui> in a Vue app (Element Plus) and an Angular app (Angular
+      # Material, compiled ahead of time), each under a strict policy.
+      - name: Browser tests (Vue host)
+        run: pnpm --filter relax-ui-example-vue test:e2e
+
+      - name: Browser tests (Angular host)
+        run: pnpm --filter relax-ui-example-angular test:e2e
+
+      # T-256: the same document in all four hosts, compared structurally.
+      - name: Browser tests (one document, four hosts)
+        run: pnpm --filter relax-ui-example-cross-host test:e2e
+
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -260,6 +313,9 @@ jobs:
           path: |
             examples/next-app/playwright-report/
             examples/html-host/test-results/
+            examples/vue-host/test-results/
+            examples/angular-host/test-results/
+            examples/cross-host/test-results/
           retention-days: 7
 
   size:

@@ -108,6 +108,19 @@ contract or skip validation: its output passes the same tag, attribute and URL
 checks as the base theme's. Working Bootstrap 5 and Shoelace connectors are in
 [examples/html-host](../../examples/html-host).
 
+### Framework component libraries
+
+React, Vue and Angular components are mounted per node by
+[`relax-ui-connect-react`](../connect-react),
+[`relax-ui-connect-vue`](../connect-vue) and
+[`relax-ui-connect-angular`](../connect-angular). Each component receives
+validated props and places the renderer's children: React's `children`, Vue's
+default slot, or Angular's `<ng-content>`. These libraries put their styles in
+`document.head`, so framework connectors need `mode="light"`. Samples:
+MUI (`connect-react/samples`),
+[Element Plus](../../examples/vue-host) and
+[Angular Material](../../examples/angular-host).
+
 ## Content Security Policy
 
 The element works under `script-src 'self'`, with no `unsafe-eval` and no

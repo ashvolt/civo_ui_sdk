@@ -26,6 +26,9 @@
       "relax-ui-theme-base": ["packages/theme-base/src/index.ts"],
       "relax-ui-render": ["packages/render/src/index.ts"],
       "relax-ui-element": ["packages/element/src/index.ts"],
+      "relax-ui-connect-react": ["packages/connect-react/src/index.ts"],
+      "relax-ui-connect-vue": ["packages/connect-vue/src/index.ts"],
+      "relax-ui-connect-angular": ["packages/connect-angular/src/index.ts"],
       "relax-ui-core": ["packages/core/src/index.ts"],
       "relax-ui-core/*": ["packages/core/src/*"],
       "relax-ui-react": ["packages/react/src/index.ts"],
@@ -37,7 +40,9 @@
     "packages/*/src/**/*.ts",
     "packages/*/src/**/*.tsx",
     "packages/*/test/**/*.ts",
-    "packages/*/test/**/*.tsx"
+    "packages/*/test/**/*.tsx",
+    "packages/*/samples/**/*.ts",
+    "packages/*/samples/**/*.tsx"
   ],
   "exclude": ["node_modules", "**/dist", "examples"]
 }

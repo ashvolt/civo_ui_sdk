@@ -34,3 +34,12 @@ export const DOCUMENT = {
     n("Link", { label: "Methodology", href: "https://example.com/methodology" }, undefined, "a"),
   ]),
 };
+
+/** The document with its card's region named `label`, or as is. */
+export function withLabel(label) {
+  if (typeof label !== "string" || label === "") return DOCUMENT;
+  const copy = structuredClone(DOCUMENT);
+  const card = copy.root.children.find((c) => c.type === "Card");
+  card.props.title = `${card.props.title} · ${label.slice(0, 40)}`;
+  return copy;
+}

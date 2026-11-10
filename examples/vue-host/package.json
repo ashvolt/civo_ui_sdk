@@ -1,0 +1,27 @@
+{
+  "name": "relax-ui-example-vue",
+  "version": "0.1.0",
+  "private": true,
+  "description": "<gen-ui> in a Vue application with no framework-specific SDK package, plus Element Plus through relax-ui-connect-vue, under a strict Content Security Policy.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node serve.mjs",
+    "dev": "node build.mjs && node serve.mjs",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "element-plus": "^2.14.8",
+    "relax-ui-connect-vue": "workspace:^",
+    "relax-ui-contract": "workspace:^",
+    "relax-ui-element": "workspace:^",
+    "vue": "^3.5.45",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.63.0",
+    "esbuild": "^0.27.7",
+    "relax-ui-core": "workspace:^"
+  }
+}

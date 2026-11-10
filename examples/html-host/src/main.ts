@@ -15,7 +15,7 @@ import { defineGenUI, type GenUIElement } from "relax-ui-element";
 import { bootstrap5 } from "./connectors/bootstrap5.js";
 import { shoelace } from "./connectors/shoelace.js";
 import { showState, variantSwitch } from "./shared.js";
-import { DOCUMENT } from "../document.mjs";
+import { DOCUMENT } from "../../shared/document.mjs";
 
 defineGenUI();
 const el = (id: string) => document.getElementById(id) as GenUIElement;

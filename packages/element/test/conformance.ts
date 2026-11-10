@@ -57,6 +57,16 @@ const hostileDocument = () => ({
 
 const allTwelve = () => ({ root: n("Stack", {}, Object.values(SAMPLES).map((make) => make())) });
 
+/**
+ * The element a component drew. A mounted framework component sits inside the
+ * renderer's `gen-mount` host, which has no box of its own.
+ */
+function componentRoot(el: Element | null): Element {
+  let e = el;
+  while (e && e.localName === "gen-mount") e = e.firstElementChild;
+  return e!;
+}
+
 export interface ConformanceSetup {
   connectors: () => Connector[];
   mode: "shadow" | "light";
@@ -85,7 +95,7 @@ export function conformance(name: string, setup: ConformanceSetup): void {
 
     it.each(Object.keys(SAMPLES))("%s renders, and its root has the contract's role", async (type) => {
       const el = await show({ root: SAMPLES[type]!() });
-      const root = view(el).firstElementChild!;
+      const root = componentRoot(view(el).firstElementChild);
       expect(root, `${type} rendered`).not.toBeNull();
       expect(root.getAttribute("role")).toBe(standardContract.role(type));
       if (setup.tags?.[type]) expect(root.localName).toBe(setup.tags[type]);
@@ -95,8 +105,12 @@ export function conformance(name: string, setup: ConformanceSetup): void {
 
     it("all twelve render together, children inside their parents", async () => {
       const el = await show(allTwelve());
-      const root = view(el).firstElementChild!;
-      expect(root.children).toHaveLength(12);
+      const v = view(el);
+      for (const type of Object.keys(SAMPLES)) {
+        expect(v.querySelector(`[role="${standardContract.role(type)}"]`), type).not.toBeNull();
+      }
+      // The eleven siblings sit inside the Stack, not beside it.
+      expect(v.children).toHaveLength(1);
       for (const type of ["Stack", "Grid", "Card"]) expect(view(el).textContent).toContain(`inside ${type}`);
     });
 

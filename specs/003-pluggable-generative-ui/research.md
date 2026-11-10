@@ -209,6 +209,24 @@ was not given by the core.
 - The connector runs in the host's framework context, so it must be given that
   context once: an Angular `EnvironmentInjector`, a React root, a Vue app.
 
+**Measured (phase 5)**: the mount contract carries all three frameworks with
+their own APIs: React through `createRoot` and `flushSync`, Vue through
+`render(h(...))` in the host app's context, and Angular through `createComponent`
+with the child host projected into `<ng-content>`. One React root per node
+against one shared root with portals, in Chromium, rendering a Stack of N−1
+Text nodes:
+
+| Nodes | Per node: complete | Shared root: complete | Per node: worst streamed frame | Shared root: worst streamed frame |
+|---:|---:|---:|---:|---:|
+| 20 | 4.2 ms | 4.8 ms | 0.3 ms | 0.3 ms |
+| 100 | 5.3 ms | 10.5 ms | 2.3 ms | 3.2 ms |
+| 300 | 14.1 ms | 70.4 ms | 6.1 ms | 3.4 ms |
+
+One root per node is faster to complete at every size, and its worst streamed
+frame at 300 nodes (6.1 ms) is well inside a 16 ms frame. Unchanged nodes are
+skipped by identity before React is called at all, so a shared root saves
+nothing and costs a re-render of every portal per mount. No batching was added.
+
 **Rejected**:
 
 - *Native framework renderers* (an Angular `<gen-ui-ng>` that renders the whole

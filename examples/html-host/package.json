@@ -15,6 +15,10 @@
     "bootstrap": "^5.3.8",
     "relax-ui-contract": "workspace:^",
     "relax-ui-element": "workspace:^",
+    "relax-ui-react": "workspace:^",
+    "relax-ui-theme-base": "workspace:^",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

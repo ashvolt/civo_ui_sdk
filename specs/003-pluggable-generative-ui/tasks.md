@@ -214,15 +214,53 @@ Numbered from T-201.
 
 ## Phase 5 — Framework connectors
 
-- [ ] **T-250** Mount contract tests: `mount`, `update`, `unmount`; children rendered by the
+- [x] **T-250** Mount contract tests: `mount`, `update`, `unmount`; children rendered by the
   core into the child host; `shadow` mode refused.
-- [ ] **T-251** [P] `connect-react` + MUI sample; passes T-243.
-- [ ] **T-252** [P] `connect-angular` + Angular Material sample; passes T-243.
-- [ ] **T-253** [P] `connect-vue` + Vue library sample; passes T-243.
-- [ ] **T-254** Measure: one root per node versus batched roots at 20, 100 and 300 nodes;
+- [x] **T-251** [P] `connect-react` + MUI sample; passes T-243.
+- [x] **T-252** [P] `connect-angular` + Angular Material sample; passes T-243.
+- [x] **T-253** [P] `connect-vue` + Vue library sample; passes T-243.
+- [x] **T-254** Measure: one root per node versus batched roots at 20, 100 and 300 nodes;
   batch where needed.
-- [ ] **T-255** [P] `examples/angular-host`, `examples/vue-host`; Playwright each.
-- [ ] **T-256** Same document rendered in all four hosts, compared structurally.
+- [x] **T-255** [P] `examples/angular-host`, `examples/vue-host`; Playwright each.
+- [x] **T-256** Same document rendered in all four hosts, compared structurally.
+
+### Phase 5 notes
+
+- **The mount contract** lives in the render core: a `mount` implementation
+  gets a host element and a child host from the renderer; `update` runs only
+  when a node's props changed (a test walks a complete document again and
+  counts zero updates); `unmount` runs when a node, its subtree or the renderer
+  goes. A component that throws while mounting is reported once and the rest
+  of the document renders. `href` and `src` pass the URL guard again before
+  they reach a component, since its attributes are out of the renderer's reach.
+- **Children placement per framework:** React's `children` (an element the
+  child host is moved into), Vue's default slot (likewise), Angular's
+  `<ng-content>` (the child host is projected with `projectableNodes`, no
+  wrapper at all).
+- **T-254 measured, no batching.** In Chromium, one React root per node
+  completed 300 nodes in 14 ms against 70 ms for one shared root with portals,
+  and its worst streamed frame was 6 ms. Unchanged nodes never reach React, so
+  sharing a root buys nothing (research R5).
+- **Three samples pass the one conformance suite**: MUI (11 of 12 types),
+  Element Plus (6) and Angular Material (5), each also checked for drawing the
+  library's own components around the renderer's children. Angular runs just
+  in time in the unit tests and ahead of time in the app.
+- **Hosts under a strict policy.** The Vue app uses the runtime-only build and
+  render functions; the Angular app is compiled ahead of time and ships no
+  compiler (asserted). Scripts are `'self'` everywhere; Angular's runtime
+  component styles take a per-page nonce. Axe passes on every element.
+- **Found by the hosts:** Vue sets a custom element's *property* when one
+  exists, so `source="/api/ui"` arrived as a string; the property now takes a
+  URL string as the attribute does. Element Plus's default palette and
+  Material's Roboto-only prebuilt typography needed host CSS (a darker palette,
+  system font fallbacks); both are library defaults, fixed where a host would.
+- **T-256:** the same document, from the same route, serialises identically in
+  the plain HTML page, the Vue app, the Angular app (all `<gen-ui>`) and a React
+  page (`relax-ui-react`). A deliberate one-word difference fails the test.
+- **Angular CLI 22 needs Node ≥ 22.22.3** (CI's Node 22 qualifies); locally the
+  Angular example was built with Node 24.
+- **Sizes (gzip):** each connector about 1.9 KB including `defineConnector`;
+  `<gen-ui>` with nothing rendered is 13.6 KB (mount support added 0.5 KB).
 
 ## Phase 6 — Documentation and CI
 
@@ -245,4 +283,4 @@ Numbered from T-201.
 
 ## Outstanding
 
-Phases 0 to 4 are done. Everything from T-250 is outstanding.
+Phases 0 to 5 are done. Phase 6 (T-260 to T-264, documentation and CI) is outstanding; parts of T-260 already run in CI.

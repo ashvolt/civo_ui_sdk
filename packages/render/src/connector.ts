@@ -59,7 +59,35 @@ export interface TemplateImplementation {
   template: Template;
 }
 
-export type Implementation = ClassImplementation | ElementImplementation | TemplateImplementation;
+/** What a mounted framework component gives back to the renderer. */
+export interface Mounted {
+  /** New props for the same node. Called only when they changed. */
+  update(props: Record<string, unknown>): void;
+  /** The node left the document, or the renderer was destroyed. */
+  unmount(): void;
+}
+
+/**
+ * A framework component (React, Angular, Vue), mounted into a host element the
+ * renderer creates (data model §3, `mount`).
+ *
+ * The renderer owns the tree. `childHost` is an element the renderer fills with
+ * the node's children; the component places it where its children belong and
+ * never renders model children itself (I3). Props are validated (or from a
+ * trusted route), and `href`/`src` have passed the URL guard again.
+ */
+export interface MountImplementation {
+  mount(host: Element, props: Record<string, unknown>, childHost: Element): Mounted;
+}
+
+export type Implementation = ClassImplementation | ElementImplementation | TemplateImplementation | MountImplementation;
+
+/** What a catalog holds for the DOM renderer: markup as data, or a mount. */
+export type Renderable = Template | MountImplementation;
+
+export function isMount(r: unknown): r is MountImplementation {
+  return typeof r === "object" && r !== null && typeof (r as MountImplementation).mount === "function";
+}
 
 export interface ConnectorOptions {
   /** Names the library in reports and errors, e.g. `bootstrap-5`. */
@@ -165,7 +193,12 @@ export function checkConnector(connector: Connector): void {
 
 function checkImplementation(impl: unknown, kind: ConnectorKind, where: string): asserts impl is Implementation {
   if (typeof impl !== "object" || impl === null) refuse(`${where}: an implementation must be an object or a loader`);
-  const i = impl as Partial<ClassImplementation & ElementImplementation & TemplateImplementation>;
+  const i = impl as Partial<ClassImplementation & ElementImplementation & TemplateImplementation & MountImplementation>;
+  if ("mount" in i) {
+    if (kind !== "framework") refuse(`${where}: only a framework connector mounts components`);
+    if (typeof i.mount !== "function") refuse(`${where}: mount must be a function`);
+    return;
+  }
   if ("template" in i) {
     if (typeof i.template !== "function") refuse(`${where}: template must be a function`);
     return;
@@ -198,7 +231,8 @@ function checkImplementation(impl: unknown, kind: ConnectorKind, where: string):
  * Turns an implementation into a template. `base` is the base theme's template
  * for the same type; `class` and `element` implementations restyle its output.
  */
-export function compileImplementation(type: string, impl: Implementation, base: Template | undefined): Template {
+export function compileImplementation(type: string, impl: Implementation, base: Template | undefined): Renderable {
+  if ("mount" in impl) return impl;
   if ("template" in impl) return impl.template;
   if (base === undefined) {
     throw new RelaxUIError({
@@ -317,8 +351,8 @@ export interface LayerOptions {
 }
 
 export interface Layered {
-  templates: Record<string, Template>;
-  loaders: Record<string, Loader<Template>>;
+  templates: Record<string, Renderable>;
+  loaders: Record<string, Loader<Renderable>>;
   /** Types the base theme renders although connectors are attached (K1). */
   fallbacks: ReadonlySet<string>;
   /** A type claimed by more than one connector: the later one wins (K4). */
@@ -353,8 +387,8 @@ export function layerConnectors(options: LayerOptions): Layered {
         ? baseLoaders[type]!()
         : Promise.resolve(undefined);
 
-  const templates: Record<string, Template> = {};
-  const loaders: Record<string, Loader<Template>> = {};
+  const templates: Record<string, Renderable> = {};
+  const loaders: Record<string, Loader<Renderable>> = {};
   const fallbacks = new Set<string>();
   const providers: Record<string, string> = {};
 
@@ -363,14 +397,14 @@ export function layerConnectors(options: LayerOptions): Layered {
     if (winner) {
       providers[type] = winner.connector.name;
       const { entry, connector } = winner;
-      if (typeof entry !== "function" && "template" in entry) {
-        templates[type] = entry.template;
+      if (typeof entry !== "function" && ("template" in entry || "mount" in entry)) {
+        templates[type] = "mount" in entry ? entry : entry.template;
         continue;
       }
       loaders[type] = async () => {
         const impl = typeof entry === "function" ? await entry() : entry;
         if (typeof entry === "function") checkImplementation(impl, connector.kind, `connector "${connector.name}", ${type}`);
-        const base = "template" in impl ? undefined : await baseFor(type);
+        const base = "template" in impl || "mount" in impl ? undefined : await baseFor(type);
         return compileImplementation(type, impl, base);
       };
       continue;

@@ -23,7 +23,7 @@ export type {
 export { DomRenderer } from "./dom.js";
 export type { DomRendererOptions, RenderOptions } from "./dom.js";
 
-export { checkConnector, compileImplementation, defineConnector, layerConnectors } from "./connector.js";
+export { checkConnector, compileImplementation, defineConnector, isMount, layerConnectors } from "./connector.js";
 export type {
   ClassImplementation,
   ClassMapping,
@@ -35,7 +35,10 @@ export type {
   Implementation,
   Layered,
   LayerOptions,
+  Mounted,
+  MountImplementation,
   PropMapping,
+  Renderable,
   TemplateImplementation,
 } from "./connector.js";
 

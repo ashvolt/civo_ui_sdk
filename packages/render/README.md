@@ -43,6 +43,12 @@ that fallback is reported once per document when it renders.
 - `element`: the root becomes a library element, with attributes from props
   and parts in named slots.
 - `template`: markup as data, checked like any other.
+- `mount` (framework connectors only): `mount(host, props, childHost)` returns
+  `{ update, unmount }`. The renderer creates the host, calls `update` only
+  when a node's props changed, and calls `unmount` when the node leaves, when
+  its subtree goes, or when the renderer is destroyed. Its children are
+  reconciled into `childHost`, which the component places. `href` and `src`
+  pass the URL guard again before they reach the component.
 
 None of the three can produce markup from a string. See the
 [element README](../element/README.md) for the mapping rules.
