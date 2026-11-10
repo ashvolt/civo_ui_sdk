@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-stress-security-benchmark`
 **Created**: 2026-11-10
-**Status**: Draft — awaiting review
+**Status**: In progress — phase 1 (harness, and this SDK's ladders on desktop and phone) implemented; phases 2–6 outstanding
 **Input**: "So we need to stress load, with low to highest possible animations
 graphs, text colours high level of data tables, and what possible load anxiety
 test we can do, we should create a automation test. Which includes the security
@@ -238,7 +238,8 @@ Numbered from 401, so they cannot be confused with features 001 to 003.
   - DOM node count;
   - transferred script size.
 - **FR-411**: A step MUST be marked broken when any budget is exceeded:
-  - frame time at the 95th percentile over 16.7 ms;
+  - a frame interval at the 95th percentile over 25 ms, meaning frames are
+    dropped at 60 fps (revised in planning; see below);
   - a long task over 50 ms;
   - interaction latency over 200 ms;
   - a wrong or missing node;
@@ -356,6 +357,14 @@ Numbered from 401, so they cannot be confused with features 001 to 003.
 - **Attack outcome**: blocked, rendered inert, or executed, with the evidence.
 - **Result**: all of the above for one run of a suite, with machine, browser,
   commit and schema version.
+
+---
+
+## Planning revisions
+
+| Item | First written | Revised | Reason |
+|---|---|---|---|
+| FR-411, clarification "what counts as breaking" | 95th-percentile frame time over 16.7 ms | 95th-percentile frame **interval** over 25 ms (1.5 refresh intervals at 60 Hz) | The harness self-test found an idle page measures 16.8 ms: frame intervals jitter around the 16.67 ms refresh, so the first wording fails a page doing nothing. A missed refresh shows as an interval near 33 ms; 25 ms separates the two. Same intent, no dropped frames at 60 fps, now measurable. Changed before any result existed ([budgets](./contracts/budgets.md), v2) |
 
 ---
 

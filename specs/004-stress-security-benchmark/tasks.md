@@ -9,30 +9,84 @@ phase is releasable on its own (plan, phase 3).
 
 ## Phase 1 — Harness, and this SDK's ladders
 
-- [ ] **T-401** `bench/` private package outside `packages/`. CI check: no
+- [x] **T-401** `bench/` private package outside `packages/`. CI check: no
   published package depends on it, and the release build ignores it.
-- [ ] **T-402** Tests: the seeded generator. The same seed gives identical
+- [x] **T-402** Tests: the seeded generator. The same seed gives identical
   documents and frames; frames grow monotonically (F1); the last frame equals
   the document (F2); steps above 500 nodes or depth 24 use the bench contract
   (W2).
-- [ ] **T-403** Generator and ladders for nodes, depth, table cells, chart points,
+- [x] **T-403** Generator and ladders for nodes, depth, table cells, chart points,
   frames per second, text churn and tone density (research R4).
-- [ ] **T-404** Tests: the probe and the runner, against fake pages.
+- [x] **T-404** Tests: the probe and the runner, against fake pages.
   - a page that blocks the main thread 80 ms breaks on `longestTask`;
   - a page that drops a node breaks on correctness;
   - a page that never finishes breaks on timeout;
   - a steady page passes every budget.
-- [ ] **T-405** In-page probe (frames, long animation frames, event timing,
+- [x] **T-405** In-page probe (frames, long animation frames, event timing,
   scheduler) and the runner. The runner covers Playwright, the DevTools Protocol
   (heap after garbage collection, DOM counters, CPU slowdown), both profiles,
   five repetitions after a warm-up, ladder stop, and the result writer.
-- [ ] **T-406** Budgets file mirrored from `contracts/budgets.md`; the result
+- [x] **T-406** Budgets file mirrored from `contracts/budgets.md`; the result
   schema from `contracts/results.md`, with a validator.
-- [ ] **T-407** Adapters `ours-element` and `ours-react`; full ladders on both
+- [x] **T-407** Adapters `ours-element` and `ours-react`; full ladders on both
   profiles; first results committed.
-- [ ] **T-408** `pnpm bench:selftest`: a deliberately slowed renderer, a
+- [x] **T-408** `pnpm bench:selftest`: a deliberately slowed renderer, a
   deliberately wrong one, and a correct one. The harness must classify all
   three correctly.
+
+### Phase 1 notes
+
+- **The harness proves itself first.** `pnpm bench:selftest` classifies four
+  renderers before any result is kept:
+  - an untouched one passes;
+  - one that blocks 80 ms per frame breaks on the long task;
+  - one that drops a node breaks on correctness;
+  - a hung one breaks on the timeout.
+
+  It runs in CI.
+- **Four methodology corrections, made before any result was kept** (research
+  R2):
+  - frame budget v2: 25 ms. An idle page measures 16.8 ms at the 95th
+    percentile, so 16.7 ms could not be met;
+  - a one-second minimum sampling window;
+  - cold start separated from scaling (a warm-up document, then `next()` into
+    the same mounted renderer);
+  - smaller first steps, so the phone profile has steps to pass.
+- **Two generator bugs found by running it.**
+  - Churned text overflowed the Badge limit. The React hook rightly stopped
+    the stream; the generator test now validates every frame.
+  - The churn ladder first delivered a whole document in one frame.
+- **First results** (`bench/results/local-2026-11-10.json`). Laptop: Intel
+  i7-1165G7, 16 GB, Windows, Chromium 153. Budget v2, five repetitions, medians.
+
+  | Ladder | Element, desktop | Element, phone (CPU 4×) | React, desktop | React, phone |
+  |---|---|---|---|---|
+  | Nodes, streamed | not reached (10,000) | 250 | 500 | below 10 |
+  | Nodes, one frame | 1,000 | 10 | 500 | below 10 |
+  | Depth | 96, then the tab crashes | 24 | 96, then crash | below 2 |
+  | Table cells | 10,000 | 100 | 25,000 | below 20 |
+  | Chart points | 1,000 | 8 | 250 | below 8 |
+  | Frame rate (500 nodes) | not reached (100/s) | 5/s | 25/s | below 5/s |
+  | Text churn (500 nodes) | not reached (100%) | below 1% | 50% | below 1% |
+  | Tone density (1,000 nodes) | not reached | below 0% | below 0% | below 0% |
+  | Cold start (first node; longest task) | 68 ms; none over 50 | 66 ms; 94 ms | 70 ms; none | 84 ms; 84 ms |
+
+- **Findings for this SDK**, recorded for later phases, not fixed here:
+  1. **On the phone profile, style and layout dominate.** A fresh element's
+     first style pass costs about 90 ms at 4× CPU, and a 500-node static
+     document's frame spends 273 ms of 394 ms in style and layout
+     (long-animation-frame attribution). The base theme's CSS is the first
+     optimisation target for phones.
+  2. **The React hook validates the whole document on every frame** against
+     the schema; the element validates only nodes that changed. At 500 nodes
+     and 5 frames per second on the phone profile, that is 34 long tasks of
+     about 200 ms per run. Incremental validation in `relax-ui-react` is the
+     second target.
+  3. **Chromium's tab crashes past roughly 130–190 nested elements**, by
+     layout type, with or without this SDK (research R2). The standard
+     contract's depth budget (24) keeps documents two to three times below
+     it, in both validation tiers.
+
 
 ## Phase 2 — Heavy visuals
 
@@ -116,4 +170,4 @@ phase is releasable on its own (plan, phase 3).
 
 ## Outstanding
 
-Everything. Awaiting review of this specification.
+Phases 2 to 6 (T-410 onwards).

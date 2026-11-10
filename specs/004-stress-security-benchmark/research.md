@@ -62,6 +62,46 @@ same way for every contender?
 Protocol session, identical for every contender. Record raw samples, not only
 summaries, so a percentile can be recomputed later.
 
+**Measured while building the harness (phase 1)**: four corrections, each
+made before any result was kept.
+
+1. **The frame budget.** An idle page's 95th-percentile `requestAnimationFrame`
+   interval is 16.8 ms, because intervals jitter around the 16.67 ms refresh.
+   The budget became "an interval over 25 ms", meaning a refresh was missed
+   (budget v2).
+2. **A minimum sampling window of one second.** A static document renders in
+   about ten frames, so a single late frame was its 95th percentile. Sampling
+   for at least a second makes the percentile mean sustained jank.
+3. **Cold start separated from scaling.** In a fresh page, on the phone
+   profile, the first document pays for:
+   - evaluating the component chunks;
+   - building the validator;
+   - the shadow root's first style pass (about 90 ms at 4× CPU, measured
+     with long-animation-frame attribution).
+
+   That masked every ladder. Each measured run now follows a warm-up
+   document, streamed into the **same** mounted renderer (`next()` in the
+   adapter contract). The first mount is reported once, as cold start.
+4. **Steps small enough for a phone.** Size ladders start at 10 nodes, 20
+   table cells, 8 chart points and depth 2, so the phone profile has steps to
+   pass.
+
+**Finding: Chromium's nesting limit.** Past a certain depth the browser tab
+itself crashes, with or without this SDK. Nested-element depth at which the
+tab crashed:
+
+| Nesting | Last depth that rendered | Crashed at |
+|---|---|---|
+| plain `<div>` | 160 | 192 |
+| flex columns | 144 | 160 |
+| grids | 128 | 144 |
+
+The base theme's Card adds two flex levels per document level, so a document
+around 100 deep crashes. The standard contract's depth budget (24) keeps
+documents two to three times below that. The resolver applies it in both
+validation tiers, so a hostile deep document is refused before it can crash
+the page. The depth ladder records this as a `crash` break.
+
 ---
 
 ## R3. Equal terms for every contender
@@ -111,16 +151,17 @@ set), so using them would compare designs, not renderers.
 
 | Dimension | Steps | Held constant |
 |---|---|---|
-| Nodes (mixed components) | 50, 100, 250, 500, 1k, 2.5k, 5k, 10k | 10 frames/s, depth ≤ 6 |
-| Depth | 4, 8, 16, 24, 48, 96 | 200 nodes |
-| Table cells | 100, 1k, 5k, 10k, 25k, 50k, 100k | one table, 10 columns |
-| Chart points | 50, 250, 1k, 2.5k, 5k | line and bar, 4 series |
+| Nodes (mixed components), streamed | 10, 25, 50, 100, 250, 500, 1k, 2.5k, 5k, 10k | 20 frames at 20/s, depth ≤ 4 |
+| Nodes in one frame (a static document) | 10, 25, 50, 100, 250, 500, 1k, 2.5k, 5k, 10k | one frame |
+| Depth | 2, 4, 8, 16, 24, 48, 96, 128, 160, 192 | 200 nodes |
+| Table cells | 20, 100, 1k, 5k, 10k, 25k, 50k, 100k | one table, 10 columns |
+| Chart points | 8, 50, 250, 1k, 2.5k, 5k, 10k, 20k | line and bar, 4 series |
 | Heatmap cells | 100, 1k, 5k, 10k, 25k | one heatmap, toned colour scale |
 | Scatter points | 100, 1k, 2.5k, 5k, 10k | one plot |
 | Sparkline grid | 25, 100, 250, 500, 1k sparklines | 30 points each |
 | Animated counters | 10, 50, 100, 200, 500 | CSS-only animation |
 | Frames per second | 5, 10, 25, 50, 100 | 500 nodes |
-| Text churn | 1, 10, 50, 100% of text props changed per frame | 500 nodes, 25 frames/s |
+| Text churn | 1, 10, 50, 100% of text props changed per frame | 500 nodes built over 20 frames, then 20 churn frames at 25/s |
 | Tone density | 0, 25, 50, 100% of nodes toned | 1k nodes |
 
 Above the standard contract's 500 nodes and depth 24, the workload uses a

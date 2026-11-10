@@ -22,6 +22,8 @@ interface ResultFile {
     breakPoint: number | "below-first-step" | "not-reached";
     brokenBy?: string;
   }[];
+  // A twelve-component document in a fresh page: what a user pays once.
+  coldStart?: { renderer: string; profile: "desktop" | "phone"; metrics: Record<string, { median: number; iqr: number }>; broken?: string }[];
   soak?: {
     renderer: string; minutes: number;
     series: { minute: number; heap: number; domNodes: number; listeners: number; mounted?: number }[];

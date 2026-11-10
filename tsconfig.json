@@ -42,7 +42,12 @@
     "packages/*/test/**/*.ts",
     "packages/*/test/**/*.tsx",
     "packages/*/samples/**/*.ts",
-    "packages/*/samples/**/*.tsx"
+    "packages/*/samples/**/*.tsx",
+    "bench/src/**/*.ts",
+    "bench/src/**/*.tsx",
+    "bench/pages/**/*.ts",
+    "bench/pages/**/*.tsx",
+    "bench/test/**/*.ts"
   ],
   "exclude": ["node_modules", "**/dist", "examples"]
 }
