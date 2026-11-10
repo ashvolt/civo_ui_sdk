@@ -2,7 +2,7 @@
 
 # relaxAI Generative UI SDK
 
-**Stream schema-validated, model-designed interfaces from [Civo relaxAI](https://www.civo.com/ai/relaxai) — safely, on the edge, without leaving UK jurisdiction.**
+**Stream schema-validated, model-designed interfaces from [Civo relaxAI](https://www.civo.com/ai/relaxai) — safely, on the edge, without leaving UK jurisdiction — and render them in any web framework, in the design system you already use.**
 
 `relax-ui-core` · `relax-ui-react` · `relax-ui-next` · `<gen-ui>` for any host · connectors for any theme library
 
@@ -103,6 +103,28 @@ pnpm frames                                                        # or watch th
 
 relaxAI is the default endpoint and the reason the SDK exists; it is not a
 requirement of the engine. → **[Local quickstart](./specs/002-provider-agnostic-inference/quickstart.md)**
+
+### See it in any host, in any design system — no model needed
+
+| Plain HTML: Bootstrap 5 (and Shoelace below it) | Vue: Element Plus | Angular: Angular Material |
+|---|---|---|
+| [![Four gen-ui elements on one plain HTML page](./docs/demo/hosts-html.png)](./docs/demo/hosts-html.png) | [![Element Plus in a Vue app](./docs/demo/hosts-vue.png)](./docs/demo/hosts-vue.png) | [![Angular Material in an Angular app](./docs/demo/hosts-angular.png)](./docs/demo/hosts-angular.png) |
+
+One document, streamed from a local stand-in route, drawn by `<gen-ui>` in each
+host, through each library's own components. A Playwright test asserts that the
+markup is identical in all four hosts (HTML, Vue, Angular and React). Each page
+is served under `script-src 'self'`.
+
+```bash
+pnpm install && pnpm build
+pnpm --filter relax-ui-example-html dev      # http://127.0.0.1:3300  (also /light.html, /react.html)
+pnpm --filter relax-ui-example-vue dev       # http://127.0.0.1:3301
+pnpm --filter relax-ui-example-angular dev   # http://127.0.0.1:3302  (Angular CLI: Node ≥ 22.22.3)
+```
+
+How this differs from the Vercel AI SDK, json-render, A2UI, CopilotKit,
+Hashbrown and Thesys C1, and where they are ahead:
+**[comparison](./docs/comparison.md)**.
 
 ---
 
@@ -339,7 +361,8 @@ constitution to v1.1.0.
 | [LLD](./docs/lld.md) | Module internals, algorithms, complexity, the cases that motivated them |
 | [Security model](./docs/security-model.md) | Assets, adversaries, controls — and what is *not* defended |
 | [ADRs](./docs/adr/) | Twelve load-bearing decisions, each with its rejected alternatives |
-| [Diagrams](./docs/diagrams/) | Eight Mermaid diagrams, all render-verified |
+| [Diagrams](./docs/diagrams/) | Nine Mermaid diagrams, all render-verified |
+| [Comparison](./docs/comparison.md) | Other generative UI projects, the differences, and where they are ahead |
 | [API reference](./docs/api-reference.md) | Every export, with examples |
 | [Troubleshooting](./docs/troubleshooting.md) | Symptoms first |
 
@@ -352,7 +375,11 @@ pnpm install
 pnpm verify           # typecheck + tests + build
 pnpm probe:selftest   # verifies scripts/probe-models.ts against a stub
 pnpm diagrams:check   # renders every fenced mermaid block
-pnpm test:e2e         # 20 browser tests against two stand-in endpoints
+pnpm test:e2e         # 24 browser tests of the Next.js app against two stand-in endpoints
+pnpm test:e2e:html    # <gen-ui> in plain HTML: Bootstrap, Shoelace, CSP, style isolation
+pnpm test:e2e:vue     # <gen-ui> in Vue, with Element Plus
+pnpm test:e2e:angular # <gen-ui> in Angular (AOT), with Angular Material
+pnpm test:e2e:hosts   # one document, four hosts, identical markup
 pnpm frames           # one real generation on local Ollama, every frame checked
 pnpm demo:record      # regenerate the demo video
 
@@ -394,7 +421,14 @@ no network and no wall-clock waiting. There are no module mocks.
 | Providers | 36 | Mostly refusals: unknown name, remote host on a local profile, env trying to widen the allowlist |
 | Schema dialect | 10 | Keyword removed everywhere it is a keyword, kept where it is a name; validator unchanged |
 | Frame creation | 29 | Cases first seen on a real local model: empty tool call, lazy `meta`, upstream cancelled on early exit |
-| Browser (Playwright) | 20 | Two app instances: a runtime that honours constrained decoding, and one that refuses it |
+| Browser (Playwright) | 24 | Two app instances: a runtime that honours constrained decoding, and one that refuses it |
+| Protocol (browser) | 68 | Every source kind, truncation, the same-origin trust decision and its refusals |
+| Contract | 64 | The twelve, `extend()` never removing, action props refused, server and browser schemas from one declaration |
+| Base theme | 44 | WCAG contrast in every variant, roles, tokens only, lazy groups |
+| Render core | 81 | Every prefix of three streams equals a fresh render; catalog, tiers, mount contract, bundle contents |
+| Element | 148 | Attributes, sources, refusals, events; one conformance suite run against eight connector setups |
+| Connectors | 57 | MUI, Element Plus and Angular Material through the same conformance suite |
+| Browser hosts (Playwright) | 18 | Plain HTML, Vue, Angular and a four-host comparison, all under `script-src 'self'` |
 
 ---
 
