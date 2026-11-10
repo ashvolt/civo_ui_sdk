@@ -49,6 +49,9 @@ const PACKAGES = [
   { name: "relax-ui-theme-base", entry: dist("theme-base"), note: "tokens, variants, twelve templates" },
   { name: "relax-ui-render", entry: dist("render"), note: "render core and DOM backend; protocol's guard compiled in" },
   { name: "relax-ui-element", entry: dist("element"), note: "<gen-ui>; render core, base theme loaders and protocol compiled in" },
+  { name: "relax-ui-connect-react", entry: dist("connect-react"), note: "React connector; defineConnector compiled in" },
+  { name: "relax-ui-connect-vue", entry: dist("connect-vue"), note: "Vue connector; defineConnector compiled in" },
+  { name: "relax-ui-connect-angular", entry: dist("connect-angular"), note: "Angular connector; defineConnector compiled in" },
   { name: "relax-ui-core", entry: dist("core"), note: "server engine; includes protocol" },
   { name: "relax-ui-react", entry: dist("react"), note: "hook and renderer" },
   { name: "relax-ui-next", entry: dist("next"), note: "route handler (server)" },
@@ -149,7 +152,7 @@ function owner(input) {
  * For packages: every bare import stays external, so only the package's own
  * code counts. Core's protocol is compiled into core's dist, so it counts there.
  */
-const OWN_CODE_ONLY = [...FRAMEWORK, "zod", "relax-ui-*"];
+const OWN_CODE_ONLY = [...FRAMEWORK, "vue", "@angular/*", "zod", "relax-ui-*"];
 
 const kb = (n) => `${(n / 1024).toFixed(2)} KB`;
 function delta(now, before) {

@@ -172,8 +172,8 @@ export class Resolver<I> {
     return { kind: "skip", failure };
   }
 
-  /** Once per reason and type per document. */
-  private report(report: RenderReport): void {
+  /** Reports to the host, once per reason and type per document. Renderers report their own failures here. */
+  report(report: RenderReport): void {
     if (!this.onReport) return;
     const id = `${report.reason}\u0000${report.type}`;
     if (this.reported.has(id)) return;

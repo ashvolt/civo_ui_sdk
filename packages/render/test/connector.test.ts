@@ -9,6 +9,7 @@ import {
   Resolver,
   type ConnectorOptions,
   type RenderReport,
+  type Renderable,
   type Template,
   type VNode,
 } from "relax-ui-render";
@@ -16,7 +17,7 @@ import {
 /** T-244: `defineConnector` for the class and element kinds, and layering. */
 
 const base = baseTemplates as unknown as Record<string, Template>;
-const run = (t: Template, props: Record<string, unknown>) => t(props as never) as VNode;
+const run = (t: Renderable, props: Record<string, unknown>) => (t as Template)(props as never) as VNode;
 
 describe("defineConnector refuses a malformed connector", () => {
   const ok: ConnectorOptions = { name: "lib", kind: "class", implementations: { Card: { classes: { root: "card" } } } };

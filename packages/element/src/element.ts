@@ -110,12 +110,16 @@ export class GenUIElement extends Base {
    * Where the document comes from: `{ document }`, `{ url }`, `{ stream }` or
    * `{ socket }`. A URL waits for `submit()`; any other kind starts reading as
    * soon as the element is on the page. Takes precedence over the attribute.
+   *
+   * A string is a URL, as the attribute is: Vue and others set a custom
+   * element's property, not its attribute, whenever the property exists.
    */
   get source(): Source | undefined {
     return this.#source ?? this.#attributeSource();
   }
 
-  set source(source: Source | undefined) {
+  set source(value: Source | string | null | undefined) {
+    const source = typeof value === "string" ? (value === "" ? undefined : { url: value }) : (value ?? undefined);
     this.#source = source;
     this.#autostart = source !== undefined && !isUrl(source);
     if (this.#autostart && this.isConnected) this.#startAuto();

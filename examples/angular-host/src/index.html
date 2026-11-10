@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gen-ui in an Angular app</title>
+  <base href="/">
+</head>
+<body>
+  <!--
+    Angular adds component styles to <head> at runtime. Under a strict policy
+    they carry this nonce, which the server replaces per page; scripts stay
+    'self' only.
+  -->
+  <app-root ngCspNonce="__CSP_NONCE__"></app-root>
+</body>
+</html>

@@ -119,6 +119,19 @@ describe("sources", () => {
     expect(validator).not.toHaveBeenCalled();
   });
 
+  it("a string set as the source property is a URL, as the attribute is", async () => {
+    const fetch = vi.fn(async () => new Response(sse(events(REPORT)), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    const el = mount({ validate: "server" });
+    (el as { source: unknown }).source = "/api/ui";
+    expect(el.source).toEqual({ url: "/api/ui" });
+    await el.submit({});
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(el.state.status).toBe("complete");
+    (el as { source: unknown }).source = null;
+    expect(el.source).toBeUndefined();
+  });
+
   it("validate=full on a URL loads the validator once", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(sse(events(DASHBOARD)), { status: 200 })));
     const validator = vi.fn(() => Promise.resolve(createValidator(standardContract)));

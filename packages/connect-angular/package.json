@@ -1,0 +1,46 @@
+{
+  "name": "relax-ui-connect-angular",
+  "version": "0.1.0",
+  "description": "Framework connector for the relaxAI Generative UI SDK: render <gen-ui> documents with Angular component libraries such as Angular Material. @angular/core is the only peer.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=17.0.0"
+  },
+  "devDependencies": {
+    "@angular/animations": "^22.2.5",
+    "@angular/cdk": "^22.2.6",
+    "@angular/common": "^22.2.5",
+    "@angular/compiler": "^22.2.5",
+    "@angular/core": "^22.2.5",
+    "@angular/forms": "^22.2.5",
+    "@angular/material": "^22.2.6",
+    "@angular/platform-browser": "^22.2.5",
+    "relax-ui-protocol": "workspace:*",
+    "relax-ui-render": "workspace:*",
+    "rxjs": "^7.8.1",
+    "tslib": "^2.8.1",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "relax-ui-connect-vue",
+  "version": "0.1.0",
+  "description": "Framework connector for the relaxAI Generative UI SDK: render <gen-ui> documents with Vue component libraries such as Element Plus or Vuetify. Vue is the only peer.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "element-plus": "^2.14.8",
+    "relax-ui-protocol": "workspace:*",
+    "relax-ui-render": "workspace:*",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vue": "^3.5.45"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

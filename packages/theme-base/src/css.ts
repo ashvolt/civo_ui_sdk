@@ -108,7 +108,11 @@ export const tokens: string = /* @__PURE__ */ (() => `
 
 const s = (n: number) => `calc(var(--gen-space-unit) * ${n})`;
 
-/** The twelve components. Reads tokens only (T1). */
+/**
+ * The twelve components. Reads tokens only (T1). `gen-mount` and
+ * `gen-children` are the hosts the renderer makes for a mounted framework
+ * component and its children: no box of their own.
+ */
 export const components: string = /* @__PURE__ */ (() => `
 .gen-theme {
   container-type: inline-size;
@@ -119,6 +123,7 @@ export const components: string = /* @__PURE__ */ (() => `
   background: var(--gen-color-surface);
 }
 .gen-theme *, .gen-theme *::before, .gen-theme *::after { box-sizing: border-box; }
+.gen-theme gen-mount, .gen-theme gen-children { display: contents; }
 .gen-theme p, .gen-theme figure, .gen-theme h1, .gen-theme h2, .gen-theme h3, .gen-theme h4 { margin: 0; }
 
 .gen-theme .gen-stack { display: flex; flex-direction: column; min-width: 0; }

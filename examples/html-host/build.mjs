@@ -19,7 +19,7 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(vendor, { recursive: true });
 
 await build({
-  entryPoints: { main: "src/main.ts", light: "src/light.ts", empty: "src/empty.ts" },
+  entryPoints: { main: "src/main.ts", light: "src/light.ts", empty: "src/empty.ts", react: "src/react.tsx" },
   absWorkingDir: here,
   outdir: out,
   bundle: true,
@@ -30,9 +30,12 @@ await build({
   minify: true,
   sourcemap: true,
   chunkNames: "chunks/[name]-[hash]",
+  jsx: "automatic",
+  define: { "process.env.NODE_ENV": '"production"' },
   logLevel: "warning",
 });
 
+copyFileSync(require.resolve("relax-ui-theme-base/theme.css"), join(out, "theme.css"));
 copyFileSync(require.resolve("bootstrap/dist/css/bootstrap.min.css"), join(vendor, "bootstrap.min.css"));
 copyFileSync(require.resolve("@shoelace-style/shoelace/dist/themes/light.css"), join(vendor, "shoelace-light.css"));
 // Shoelace's dark theme applies to `:host` as well as `.sl-theme-dark`; adopted
