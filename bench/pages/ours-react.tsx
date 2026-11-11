@@ -6,12 +6,14 @@
 import { useEffect, useMemo } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { baseComponents, createGenerativeRenderer, GenerativeTheme, useGenerativeObject } from "relax-ui-react";
+import { baseComponents, createGenerativeRenderer, fromTemplates, GenerativeTheme, useGenerativeObject } from "relax-ui-react";
+import { installKitCss, kitTemplates } from "../src/kit/index.ts";
 import { installHarness, type Mounted } from "../src/probe/page.ts";
 import { referenceMarkup } from "../src/probe/reference.ts";
 import { benchContract } from "../src/workloads/contract.ts";
 
-const Renderer = createGenerativeRenderer(benchContract as never, baseComponents as never);
+const Renderer = createGenerativeRenderer(benchContract as never, { ...baseComponents, ...fromTemplates(kitTemplates as unknown as Parameters<typeof fromTemplates>[0]) } as never);
+installKitCss();
 
 interface Props {
   stream: ReadableStream<Uint8Array>;

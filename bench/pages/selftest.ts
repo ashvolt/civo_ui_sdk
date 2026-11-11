@@ -6,6 +6,8 @@
  *   ?mode=wrong  drops a node after rendering            → breaks on correctness
  *   ?mode=hang   never reports done                      → breaks on timeout
  *   ?mode=ok     this SDK's element, untouched           → passes
+ *   ?mode=warm   blocks 250 ms once, after the warm-up    → passes: the warm-up
+ *                is not the run, though its long frame is reported late
  */
 import { elementAdapter } from "../src/adapters/element.ts";
 import { installHarness, type PageAdapter } from "../src/probe/page.ts";
@@ -31,6 +33,14 @@ const adapter: PageAdapter = {
       async done() {
         if (mode === "hang") return new Promise<void>(() => {});
         await m.done();
+        if (mode === "warm") {
+          requestAnimationFrame(() => {
+            const until = performance.now() + 250;
+            while (performance.now() < until) {
+              // a slow first style pass, as lazy component code brings
+            }
+          });
+        }
         if (mode === "wrong") {
           const nodes = m.root()?.querySelectorAll("p, h2, h3, h4, li, a");
           nodes?.[nodes.length - 1]?.remove();

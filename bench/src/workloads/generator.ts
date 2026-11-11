@@ -29,7 +29,11 @@ export type Dimension =
   | "chart-points"
   | "frame-rate"
   | "text-churn"
-  | "tone-density";
+  | "tone-density"
+  | "heatmap-cells"
+  | "scatter-points"
+  | "sparklines"
+  | "counters";
 
 export interface StepPlan {
   dimension: Dimension;
@@ -152,6 +156,117 @@ export function chartDocument(points: number, seed: number, series = 4): Documen
   };
 }
 
+/** One heatmap of about `cells` cells: at most 200 columns, rows to match. */
+export function heatmapDocument(cells: number, seed: number): Document {
+  const r = seeded(seed);
+  const columns = Math.min(200, Math.max(10, Math.round(Math.sqrt(cells * 2))));
+  const rows = Math.max(1, Math.round(cells / columns));
+  // Smooth bands with noise, so every colour level is used.
+  const values = Array.from({ length: rows }, (_, y) =>
+    Array.from({ length: columns }, (_, x) => Math.round(500 + 400 * Math.sin(x / 7 + y / 11) + r.int(-100, 100))),
+  );
+  return {
+    root: {
+      type: "Stack",
+      key: "root",
+      props: {},
+      children: [
+        { type: "Heading", key: "h", props: { text: `Heatmap of ${rows * columns} cells`, level: 2 } },
+        {
+          type: "Heatmap",
+          key: "hm",
+          props: {
+            title: "Usage by hour",
+            unit: "req",
+            rows: Array.from({ length: rows }, (_, y) => `R${y + 1}`),
+            columns: Array.from({ length: columns }, (_, x) => `C${x + 1}`),
+            values,
+          },
+        },
+      ],
+    },
+  };
+}
+
+/** One scatter plot of `points` points in two series. */
+export function scatterDocument(points: number, seed: number, series = 2): Document {
+  const r = seeded(seed);
+  const each = Math.max(1, Math.round(points / series));
+  return {
+    root: {
+      type: "Stack",
+      key: "root",
+      props: {},
+      children: [
+        { type: "Heading", key: "h", props: { text: `Scatter of ${each * series} points`, level: 2 } },
+        {
+          type: "Scatter",
+          key: "sc",
+          props: {
+            title: "Latency against load",
+            xLabel: "load",
+            yLabel: "latency",
+            series: Array.from({ length: series }, (_, si) => ({
+              name: `Region ${si + 1}`,
+              points: Array.from({ length: each }, () => {
+                const x = r.int(0, 1000);
+                return [x, Math.round(x * (0.4 + si * 0.3) + r.int(-120, 120))];
+              }),
+            })),
+          },
+        },
+      ],
+    },
+  };
+}
+
+/** One grid of `count` sparklines, 30 values each. */
+export function sparklineDocument(count: number, seed: number, length = 30): Document {
+  const r = seeded(seed);
+  return {
+    root: {
+      type: "Stack",
+      key: "root",
+      props: {},
+      children: [
+        { type: "Heading", key: "h", props: { text: `${count} sparklines`, level: 2 } },
+        {
+          type: "SparklineGrid",
+          key: "sg",
+          props: {
+            title: "Spend by service",
+            items: Array.from({ length: count }, (_, i) => {
+              let v = r.int(100, 900);
+              return {
+                label: `${label(r)} ${i + 1}`,
+                values: Array.from({ length }, () => (v = Math.max(0, v + r.int(-60, 60)))),
+              };
+            }),
+          },
+        },
+      ],
+    },
+  };
+}
+
+/** `count` animated counters in a grid. */
+export function counterDocument(count: number, seed: number): Document {
+  const r = seeded(seed);
+  const tones = ["neutral", ...TONES] as const;
+  return {
+    root: {
+      type: "Grid",
+      key: "root",
+      props: { columns: 4 },
+      children: Array.from({ length: count }, (_, i) => ({
+        type: "AnimatedCounter",
+        key: `k${i}`,
+        props: { label: `${label(r)} ${i + 1}`, value: r.int(0, 1_000_000), unit: r.pick(["req", "ms", "GB"]), tone: tones[i % tones.length] },
+      })),
+    },
+  };
+}
+
 /** The complete document for a step. */
 export function documentFor(step: Pick<StepPlan, "dimension" | "size" | "seed">): Document {
   switch (step.dimension) {
@@ -170,11 +285,19 @@ export function documentFor(step: Pick<StepPlan, "dimension" | "size" | "seed">)
       return mixedDocument(500, step.seed);
     case "tone-density":
       return mixedDocument(1000, step.seed, step.size / 100);
+    case "heatmap-cells":
+      return heatmapDocument(step.size, step.seed);
+    case "scatter-points":
+      return scatterDocument(step.size, step.seed);
+    case "sparklines":
+      return sparklineDocument(step.size, step.seed);
+    case "counters":
+      return counterDocument(step.size, step.seed);
   }
 }
 
 /**
- * One of each of the twelve components: what the harness renders and discards
+ * One of each of the twelve components and the kit's four: what the harness renders and discards
  * before a measured run, and what the cold-start measurement renders in a
  * fresh page.
  */
@@ -194,6 +317,11 @@ export function warmupDocument(): Document {
         { type: "Callout", key: "co", props: { title: "Callout", body: "Body", tone: "warning" } },
         { type: "Link", key: "a", props: { label: "Link", href: "https://example.com/" } },
         { type: "Chart", key: "ch", props: { kind: "bar", title: "Chart", labels: ["a", "b"], series: [{ name: "s", values: [1, 2] }] } },
+        // The kit's heavy visuals, so their code and styles are warm too.
+        { type: "Heatmap", key: "hm", props: { title: "Heatmap", rows: ["a", "b"], columns: ["x", "y"], values: [[1, 2], [3, 4]] } },
+        { type: "Scatter", key: "sc", props: { title: "Scatter", series: [{ name: "s", points: [[1, 2], [3, 4]] }] } },
+        { type: "SparklineGrid", key: "sg", props: { items: [{ label: "spark", values: [1, 3, 2] }] } },
+        { type: "AnimatedCounter", key: "ac", props: { label: "Counter", value: 42 } },
       ],
     },
   };
@@ -253,6 +381,19 @@ function partialLeaf(node: Node, share: number): Node {
   if (node.type === "Table") {
     const rows = props.rows as unknown[];
     props.rows = rows.slice(0, Math.max(1, Math.ceil(rows.length * share)));
+  } else if (node.type === "Heatmap") {
+    const rows = props.rows as string[];
+    const n = Math.max(1, Math.ceil(rows.length * share));
+    props.rows = rows.slice(0, n);
+    props.values = (props.values as number[][]).slice(0, n);
+  } else if (node.type === "Scatter") {
+    props.series = (props.series as { name: string; points: unknown[] }[]).map((s) => ({
+      ...s,
+      points: s.points.slice(0, Math.max(1, Math.ceil(s.points.length * share))),
+    }));
+  } else if (node.type === "SparklineGrid") {
+    const items = props.items as unknown[];
+    props.items = items.slice(0, Math.max(1, Math.ceil(items.length * share)));
   } else if (node.type === "Chart") {
     const labels = props.labels as string[];
     const n = Math.max(1, Math.ceil(labels.length * share));
@@ -286,7 +427,29 @@ export function framesFor(step: StepPlan): Document[] {
     }
     return out;
   }
-  if (step.dimension === "table-cells" || step.dimension === "chart-points") {
+  if (step.dimension === "counters") {
+    // Counters appear over the first half; over the second, every value
+    // changes each frame while the live indicators animate.
+    const build = Math.floor(k / 2);
+    const out: Document[] = Array.from({ length: build }, (_, f) => prefix(doc, Math.ceil(((f + 1) * total) / build)));
+    for (let f = build; f < k; f++) {
+      const tick = f - build + 1;
+      out.push({
+        root: {
+          ...doc.root,
+          children: doc.root.children!.map((c) => ({ ...c, props: { ...c.props, value: (c.props.value as number) + tick * 37 } })),
+        },
+      });
+    }
+    return out;
+  }
+  if (
+    step.dimension === "table-cells" ||
+    step.dimension === "chart-points" ||
+    step.dimension === "heatmap-cells" ||
+    step.dimension === "scatter-points" ||
+    step.dimension === "sparklines"
+  ) {
     return Array.from({ length: k }, (_, f) => {
       const share = (f + 1) / k;
       const root = doc.root;

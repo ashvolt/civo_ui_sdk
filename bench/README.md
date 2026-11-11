@@ -15,13 +15,19 @@ pnpm bench -- --renderer ours-react --workload table-cells --profile phone --rep
 
 1. **A workload ladder** (`src/workloads`): seeded documents, one dimension at
    a time. The dimensions are nodes streamed, nodes in one static frame, depth,
-   table cells, chart points, frame rate, text churn and tone density. Steps
-   above the standard contract's budgets use a bench-only `extend()` with
-   raised limits.
-2. **One page per renderer** (`pages/`). A scheduler in the page feeds the
+   table cells, chart points, frame rate, text churn and tone density, and four
+   heavy visuals: heatmap cells, scatter points, sparklines and animated
+   counters. Steps above the standard contract's budgets use a bench-only
+   `extend()` with raised limits, which also declares the heavy visuals.
+2. **One markup kit** (`src/kit`). The heavy visuals are templates (markup as
+   data) styled from base-theme tokens only, like the base theme's own
+   components. `<gen-ui>` takes them as a template connector and React through
+   `fromTemplates`, so every renderer draws the same elements. Counters animate
+   with CSS only, and not at all under `prefers-reduced-motion: reduce`.
+3. **One page per renderer** (`pages/`). A scheduler in the page feeds the
    step's frames in the renderer's own wire format at the step's rate, so there
    is no network.
-3. **One probe for everyone** (`src/probe`). It records:
+4. **One probe for everyone** (`src/probe`). It records:
    - `requestAnimationFrame` intervals;
    - long animation frames;
    - event timing for a click half-way through the stream;
@@ -29,12 +35,12 @@ pnpm bench -- --renderer ours-react --workload table-cells --profile phone --rep
 
    The output is then compared with the reference drawing of the complete
    document.
-4. **The runner** (`src/runner`): Playwright and the DevTools Protocol.
+5. **The runner** (`src/runner`): Playwright and the DevTools Protocol.
    - It applies the desktop or phone profile (CPU 4× slower).
    - It reads heap after forced garbage collection, and DOM counters.
    - Each step gets one warm-up and five repetitions, in fresh pages.
    - Each ladder stops at the first step that breaks a budget.
-5. **Budgets** ([contract](../specs/004-stress-security-benchmark/contracts/budgets.md),
+6. **Budgets** ([contract](../specs/004-stress-security-benchmark/contracts/budgets.md),
    version 2). A step breaks on any of:
    - a 95th-percentile frame interval over 25 ms (dropped frames at 60 fps);
    - a long task over 50 ms;
@@ -56,6 +62,10 @@ trusted:
 | one that blocks 80 ms per frame | break on the long-task budget |
 | one that drops a node | break on correctness |
 | one that never finishes | break on the timeout |
+
+It then checks the heavy visuals: the element draws a small step of each
+correctly, and its counters run animations, except when the page asks for
+reduced motion, when none run.
 
 Two problems were found before any result was recorded:
 
