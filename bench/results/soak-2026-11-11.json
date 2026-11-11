@@ -1,0 +1,694 @@
+{
+ "schemaVersion": 1,
+ "budgetVersion": 2,
+ "suite": "local",
+ "environment": {
+  "machine": "ashvolt",
+  "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+  "cores": 8,
+  "memoryGb": 16,
+  "os": "win32 10.0.26300",
+  "browser": "Chromium 153.0.8010.12",
+  "node": "v22.14.0",
+  "commit": "368e1d6",
+  "date": "2026-11-11T11:12:12.311Z"
+ },
+ "renderers": [
+  {
+   "id": "ours-element",
+   "packages": {
+    "relax-ui-element": "workspace"
+   },
+   "available": true
+  },
+  {
+   "id": "ours-react",
+   "packages": {
+    "relax-ui-react": "workspace",
+    "react": "19"
+   },
+   "available": true
+  },
+  {
+   "id": "ours-connect-react",
+   "packages": {
+    "relax-ui-element": "workspace",
+    "relax-ui-connect-react": "workspace",
+    "react": "19"
+   },
+   "available": true
+  }
+ ],
+ "workloads": [],
+ "ladders": [],
+ "soak": [
+  {
+   "renderer": "ours-element",
+   "minutes": 30,
+   "series": [
+    {
+     "minute": 0.01,
+     "heap": 2709648,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 1.06,
+     "heap": 2743428,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 2.05,
+     "heap": 2776448,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 3.07,
+     "heap": 2820952,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 4.01,
+     "heap": 2841104,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 5.03,
+     "heap": 2807616,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 6.04,
+     "heap": 2806288,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 7.06,
+     "heap": 2782196,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 8.02,
+     "heap": 2831684,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 9.06,
+     "heap": 2806376,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 10.03,
+     "heap": 2820124,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 11.04,
+     "heap": 2832212,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 12.04,
+     "heap": 2816520,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 13.05,
+     "heap": 2816232,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 14.08,
+     "heap": 2822880,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 15.04,
+     "heap": 2815856,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 16,
+     "heap": 2829604,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 17.05,
+     "heap": 2838260,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 18.07,
+     "heap": 2786260,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 19.02,
+     "heap": 2839300,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 20.03,
+     "heap": 2842624,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 21.04,
+     "heap": 2833360,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 22.06,
+     "heap": 2843396,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 23.04,
+     "heap": 2842280,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 24.04,
+     "heap": 2832424,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 25.01,
+     "heap": 2827572,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 26.05,
+     "heap": 2840064,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 27.03,
+     "heap": 2838492,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 28.07,
+     "heap": 2844604,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 29.08,
+     "heap": 2821520,
+     "domNodes": 981,
+     "listeners": 13
+    },
+    {
+     "minute": 30.02,
+     "heap": 2833000,
+     "domNodes": 981,
+     "listeners": 13
+    }
+   ],
+   "detachedStart": 0,
+   "detachedEnd": 0,
+   "passed": true
+  },
+  {
+   "renderer": "ours-react",
+   "minutes": 30,
+   "series": [
+    {
+     "minute": 0.01,
+     "heap": 3818660,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 1.03,
+     "heap": 4167164,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 2.05,
+     "heap": 4247812,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 3.05,
+     "heap": 4279668,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 4.08,
+     "heap": 4272328,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 5.01,
+     "heap": 4287784,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 6.03,
+     "heap": 4317504,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 7.08,
+     "heap": 4298428,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 8.02,
+     "heap": 4310832,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 9.03,
+     "heap": 4343592,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 10.06,
+     "heap": 4357364,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 11.07,
+     "heap": 4348932,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 12.07,
+     "heap": 4351276,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 13.08,
+     "heap": 4357748,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 14.08,
+     "heap": 4360868,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 15,
+     "heap": 4370004,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 16,
+     "heap": 4361908,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 17.02,
+     "heap": 4392404,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 18.02,
+     "heap": 4404928,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 19.03,
+     "heap": 4396872,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 20.03,
+     "heap": 4400400,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 21.04,
+     "heap": 4404092,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 22.04,
+     "heap": 4393540,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 23.04,
+     "heap": 4404240,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 24.05,
+     "heap": 4407676,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 25.04,
+     "heap": 4407680,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 26.05,
+     "heap": 4412396,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 27.06,
+     "heap": 4414792,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 28.06,
+     "heap": 4411484,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 29.06,
+     "heap": 4411432,
+     "domNodes": 983,
+     "listeners": 158
+    },
+    {
+     "minute": 30.08,
+     "heap": 4412724,
+     "domNodes": 983,
+     "listeners": 158
+    }
+   ],
+   "detachedStart": 0,
+   "detachedEnd": 0,
+   "passed": true
+  },
+  {
+   "renderer": "ours-connect-react",
+   "minutes": 30,
+   "series": [
+    {
+     "minute": 0.01,
+     "heap": 3910900,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 1.06,
+     "heap": 4331188,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 2.03,
+     "heap": 4411592,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 3.07,
+     "heap": 4402356,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 4.04,
+     "heap": 4404472,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 5,
+     "heap": 4423896,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 6.05,
+     "heap": 4400168,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 7.01,
+     "heap": 4408024,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 8.06,
+     "heap": 4418596,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 9.02,
+     "heap": 4430528,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 10.07,
+     "heap": 4461116,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 11.04,
+     "heap": 4484148,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 12,
+     "heap": 4488044,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 13.05,
+     "heap": 4506548,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 14.02,
+     "heap": 4495800,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 15.06,
+     "heap": 4490288,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 16.02,
+     "heap": 4497872,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 17.07,
+     "heap": 4518492,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 18.04,
+     "heap": 4514136,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 19,
+     "heap": 4459744,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 20.05,
+     "heap": 4475196,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 21.02,
+     "heap": 4471700,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 22.06,
+     "heap": 4475612,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 23.03,
+     "heap": 4494956,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 24.08,
+     "heap": 4496864,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 25.04,
+     "heap": 4514916,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 26.01,
+     "heap": 4520700,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 27.05,
+     "heap": 4497192,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 28.01,
+     "heap": 4525344,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 29.06,
+     "heap": 4517460,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    },
+    {
+     "minute": 30.03,
+     "heap": 4521504,
+     "domNodes": 1078,
+     "listeners": 6164,
+     "mounted": 43,
+     "expectedMounted": 43
+    }
+   ],
+   "detachedStart": 34,
+   "detachedEnd": 34,
+   "passed": true
+  }
+ ],
+ "attacks": []
+}

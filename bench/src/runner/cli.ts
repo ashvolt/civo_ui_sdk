@@ -17,6 +17,7 @@ import { resultSchema, type ResultFile } from "../results.ts";
 import { countNodes, depthOf, documentFor } from "../workloads/generator.ts";
 import { contractFor, LADDERS, planStep } from "../workloads/ladders.ts";
 import { environment } from "./environment.ts";
+import { RENDERERS } from "./renderers.ts";
 import { climb, coldStart } from "./ladder.ts";
 import { startServer } from "./server.ts";
 import type { ProfileId } from "./step.ts";
@@ -24,11 +25,6 @@ import type { ProfileId } from "./step.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..");
 
-/** The renderers phase 1 can run, and the packages they exercise. */
-export const RENDERERS: Record<string, { page: string; packages: Record<string, string> }> = {
-  "ours-element": { page: "ours-element.html", packages: { "relax-ui-element": "workspace" } },
-  "ours-react": { page: "ours-react.html", packages: { "relax-ui-react": "workspace", react: "19" } },
-};
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -39,7 +35,7 @@ const list = (name: string) => arg(name)?.split(",").filter(Boolean);
 const suite = (arg("suite") ?? "local") as ResultFile["suite"];
 const smoke = suite === "smoke";
 // The pull-request run measures this SDK's element only (plan D6).
-const renderers = list("renderer") ?? (smoke ? ["ours-element"] : Object.keys(RENDERERS));
+const renderers = list("renderer") ?? (smoke ? ["ours-element"] : Object.keys(RENDERERS).filter((id) => RENDERERS[id]!.ladders !== false));
 const ladders = LADDERS.filter((l) => !list("workload") || list("workload")!.includes(l.id));
 const profiles = (list("profile") ?? (smoke ? ["desktop"] : ["desktop", "phone"])) as ProfileId[];
 const reps = Number(arg("reps") ?? (smoke ? 3 : 5));

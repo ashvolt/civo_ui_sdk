@@ -2,7 +2,7 @@
  * `pnpm bench:selftest` — the harness proves itself before any result is
  * trusted (T-404, T-408, plan Verification "Ladder correctness").
  *
- * Four renderers on one small step. Each must be classified as stated, or
+ * Six renderers on one small step. Each must be classified as stated, or
  * this exits non-zero:
  *   ok     → passes every budget
  *   slow   → breaks on longestTask (80 ms busy per frame)
@@ -14,6 +14,10 @@
  * Then the heavy visuals (spec scenario 5): this SDK's element draws a small
  * step of each correctly, and its counters animate unless the reader asks for
  * reduced motion.
+ *
+ * Last, the soak's detection (T-420), in 30-second soaks: a steady page
+ * passes; a page that leaks a listener per document breaks on listeners; one
+ * that keeps each replaced document breaks on detached DOM.
  */
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +26,9 @@ import { summarise, type Sample } from "../budgets.ts";
 import { framesFor, warmupDocument } from "../workloads/generator.ts";
 import { LADDERS, planStep } from "../workloads/ladders.ts";
 import { oursSSE } from "./encode.ts";
+import type { SoakBreak } from "../soak.ts";
 import { startServer } from "./server.ts";
+import { describeVerdict, putSoak, runSoak } from "./soak.ts";
 import { runOnce } from "./step.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -86,6 +92,20 @@ try {
     const ok = reducedMotion === "reduce" ? animations === 0 : animations > 0;
     if (!ok) failed++;
     console.log(`${ok ? "PASS" : "FAIL"}  motion ${reducedMotion.padEnd(13)} ${animations} running animation(s)`);
+  }
+
+  // The soak's detection (T-420): short soaks, the same judgement as 30 minutes.
+  const soakUrl = putSoak(server);
+  const soaks: [string, SoakBreak | undefined][] = [
+    ["ok", undefined],
+    ["leak-listener", "listeners"],
+    ["leak-detached", "detached"],
+  ];
+  for (const [mode, want] of soaks) {
+    const run = await runSoak(browser, server, soakUrl, { page: `selftest.html?mode=${mode}`, durationMs: 30_000, sampleEveryMs: 5_000 });
+    const ok = want === undefined ? run.verdict.passed : run.verdict.broken.includes(want);
+    if (!ok) failed++;
+    console.log(`${ok ? "PASS" : "FAIL"}  soak ${mode.padEnd(13)} expected ${want ?? "steady"}: ${describeVerdict(run.verdict)}`);
   }
 } finally {
   await browser.close();

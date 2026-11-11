@@ -55,7 +55,7 @@ same way for every contender?
 | Interaction latency | Event Timing (`PerformanceObserver` `event`, `durationThreshold: 16`) around a scripted scroll and click on a fixed control in the host page | The same quantity INP is built from; a single scripted interaction gives a stable number |
 | Heap | DevTools Protocol: `HeapProfiler.collectGarbage`, then `Runtime.getHeapUsage` | After forced garbage collection, so garbage is not mistaken for a leak |
 | DOM nodes, listeners | DevTools Protocol `Memory.getDOMCounters` (documents, nodes, JS event listeners) | Cheap enough to sample every minute of the soak |
-| Detached DOM | Heap snapshot, count of `Detached` nodes | Expensive; taken at the start and end of the soak only |
+| Detached DOM | Heap snapshot: nodes whose `detachedness` field is 2 (detached). Older snapshots have no such field and name the node `Detached …`; DevTools draws that label from the field | Expensive; taken at the start and end of the soak only |
 | CPU slowdown | DevTools Protocol `Emulation.setCPUThrottlingRate` | Lighthouse's mobile preset uses 4× |
 
 **Decision**: collect all of them through one in-page probe plus a DevTools
