@@ -26,7 +26,7 @@ interface ResultFile {
   coldStart?: { renderer: string; profile: "desktop" | "phone"; metrics: Record<string, { median: number; iqr: number }>; broken?: string }[];
   soak?: {
     renderer: string; minutes: number;
-    series: { minute: number; heap: number; domNodes: number; listeners: number; mounted?: number }[];
+    series: { minute: number; heap: number; domNodes: number; listeners: number; mounted?: number; expectedMounted?: number }[];
     detachedStart: number; detachedEnd: number; passed: boolean;
   }[];
   attacks: {

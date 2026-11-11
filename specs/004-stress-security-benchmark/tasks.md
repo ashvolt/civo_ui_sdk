@@ -161,12 +161,53 @@ phase is releasable on its own (plan, phase 3).
 
 ## Phase 3 — Soak
 
-- [ ] **T-420** Tests: soak detection. A page that leaks one listener per frame
+- [x] **T-420** Tests: soak detection. A page that leaks one listener per frame
   fails; a page that leaks one detached node per document fails; a steady
   page passes.
-- [ ] **T-421** A 30-minute soak that keeps replacing and patching documents,
+- [x] **T-421** A 30-minute soak that keeps replacing and patching documents,
   sampling every minute; for `ours-element`, `ours-react`, and a framework
   connector (mounted components counted).
+
+### Phase 3 notes
+
+- **How it soaks** (`pnpm bench:soak`): five documents streamed into one
+  mounted renderer, round and round, each patched frame by frame at 20 frames
+  a second, then replaced by the next: a mixed document of 250 nodes, text
+  churn, a growing table, counters changing every frame, a growing heatmap.
+  Every minute the run pauses when document 0 is complete again, so each
+  sample sees the same document; then garbage collection, heap, DOM nodes,
+  listeners and mounted components. Detached DOM from a heap snapshot at the
+  start and the end.
+- **A third renderer for mounted components**: `ours-connect-react`, the
+  element in light mode with Card and Metric as React components through
+  `relax-ui-connect-react`, every mount and unmount counted. Soaked, not
+  laddered: the connector's mount points change the markup.
+- **Detection proved first.** Unit tests for the judgement, and three
+  30-second soaks in the self-test: a steady page passes; a page that adds a
+  window listener per document breaks on listeners; a page that keeps each
+  replaced document breaks on detached DOM (and DOM nodes).
+- **One measurement fix, found by that self-test.** Current Chromium's heap
+  snapshot does not name nodes "Detached …"; it has a `detachedness` field,
+  and DevTools draws the label from it. Counting by name found nothing. Both
+  are now read; a unit test covers each format.
+- **Results** (`bench/results/soak-2026-11-11.json`, same laptop, Chromium
+  153, desktop profile, 30 minutes and 31 samples each): every renderer
+  passes.
+
+  | Renderer | Heap after GC, first → last | Heap growth (budget 10%) | DOM nodes | Listeners | Detached DOM | Mounted |
+  |---|---|---|---|---|---|---|
+  | Element | 2.71 → 2.83 MB | 2.2% | 981, flat | 13, flat | 0 → 0 | — |
+  | React | 3.82 → 4.41 MB | 3.9% | 983, flat | 158, flat | 0 → 0 | — |
+  | Element + React connector | 3.91 → 4.52 MB | 2.7% | 1,078, flat | 6,164, flat | 34 → 34 | 43 of 43 throughout |
+
+  Heap rises over the first few minutes (code warming, caches filling) and is
+  flat from about minute 20.
+- **Finding for this SDK, recorded, not fixed here:** each React component
+  mounted by the connector is its own React root, and React attaches its
+  event listeners to every root's container: 6,164 listeners for 43 mounted
+  components, about 140 each, against 13 for the element alone. Constant, so
+  not a leak, but it is the cost of a framework connector per mounted node.
+  Sharing one root through portals is the option to measure.
 
 ## Phase 4 — Comparison
 
@@ -230,4 +271,4 @@ phase is releasable on its own (plan, phase 3).
 
 ## Outstanding
 
-Phases 3 to 6 (T-420 onwards).
+Phases 4 to 6 (T-430 onwards).

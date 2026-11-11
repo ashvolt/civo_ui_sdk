@@ -8,13 +8,15 @@
     "build": "node build.mjs",
     "bench": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/cli.ts",
     "bench:smoke": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/cli.ts --suite smoke",
-    "bench:selftest": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/selftest.ts"
+    "bench:selftest": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/selftest.ts",
+    "bench:soak": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/soak.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "esbuild": "^0.27.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "relax-ui-connect-react": "workspace:*",
     "relax-ui-contract": "workspace:*",
     "relax-ui-element": "workspace:*",
     "relax-ui-protocol": "workspace:*",

@@ -8,6 +8,7 @@ pnpm build                      # the SDK packages
 pnpm bench:selftest             # the harness proves itself first
 pnpm bench:smoke                # what a pull request runs
 pnpm bench                      # every ladder, both profiles
+pnpm bench:soak                 # 30 minutes per renderer; --minutes, --sample-every
 pnpm bench -- --renderer ours-react --workload table-cells --profile phone --reps 5
 ```
 
@@ -48,6 +49,21 @@ pnpm bench -- --renderer ours-react --workload table-cells --profile phone --rep
    - any wrong or missing node;
    - a timeout.
 
+## The soak
+
+`pnpm bench:soak` streams a cycle of five documents into one mounted
+renderer, round and round: each is patched frame by frame as it streams, then
+replaced by the next. Every minute, the run pauses when document 0 is complete
+again, forces garbage collection, and reads the heap, DOM nodes, event
+listeners, and the framework components still mounted. A heap snapshot at the
+start and the end counts detached DOM nodes.
+
+It breaks on heap growth over 10% (median of the first five samples against
+the last five), on any growth in DOM nodes, listeners or detached nodes, or on
+mounted components that differ from the document's. Three renderers soak:
+this SDK's element, its React renderer, and the element with a React framework
+connector (`ours-connect-react`), whose mounts are counted.
+
 Results are JSON, checked against the [result schema](../specs/004-stress-security-benchmark/contracts/results.md)
 before they are written, under `results/`.
 
@@ -66,6 +82,10 @@ trusted:
 It then checks the heavy visuals: the element draws a small step of each
 correctly, and its counters run animations, except when the page asks for
 reduced motion, when none run.
+
+Last, the soak's detection, in 30-second soaks: a steady page passes, a page
+that adds a window listener per document breaks on listeners, and a page that
+keeps each replaced document breaks on detached DOM.
 
 Two problems were found before any result was recorded:
 

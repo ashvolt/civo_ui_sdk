@@ -30,6 +30,28 @@ export interface PageAdapter {
   mount(host: HTMLElement): Promise<Mounted>;
   /** The canonical markup the complete document should produce. */
   reference(document: unknown): string;
+  /** Framework components mounted right now, for a renderer that mounts them (soak). */
+  mountedComponents?(): number;
+  /** How many framework components `document` should have mounted (soak). */
+  expectedComponents?(document: unknown): number;
+}
+
+/**
+ * A soak's documents (FR-415): each streamed as frames of patches into the
+ * same mounted renderer, each replacing the last, round and round. The run
+ * pauses for a sample only after document 0 is complete, so every sample sees
+ * the same document on the page.
+ */
+export interface SoakData {
+  documents: { chunks: string[]; final: unknown }[];
+  rateMs: number;
+}
+
+export interface SoakPause {
+  /** Documents rendered so far. */
+  documents: number;
+  mounted?: number;
+  expectedMounted?: number;
 }
 
 export interface StepData {
@@ -65,6 +87,14 @@ declare global {
       ready: boolean;
       load(url: string): Promise<void>;
       run(): Promise<PageSample>;
+      soak: {
+        start(url: string): Promise<void>;
+        /** Resolves at the next pause point: document 0 complete. */
+        pause(): Promise<SoakPause>;
+        resume(): void;
+        /** Stops after the current document and unmounts. */
+        stop(): Promise<void>;
+      };
     };
   }
 }
@@ -173,8 +203,70 @@ export function installHarness(adapter: PageAdapter): void {
         ...(got === want ? {} : { detail: firstDifference(got, want) }),
       };
     },
+    soak: soakLoop(adapter),
   };
   window.__bench = bench;
+}
+
+function soakLoop(adapter: PageAdapter): Window["__bench"]["soak"] {
+  let soak: SoakData;
+  let stopping = false;
+  let stopped: Promise<void> = Promise.resolve();
+  let pauseAt: ((p: SoakPause) => void) | undefined;
+  let resumed: (() => void) | undefined;
+
+  async function loop() {
+    const host = document.getElementById("host")!;
+    let mounted: Mounted | undefined;
+    for (let i = 0; !stopping; i++) {
+      const doc = soak.documents[i % soak.documents.length]!;
+      if (!mounted) mounted = await adapter.mount(host);
+      else if (mounted.next) mounted = await mounted.next();
+      else {
+        mounted.unmount();
+        host.replaceChildren();
+        mounted = await adapter.mount(host);
+      }
+      for (const chunk of doc.chunks) {
+        mounted.push(chunk);
+        await new Promise((r) => setTimeout(r, soak.rateMs));
+      }
+      mounted.end();
+      await mounted.done();
+      if (i % soak.documents.length === 0 && pauseAt) {
+        const report = pauseAt;
+        pauseAt = undefined;
+        const wait = new Promise<void>((r) => (resumed = r));
+        report({
+          documents: i + 1,
+          ...(adapter.mountedComponents ? { mounted: adapter.mountedComponents() } : {}),
+          ...(adapter.expectedComponents ? { expectedMounted: adapter.expectedComponents(doc.final) } : {}),
+        });
+        await wait;
+      }
+    }
+    mounted?.unmount();
+    host.replaceChildren();
+  }
+
+  return {
+    async start(url) {
+      soak = (await (await fetch(url)).json()) as SoakData;
+      stopping = false;
+      stopped = loop();
+    },
+    pause: () => new Promise<SoakPause>((r) => (pauseAt = r)),
+    resume: () => {
+      resumed?.();
+      resumed = undefined;
+    },
+    async stop() {
+      stopping = true;
+      pauseAt = undefined;
+      resumed?.();
+      await stopped;
+    },
+  };
 }
 
 /** Elements, sorted attributes and text, in order (as the cross-host test). */

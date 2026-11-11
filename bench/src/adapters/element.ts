@@ -3,7 +3,7 @@
  * shadow mode, lazy base theme, fed a protocol 1 SSE byte stream, validated in
  * full against the bench contract (the strictest setting; adapter contract).
  */
-import { defineGenUI, type GenUIElement } from "relax-ui-element";
+import { defineGenUI, type Connector, type GenUIElement } from "relax-ui-element";
 import { type Mounted, type PageAdapter } from "../probe/page.ts";
 import { kitConnector } from "../kit/index.ts";
 import { referenceMarkup } from "../probe/reference.ts";
@@ -30,7 +30,7 @@ function feed(el: GenUIElement): Mounted {
     el.addEventListener("gen-ui:error", fail, { once: true });
   });
   el.source = { stream };
-  const surface = () => el.shadowRoot?.querySelector(".gen-theme") ?? null;
+  const surface = () => (el.shadowRoot ?? el).querySelector(".gen-theme");
   return {
     push: (chunk) => {
       // A renderer that stopped reading has already reported why, through
@@ -60,15 +60,23 @@ function feed(el: GenUIElement): Mounted {
   };
 }
 
-export function elementAdapter(id = "ours-element"): PageAdapter {
+export interface ElementOptions {
+  /** `light` for a framework connector, whose library styles are global. */
+  mode?: "shadow" | "light";
+  /** Connectors after the kit's. */
+  connectors?: readonly Connector[];
+}
+
+export function elementAdapter(id = "ours-element", options: ElementOptions = {}): PageAdapter {
   return {
     id,
     reference: referenceMarkup,
     async mount(host) {
       const el = document.createElement("gen-ui") as GenUIElement;
+      if (options.mode === "light") el.setAttribute("mode", "light");
       el.contract = benchContract as never;
       // The heavy visuals, as any host adds its own components.
-      el.connectors = [kitConnector()];
+      el.connectors = [kitConnector(), ...(options.connectors ?? [])];
       host.replaceChildren(el);
       return feed(el);
     },
