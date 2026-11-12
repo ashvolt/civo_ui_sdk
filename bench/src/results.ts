@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod3";
 
 /**
  * The result file, schema version 1
@@ -52,7 +52,7 @@ export const resultSchema = z
             detail: z.string().optional(),
           }),
         ),
-        breakPoint: z.union([z.number(), z.literal("below-first-step"), z.literal("not-reached")]),
+        breakPoint: z.union([z.number(), z.literal("below-first-step"), z.literal("not-reached"), z.literal("not-expressible")]),
         brokenBy: z.string().optional(),
       }),
     ),

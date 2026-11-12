@@ -19,7 +19,7 @@ interface ResultFile {
     renderer: string; profile: "desktop" | "phone"; workload: string;
     expressible: boolean; reason?: string;
     steps: { size: number; metrics: Record<string, { median: number; iqr: number }>; samples: unknown; broken?: string }[];
-    breakPoint: number | "below-first-step" | "not-reached";
+    breakPoint: number | "below-first-step" | "not-reached" | "not-expressible";
     brokenBy?: string;
   }[];
   // A twelve-component document in a fresh page: what a user pays once.
