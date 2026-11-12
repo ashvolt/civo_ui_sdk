@@ -1,8 +1,9 @@
 import type { Browser } from "@playwright/test";
 import { breakPoint, summarise, type Sample } from "../budgets.ts";
 import type { ColdStartEntry, LadderEntry } from "../results.ts";
-import { framesFor, warmupDocument } from "../workloads/generator.ts";
+import { framesFor, warmupDocument, type Dimension, type Document } from "../workloads/generator.ts";
 import { planStep, type Ladder } from "../workloads/ladders.ts";
+import type { Encoded } from "./contenders.ts";
 import { oursSSE } from "./encode.ts";
 import type { BenchServer } from "./server.ts";
 import { runOnce, type ProfileId } from "./step.ts";
@@ -20,6 +21,8 @@ export interface LadderOptions {
   reps: number;
   /** Only the first N steps (the pull-request smoke run). */
   maxSteps?: number;
+  /** The renderer's wire format. Default: this SDK's SSE. */
+  encode?: (frames: readonly Document[], dimension: Dimension) => Encoded;
   log?: (line: string) => void;
 }
 
@@ -30,7 +33,7 @@ export interface LadderOptions {
  */
 export async function coldStart(browser: Browser, server: BenchServer, opts: Omit<LadderOptions, "maxSteps">): Promise<ColdStartEntry> {
   const doc = warmupDocument();
-  const dataUrl = server.put("cold-start", { chunks: oursSSE([doc]), final: doc, rateMs: 50 });
+  const dataUrl = server.put(`cold-start-${opts.renderer}`, { chunks: chunksOf(encoderOf(opts)([doc], "static-nodes")), final: doc, rateMs: 50 });
   const samples: Sample[] = [];
   for (let i = 0; i < opts.reps; i++) samples.push(await runOnce(browser, server, { page: opts.page, dataUrl, profile: opts.profile }));
   const summary = summarise(samples);
@@ -39,16 +42,32 @@ export async function coldStart(browser: Browser, server: BenchServer, opts: Omi
   return { renderer: opts.renderer, profile: opts.profile, metrics: summary.metrics, ...(summary.broken ? { broken: summary.broken } : {}) };
 }
 
+const ours = (frames: readonly Document[]): Encoded => ({ chunks: oursSSE(frames) });
+const encoderOf = (opts: Pick<LadderOptions, "encode">) => opts.encode ?? ours;
+
+function chunksOf(e: Encoded): string[] {
+  if ("notExpressible" in e) throw new Error(e.notExpressible);
+  return e.chunks;
+}
+
 export async function climb(browser: Browser, server: BenchServer, ladder: Ladder, opts: LadderOptions): Promise<LadderEntry> {
   const steps: LadderEntry["steps"] = [];
+  const encode = encoderOf(opts);
+  const warmup = chunksOf(encode([warmupDocument()], "static-nodes"));
   for (const size of ladder.steps.slice(0, opts.maxSteps ?? ladder.steps.length)) {
     const step = planStep(ladder, size);
     const frames = framesFor(step);
-    const dataUrl = server.put(`${ladder.id}-${size}`, {
-      chunks: oursSSE(frames),
+    const encoded = encode(frames, ladder.id);
+    // A format that cannot write this workload is reported, not timed (T-436).
+    if ("notExpressible" in encoded) {
+      opts.log?.(`${opts.renderer} ${opts.profile} ${ladder.id}: not expressible (${encoded.notExpressible})`);
+      return { renderer: opts.renderer, profile: opts.profile, workload: ladder.id, expressible: false, reason: encoded.notExpressible, steps: [], breakPoint: "not-expressible" };
+    }
+    const dataUrl = server.put(`${opts.renderer}-${ladder.id}-${size}`, {
+      chunks: encoded.chunks,
       final: frames.at(-1),
       rateMs: 1000 / step.rate,
-      warmup: oursSSE([warmupDocument()]),
+      warmup,
     });
     const run = () => runOnce(browser, server, { page: opts.page, dataUrl, profile: opts.profile });
     await run(); // warm-up: browser caches, JIT

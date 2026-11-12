@@ -249,3 +249,12 @@ function propKeys(schema: unknown): string[] {
   }
   return keys;
 }
+
+describe("the node schema", () => {
+  it("builds the component union once, not on every parse", () => {
+    // Zod calls a lazy schema's getter on each parse of each node.
+    const doc = standardContract.documentSchema as unknown as { _def: { schema: z.AnyZodObject } };
+    const lazy = doc._def.schema.shape.root as z.ZodLazy<z.ZodTypeAny>;
+    expect(lazy.schema).toBe(lazy.schema);
+  });
+});

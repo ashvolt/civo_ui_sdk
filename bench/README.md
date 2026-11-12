@@ -49,6 +49,26 @@ pnpm bench -- --renderer ours-react --workload table-cells --profile phone --rep
    - any wrong or missing node;
    - a timeout.
 
+## Contenders and the structural gate
+
+Other open-source renderers run the same ladders through their own entry
+points: json-render (`useUIStream`, JSONL patches), OpenUI Lang (`<Renderer>`
+reading a growing program) and the AI SDK (`useObject`, partial JSON). Each
+draws the same kit through one React drawer (`src/kit/react.ts`), and each
+frame sequence is encoded in the contender's own format
+(`src/runner/contenders.ts`). The encodings are tested by decoding with the
+contender's own code (`test/contenders.test.ts`).
+
+Before any timing counts, `pnpm bench:gate` checks every renderer draws the
+reference's markup: the every-component document and the first two steps of
+each ladder, after a warm-up document. A workload a format cannot write is
+reported as not expressible, with the reason, and not timed.
+
+```
+pnpm bench:gate                          # every renderer that ladders
+pnpm bench --renderer ours-element,json-render,openui,ai-sdk
+```
+
 ## The soak
 
 `pnpm bench:soak` streams a cycle of five documents into one mounted

@@ -1,5 +1,5 @@
 import { displayText, standardContract } from "relax-ui-contract";
-import { z } from "zod";
+import { z } from "zod3";
 
 /**
  * The benchmark's contract (FR-402, data model W2): the standard twelve, with

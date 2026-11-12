@@ -63,7 +63,12 @@ export function buildUISchemas(specs: ComponentSpecMap, limits: UILimits): UISch
 
   // `z.lazy` keeps the reference stable, which is what lets the JSON Schema
   // emitter recognise the cycle and emit a `$ref` instead of recursing forever.
-  const nodeSchema: z.ZodType<UINode> = z.lazy(() => {
+  // Zod calls the getter on every parse of every node, so the union is built
+  // once and kept: rebuilt per call, validating a document constructed every
+  // component's schema once per node (found by the benchmark, spec 004).
+  let union: z.ZodType<UINode> | undefined;
+  const nodeSchema: z.ZodType<UINode> = z.lazy(() => (union ??= buildUnion()));
+  const buildUnion = (): z.ZodType<UINode> => {
     const variants = names.map((name) => {
       const spec = specs[name] as ComponentSpec;
       const policy: ChildrenPolicy = spec.children ?? "none";
@@ -94,7 +99,7 @@ export function buildUISchemas(specs: ComponentSpecMap, limits: UILimits): UISch
       "type",
       variants as unknown as [z.ZodObject<{ type: z.ZodLiteral<string> }>, ...z.ZodObject<{ type: z.ZodLiteral<string> }>[]],
     ) as unknown as z.ZodType<UINode>;
-  });
+  };
 
   const documentSchema = z
     .object({ root: nodeSchema })

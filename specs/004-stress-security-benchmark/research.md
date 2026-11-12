@@ -98,6 +98,48 @@ that fails without it.
    no script, no rendering. Such a frame is not a long task. A frame counts
    only when its `blockingDuration` is above zero.
 
+**Measured in phase 4**: two more corrections, a finding for this SDK, and
+one limit of the method.
+
+7. **Equal deliveries.** The scheduler delivers one chunk per interval. This
+   SDK's stream was a `meta` event, one patch per frame, then `complete`: two
+   more chunks than any contender's, each a whole interval late. At cold
+   start (50 ms intervals) that was 50 ms on first node and about 80 ms on
+   completion that no contender paid. A route sends `meta` with the first
+   patch and `complete` straight after the last, so the encoder now does the
+   same, and a test asserts every encoder gives one chunk per logical frame.
+8. **The gate replaces a document.** The structural gate first mounted each
+   case into a fresh page; the ladders stream it after a warm-up, into the
+   same mounted renderer. The AI SDK page passed the gate and errored on every
+   ladder step: its effect returned `submit()`'s result, which React called as
+   a cleanup when the next document replaced the view. The gate now runs the
+   warm-up first, as the ladders do.
+
+**Finding for this SDK, fixed: the node schema was rebuilt on every parse.**
+Correction 7 put `complete` in the same delivery as the last patch, and the
+React hook then failed the first step of the frame-rate ladder on long tasks,
+every time; split apart, it passed. A CPU profile of the long task showed Zod
+building schemas (`strict`, `describe`, `create`) inside `safeParse`. The
+contract's recursive node schema is a `z.lazy` whose getter built the
+discriminated union of every component, and Zod calls that getter on each
+parse of each node: validating a document constructed every component's
+schema once per node. The full-tier hook validates every frame and the final
+document, so the last delivery paid twice in one task. The getter now builds
+the union once (a contract test fails without it). With it, the React hook
+passes every step of frame-rate, text churn and tone density on the desktop
+profile; before, tone density failed its first step in every run.
+
+**Limit: a frame percentile moves in whole refreshes.** Frame intervals are
+multiples of 16.7 ms, so a step's 95th percentile is 16.7 or 33.3, never in
+between, and one missed refresh among a step's twenty-odd frames decides it.
+Two runs of this SDK's own renderers a day apart moved 13 of 48 break points,
+some by three steps on the phone profile, and the breaking step's
+interquartile range was often 16.5 ms: repetitions split at the boundary.
+Break points within one step of each other are therefore treated as equal.
+A measure that does not round to a refresh (the share of refreshes missed,
+or more repetitions at the boundary step) would sharpen this; it changes the
+budget, so it is left to a decision.
+
 **Finding: Chromium's nesting limit.** Past a certain depth the browser tab
 itself crashes, with or without this SDK. Nested-element depth at which the
 tab crashed:
@@ -153,6 +195,21 @@ set), so using them would compare designs, not renderers.
    frames at the step's rate, through each contender's own entry point. This
    removes network noise, and measures what is asked: the renderer.
 4. **One page per contender**, pinned versions, cold start per run.
+
+**Measured in phase 4 (the encodings)**: each encoder is tested by decoding
+with the contender's own code (`bench/test/contenders.test.ts`).
+- **json-render**: one patch line per element (`/elements/<key>`), diffed
+  from the empty spec `{root: "", elements: {}}`, as its prompt asks a model
+  to write. A single patch adding the whole `elements` map drew nothing.
+- **OpenUI Lang**: statements `id = Type(args)` written top-down, arguments
+  in the contract's prop order with children last as references. Arrays that
+  grow inside one node arrive as slices of that statement's text. An edit is
+  the statement written again; the later one wins. OpenUI's `Renderer` wraps
+  the output in a `<div aria-busy>` of its own; the comparison starts at the
+  first kit element.
+- **AI SDK**: the final document's JSON, cut where each frame's content ends.
+  A partial-JSON stream only appends, so the two workloads that change what
+  is shown (text churn, counters) are reported as not expressible.
 
 ---
 
@@ -330,6 +387,9 @@ Checked on npm, 2026-11-10:
 Notes:
 - OpenUI needs React 19 and Zod 4 (`zod/v4`). A2UI's Angular renderer's
   version is a minor behind its Lit and React renderers.
+- `@openuidev/lang-core` runs a telemetry script on install. pnpm blocks
+  install scripts by default and it stays blocked; the renderer works without
+  it.
 - Thesys C1's SDK (`@thesysai/genui-sdk`) does not name an open-source licence,
   and is excluded, per the clarification.
 

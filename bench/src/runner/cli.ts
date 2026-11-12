@@ -65,7 +65,9 @@ try {
       continue;
     }
     for (const profile of profiles) {
-      result.coldStart!.push(await coldStart(browser, server, { renderer, page: r.page, profile, reps, log: (line) => console.log(line) }));
+      result.coldStart!.push(
+        await coldStart(browser, server, { renderer, page: r.page, profile, reps, ...(r.encode ? { encode: r.encode } : {}), log: (line) => console.log(line) }),
+      );
       for (const ladder of ladders) {
         result.ladders.push(
           await climb(browser, server, ladder, {
@@ -74,6 +76,7 @@ try {
             profile,
             reps,
             ...(smoke ? { maxSteps: 3 } : {}),
+            ...(r.encode ? { encode: r.encode } : {}),
             log: (line) => console.log(line),
           }),
         );

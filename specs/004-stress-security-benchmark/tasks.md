@@ -213,18 +213,109 @@ phase is releasable on its own (plan, phase 3).
 
 - [ ] **T-430** Kit drawers for React, Lit and Angular. Test: each draws every
   template to the same markup as the DOM renderer.
-- [ ] **T-431** [P] `json-render` adapter (JSONL patches, registry of kit
+- [x] **T-431** [P] `json-render` adapter (JSONL patches, registry of kit
   components).
 - [ ] **T-432** [P] `a2ui-lit`, `a2ui-react` and `a2ui-angular` adapters
   (v0.9 messages, a custom catalog of kit components).
-- [ ] **T-433** [P] `openui` adapter (OpenUI Lang encoding, library of kit
+- [x] **T-433** [P] `openui` adapter (OpenUI Lang encoding, library of kit
   components).
-- [ ] **T-434** [P] `ai-sdk` adapter (partial JSON through `useObject`,
+- [x] **T-434** [P] `ai-sdk` adapter (partial JSON through `useObject`,
   hand-written kit components).
 - [ ] **T-435** [P] `ours-vue-host` and `ours-angular-host` adapters.
-- [ ] **T-436** Structural gate: every adapter's markup equals the reference
+- [x] **T-436** Structural gate: every adapter's markup equals the reference
   for every workload, or it is reported as not expressible with a reason.
 - [ ] **T-437** Full comparison on both profiles; results committed.
+
+### Phase 4 notes (part a: the React contenders)
+
+Done in this part: the React kit drawer (T-430's React third), json-render,
+OpenUI Lang and the AI SDK (T-431, T-433, T-434), the structural gate
+(T-436), and the comparison of those three with this SDK's element and React
+hook (T-437's first half). Left for part b: A2UI on Lit, React and Angular
+(T-432), the Lit and Angular kit drawers, and the Vue and Angular hosts
+(T-435).
+
+- **One drawer for every React contender** (`bench/src/kit/react.ts`): the
+  kit's templates, turned into React elements, nothing added. Each contender
+  hands its own props to it from its own component registry. No URL guard and
+  no attribute filter: what safety a page has is the contender's.
+- **Each contender reads a byte stream through its own entry point**:
+  json-render through `useUIStream` and a fetch that answers with the stream;
+  OpenUI by giving `<Renderer>` the response text as it grows; the AI SDK
+  through `useObject` with a custom fetch. Encodings, and how each is tested
+  with the contender's own decoder, are in research R3.
+- **The gate** (`pnpm bench:gate`): the document with every component, then
+  the first two steps of each ladder, after a warm-up document, for each
+  renderer. 121 cases draw the reference's markup and 4 are not expressible
+  (the AI SDK's text churn and counters: a partial-JSON stream only appends).
+- **Three corrections and a fix**, each in research R2 with its evidence:
+  - this SDK's stream had two more deliveries than any contender's (`meta`
+    and `complete` as chunks of their own); now one per frame, as everyone;
+  - the gate now replaces a document, as the ladders do: the AI SDK page
+    passed it and errored on every ladder step;
+  - frame percentiles move in whole refreshes, so break points one step
+    apart are treated as equal;
+  - **fixed in this SDK**: the contract's recursive node schema rebuilt every
+    component's schema on each node parse. The React hook gained up to two
+    ladder steps on desktop and passes three ladders it failed before.
+- **Results** (`bench/results/compare-2026-11-11.json`, same laptop,
+  Chromium 153, five repetitions per step). Highest step passed; "all" is
+  every step, "none" is not even the first, "n/e" not expressible.
+
+  Desktop:
+
+  | Workload | Ours, element | Ours, React | json-render | OpenUI | AI SDK |
+  |---|---|---|---|---|---|
+  | nodes (streamed) | all (10k) | 5,000 | 1,000 | 5,000 | 5,000 |
+  | static nodes | all (10k) | 2,500 | 500 | 1,000 | 5,000 |
+  | depth | 96 | 96 | 96 | 96 | 96 |
+  | table cells | 10,000 | 25,000 | 10,000 | 10,000 | 25,000 |
+  | chart points | 1,000 | 1,000 | 250 | 1,000 | 1,000 |
+  | frame rate | all | all | all | all | all |
+  | text churn | all | all | all | all | n/e |
+  | tone density | all | all | all | all | all |
+  | heatmap cells | 10,000 | 10,000 | 10,000 | 10,000 | 10,000 |
+  | scatter points | 5,000 | 5,000 | 5,000 | 5,000 | 10,000 |
+  | sparklines | all | all | all | all | all |
+  | counters | 500 | 200 | 200 | 200 | n/e |
+
+  Phone (4x CPU):
+
+  | Workload | Ours, element | Ours, React | json-render | OpenUI | AI SDK |
+  |---|---|---|---|---|---|
+  | nodes (streamed) | 250 | 100 | 100 | 100 | 100 |
+  | static nodes | 500 | 500 | 25 | none | 50 |
+  | depth | 48 | 4 | 4 | none | none |
+  | table cells | 100 | 100 | 100 | 100 | 100 |
+  | chart points | 50 | 50 | 8 | 250 | 250 |
+  | frame rate | none | none | 10 | none | none |
+  | text churn | 1 | none | none | none | n/e |
+  | tone density | none | none | none | none | none |
+  | heatmap cells | 1,000 | 1,000 | 1,000 | 100 | 100 |
+  | scatter points | 100 | 100 | 100 | 100 | 100 |
+  | sparklines | 100 | 100 | 100 | 25 | 25 |
+  | counters | 10 | 10 | 10 | 10 | n/e |
+
+  Cold start (median, ms; first node / complete / longest task):
+
+  | | Ours, element | Ours, React | json-render | OpenUI | AI SDK |
+  |---|---|---|---|---|---|
+  | desktop | 7 / 56 / 0 | 8 / 54 / 0 | 17 / 84 / 0 | 14 / 82 / 0 | 8 / 91 / 0 |
+  | phone | 23 / 184 / 166 | 20 / 173 / 126 | 62 / 257 / 209 | 115 / 178 / 193 | 35 / 259 / 167 |
+
+- **Reading it.** Differences of one step are noise (research R2). Beyond
+  that: the element leads on streamed and static node counts on both
+  profiles, and on depth on the phone; the AI SDK, which validates nothing
+  while streaming, leads on table cells and scatter points on desktop;
+  OpenUI and the AI SDK lead on chart points on the phone; every renderer
+  breaks at the first step of tone density, and nearly all of frame rate, on
+  the phone, which points at the shared base theme, not a renderer (the
+  phone-theme follow-up). Validation is not equal: this SDK validates every
+  frame against the full contract; the contender pages declare permissive
+  prop schemas (the kit's props are not declared again for each), so
+  json-render and OpenUI check structure only, and the AI SDK nothing.
+- This SDK's rows supersede `local-2026-11-10.json`, which predates the
+  schema fix and the equal deliveries.
 
 ## Phase 5 — Attacks
 
@@ -271,4 +362,5 @@ phase is releasable on its own (plan, phase 3).
 
 ## Outstanding
 
-Phases 4 to 6 (T-430 onwards).
+Phase 4 part b (T-430's Lit and Angular drawers, T-432, T-435, the rest of
+T-437), phases 5 and 6.
