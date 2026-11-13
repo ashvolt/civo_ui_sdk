@@ -10,6 +10,7 @@
     "bench:smoke": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/cli.ts --suite smoke",
     "bench:selftest": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/selftest.ts",
     "bench:soak": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/soak.ts",
+    "bench:attacks": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/attacks.ts",
     "bench:gate": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/gate.ts"
   },
   "devDependencies": {

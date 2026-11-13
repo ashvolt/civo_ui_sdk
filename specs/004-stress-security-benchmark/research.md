@@ -390,6 +390,28 @@ check whether a patched *copy* acquires a changed prototype.
 
 ---
 
+**Measured in phase 5 (part a).** Every claim in R8 and R9 was tested on the
+element and the React hook; five needed a fix, each in tasks.md, phase 5
+notes. The two marked "to measure" in R8:
+- **A size cap was needed.** One 100 MB event froze the page for 47 s and
+  reached 1.4 GB of heap; the reader now refuses an event over 8 Mi
+  characters (`DEFAULT_MAX_EVENT_LENGTH`), within 150 ms.
+- **10,000 colliding keys** render in about the time of unique ones; no
+  quadratic path. **A socket flood** of 20,000 messages in two seconds held
+  the heap at 5 MB: the reader drains its queue as fast as it fills.
+
+On R9: a patch applied through `__proto__` changed no global, as the
+preliminary check found, but did give the patched copy a new prototype; keys
+are now own properties. Long model text was found to draw outside its
+component, which the theme now prevents (overlay, R9's last point).
+
+Responsiveness during an abuse case is measured as the longest gap between
+animation frames (budget: 200 ms, the interaction budget); heap as the peak
+of the page's used heap, polled through the DevTools protocol, against the
+same page idle after garbage collection.
+
+---
+
 ## R10. Red-team with a live local model
 
 **Findings**: two small open-weight models are already on the bench (Ollama

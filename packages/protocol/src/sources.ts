@@ -1,6 +1,7 @@
 import { RelaxUIError } from "./errors.js";
 import { isUIStreamEvent, type UIStreamEvent } from "./events.js";
 import { readUIStream } from "./read.js";
+import { DEFAULT_MAX_EVENT_LENGTH, tooLong } from "./sse.js";
 import type { JsonValue } from "./types.js";
 
 /**
@@ -170,6 +171,8 @@ async function* readSocket<T>(socket: SocketLike, signal?: AbortSignal): AsyncGe
       if (queue.length > 0) {
         const text = await messageText(queue.shift());
         if (text === undefined) continue;
+        // The same bound as one SSE event: a message is refused, not held.
+        if (text.length > DEFAULT_MAX_EVENT_LENGTH) throw tooLong(DEFAULT_MAX_EVENT_LENGTH);
         const data = text.trim();
         if (data === "[DONE]") return;
         if (data === "") continue;

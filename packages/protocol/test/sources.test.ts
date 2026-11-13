@@ -1,4 +1,6 @@
 import {
+  decodeSSE,
+  DEFAULT_MAX_EVENT_LENGTH,
   readSource,
   RelaxUIError,
   sourceKind,
@@ -247,6 +249,24 @@ describe("stream source (T-213)", () => {
     const { events, error } = await collect({ stream: sse([META, PATCH_1].map(data)) });
     expect(events.map((e) => e.type)).toEqual(["meta", "patch"]);
     expect((error as RelaxUIError).code).toBe("truncated");
+  });
+
+  it("refuses an event longer than the limit, ended or not, with stream_malformed (T-446)", async () => {
+    const long = "x".repeat(DEFAULT_MAX_EVENT_LENGTH + 1);
+    // A long event that never ends: refused while it is still arriving.
+    const unended = await collect({ stream: sse([data(META), `data: ${long}`]) });
+    expect((unended.error as RelaxUIError).code).toBe("stream_malformed");
+    // One that ends: refused, not parsed.
+    const ended = await collect({ stream: sse([data(META), data({ pad: long }), data(COMPLETE)]) });
+    expect((ended.error as RelaxUIError).code).toBe("stream_malformed");
+    expect(ended.events.map((e) => e.type)).toEqual(["meta"]);
+    // The limit is configurable where the decoder is used directly.
+    const events: string[] = [];
+    await expect(
+      (async () => {
+        for await (const e of decodeSSE(sse([data(12345678901)]), undefined, { maxEventLength: 10 })) events.push(e.data);
+      })(),
+    ).rejects.toMatchObject({ code: "stream_malformed" });
   });
 
   it("an error frame is a proper ending, not a truncation", async () => {

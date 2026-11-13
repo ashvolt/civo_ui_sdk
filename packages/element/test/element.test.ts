@@ -265,6 +265,15 @@ describe("refusals (element contract)", () => {
     expect(error.code).toBe("schema_violation");
   });
 
+  it("a document over the depth budget is refused before any of it is drawn (T-446)", async () => {
+    let node: Record<string, unknown> = { type: "Text", props: { text: "deepest" } };
+    for (let d = 0; d < 30; d++) node = { type: "Card", props: { title: `level ${d}` }, children: [node] };
+    const el = mount({}, { source: { document: { root: node } } });
+    const error = await refusedWith(el);
+    expect(error.code).toBe("schema_violation");
+    expect(surface(el).textContent).not.toMatch(/level|deepest/);
+  });
+
   it("a server error event becomes gen-ui:error with its code", async () => {
     const list = [META, { type: "error", error: { code: "rate_limited", message: "slow down", retryable: true } }] as never[];
     const el = mount();

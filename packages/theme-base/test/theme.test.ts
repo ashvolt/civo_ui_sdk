@@ -141,6 +141,16 @@ describe("design tokens (T-223)", () => {
     }
   });
 
+  it("generated text cannot draw outside its component: text breaks anywhere and a chart clips its labels (T-446)", () => {
+    // The declarations of the rule whose selector is exactly `selector`.
+    const rule = (selector: string) => {
+      const start = components.indexOf(`\n${selector} {`);
+      return start === -1 ? "" : components.slice(start, components.indexOf("}", start));
+    };
+    expect(rule(".gen-theme")).toMatch(/overflow-wrap: anywhere/);
+    expect(rule(".gen-theme .gen-chart")).toMatch(/overflow: hidden/);
+  });
+
   it("every selector is scoped under .gen-theme, so nothing else on the page is styled", () => {
     const css = `${tokens}\n${components}`.replace(/@(media|container)[^{]+\{/g, "");
     for (const [, selectors] of css.matchAll(/([^{}]+)\{[^{}]*\}/g)) {

@@ -1,3 +1,5 @@
+import { installAttacks, type AttackAdapter } from "../attacks/page.ts";
+
 /**
  * The in-page half of the harness (plan D3, D4), identical for every renderer.
  *
@@ -41,6 +43,8 @@ export interface PageAdapter {
    * them, since the page pays for them.
    */
   unwrap?(element: Element): boolean;
+  /** One attack case in a fresh renderer (phase 5); pages with it can be attacked. */
+  attack?: AttackAdapter["attack"];
 }
 
 /**
@@ -107,6 +111,7 @@ declare global {
 }
 
 export function installHarness(adapter: PageAdapter): void {
+  if (adapter.attack) installAttacks({ attack: adapter.attack });
   let data: StepData | undefined;
   const bench: Window["__bench"] = {
     pushed: 0,

@@ -10,6 +10,26 @@ export interface SSEEvent {
 const DONE = "[DONE]";
 
 /**
+ * The longest event the reader holds, in characters (8 Mi). A document the
+ * standard contract allows is far smaller; a stream that sends more in one
+ * event, or never ends one, is refused before it can fill the page's memory.
+ */
+export const DEFAULT_MAX_EVENT_LENGTH = 8 * 1024 * 1024;
+
+export interface DecodeSSEOptions {
+  /** Refuse an event longer than this many characters. Default `DEFAULT_MAX_EVENT_LENGTH`. */
+  maxEventLength?: number;
+}
+
+/** The refusal for an event longer than `max` characters. */
+export function tooLong(max: number): RelaxUIError {
+  return new RelaxUIError({
+    code: "stream_malformed",
+    message: `An event in the UI stream is longer than ${max} characters; the stream was refused.`,
+  });
+}
+
+/**
  * Decodes a `text/event-stream` body into events.
  *
  * Written against `ReadableStream` rather than Node streams so the same code
@@ -25,10 +45,13 @@ const DONE = "[DONE]";
 export async function* decodeSSE(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
+  options: DecodeSSEOptions = {},
 ): AsyncGenerator<SSEEvent, void, unknown> {
+  const max = options.maxEventLength ?? DEFAULT_MAX_EVENT_LENGTH;
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let scanFrom = 0;
   let drained = false;
 
   const onAbort = () => void reader.cancel().catch(() => {});
@@ -46,15 +69,21 @@ export async function* decodeSSE(
       }
       buffer += decoder.decode(value, { stream: true });
 
-      // Events are separated by a blank line; tolerate CRLF and bare LF.
-      let boundary = findBoundary(buffer);
+      // Events are separated by a blank line; tolerate CRLF and bare LF. The
+      // search resumes where the last one stopped, so a long event costs its
+      // length once, not once per chunk.
+      let boundary = findBoundary(buffer, scanFrom);
       while (boundary !== null) {
+        if (boundary.index > max) throw tooLong(max);
         const raw = buffer.slice(0, boundary.index);
         buffer = buffer.slice(boundary.index + boundary.length);
         const event = parseEventBlock(raw);
         if (event) yield event;
-        boundary = findBoundary(buffer);
+        boundary = findBoundary(buffer, 0);
       }
+      if (buffer.length > max) throw tooLong(max);
+      // A boundary may straddle two chunks: look again from its first character.
+      scanFrom = Math.max(0, buffer.length - 3);
     }
 
     buffer += decoder.decode();
@@ -70,9 +99,9 @@ export async function* decodeSSE(
   }
 }
 
-function findBoundary(buffer: string): { index: number; length: number } | null {
-  const lf = buffer.indexOf("\n\n");
-  const crlf = buffer.indexOf("\r\n\r\n");
+function findBoundary(buffer: string, from: number): { index: number; length: number } | null {
+  const lf = buffer.indexOf("\n\n", from);
+  const crlf = buffer.indexOf("\r\n\r\n", from);
   if (lf === -1 && crlf === -1) return null;
   if (crlf !== -1 && (lf === -1 || crlf < lf)) return { index: crlf, length: 4 };
   return { index: lf, length: 2 };

@@ -147,11 +147,21 @@ function applyOne(
   const base: Record<string, JsonValue> = isPlainObject(doc) ? { ...doc } : {};
   if (rest.length === 0) {
     if (op.op === "remove") delete base[head];
-    else base[head] = op.value;
+    else setOwn(base, head, op.value);
   } else {
-    const child = applyOne(base[head], rest, op);
+    // Own properties only: `__proto__` or `constructor` in a path names a key
+    // of the document, never the object's prototype.
+    const child = applyOne(Object.hasOwn(base, head) ? base[head] : undefined, rest, op);
     if (child === undefined) delete base[head];
-    else base[head] = child;
+    else setOwn(base, head, child);
   }
   return base;
+}
+
+/**
+ * `obj[key] = value`, except that a key named `__proto__` becomes an own
+ * property, as `JSON.parse` makes it, instead of replacing the prototype.
+ */
+function setOwn(obj: Record<string, JsonValue>, key: string, value: JsonValue | undefined): void {
+  Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true });
 }

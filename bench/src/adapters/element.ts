@@ -3,7 +3,9 @@
  * shadow mode, lazy base theme, fed a protocol 1 SSE byte stream, validated in
  * full against the bench contract (the strictest setting; adapter contract).
  */
-import { defineGenUI, type Connector, type GenUIElement } from "relax-ui-element";
+import { standardContract } from "relax-ui-contract";
+import { defineGenUI, type Connector, type GenUIElement, type RenderState } from "relax-ui-element";
+import type { AttackMount, AttackSetup, Settled } from "../attacks/page.ts";
 import { type Mounted, type PageAdapter } from "../probe/page.ts";
 import { kitConnector } from "../kit/index.ts";
 import { referenceMarkup } from "../probe/reference.ts";
@@ -65,6 +67,50 @@ export function feedElement(el: GenUIElement, setSource: (source: { stream: Read
   };
 }
 
+/**
+ * One attack case through an element already on the page (T-441): the tier
+ * as an attribute, then the source, set the host's way. Settled when the
+ * element reports `complete` or `error` and no component code is loading.
+ */
+export function attackElement(el: GenUIElement, setSource: (source: object) => void, setup: AttackSetup): AttackMount {
+  if (setup.contract === "standard") el.contract = standardContract as never;
+  el.setAttribute("validate", setup.validate);
+  let streamed = false;
+  const settled = new Promise<Settled>((resolve) => {
+    const on = (e: Event) => {
+      const s = (e as CustomEvent<RenderState>).detail;
+      if (s.status === "streaming") streamed = true;
+      // Idle after streaming: stopped by the host.
+      const done = s.status === "complete" || s.status === "error" || (s.status === "idle" && streamed);
+      if (!done) return;
+      el.removeEventListener("gen-ui:state", on);
+      resolve({ status: s.status === "idle" ? "stopped" : s.status, refused: s.refused.length, ...(s.error ? { errorCode: s.error.code } : {}) });
+    };
+    el.addEventListener("gen-ui:state", on);
+  });
+  setSource(setup.source);
+  // A URL is read when the host submits, as an application's form would; the
+  // host's framework may hand the element its source on its next update.
+  if ("url" in setup.source) {
+    void (async () => {
+      while ((el.source as { url?: string } | undefined)?.url !== (setup.source as { url: string }).url) await new Promise((r) => setTimeout(r, 0));
+      void el.submit();
+    })();
+  }
+  const surface = () => el.shadowRoot ?? el;
+  return {
+    async settled() {
+      const s = await settled;
+      while (surface().querySelector("[aria-busy]")) await new Promise((r) => requestAnimationFrame(r));
+      // Refusals reported after `complete` (lazily loaded code) are counted too.
+      return { ...s, refused: el.state.refused.length };
+    },
+    surface,
+    stop: () => el.stop(),
+    unmount: () => el.remove(),
+  };
+}
+
 export interface ElementOptions {
   /** `light` for a framework connector, whose library styles are global. */
   mode?: "shadow" | "light";
@@ -84,6 +130,14 @@ export function elementAdapter(id = "ours-element", options: ElementOptions = {}
       el.connectors = [kitConnector(), ...(options.connectors ?? [])];
       host.replaceChildren(el);
       return feedElement(el);
+    },
+    async attack(host, setup) {
+      const el = document.createElement("gen-ui") as GenUIElement;
+      if (options.mode === "light") el.setAttribute("mode", "light");
+      el.contract = benchContract as never;
+      el.connectors = [kitConnector(), ...(options.connectors ?? [])];
+      host.replaceChildren(el);
+      return attackElement(el, (s) => void (el.source = s as never), setup);
     },
   };
 }

@@ -1,3 +1,4 @@
+import { RelaxUIError } from "./errors.js";
 import type { JsonPatchOp } from "./json-patch.js";
 import { applyPatch } from "./json-patch.js";
 import type { GenerationMetadata, JsonValue, StructuringStrategyName } from "./types.js";
@@ -118,7 +119,18 @@ export class UIStreamAccumulator<T = unknown> {
         return;
       case "patch":
         this.assertSeq(event.seq);
-        this.value = applyPatch(this.value, event.ops);
+        try {
+          this.value = applyPatch(this.value, event.ops);
+        } catch (cause) {
+          // A patch that does not fit the document is the stream's fault, and
+          // nothing of it is applied: `applyPatch` works on a copy.
+          if (cause instanceof RelaxUIError) throw cause;
+          throw new RelaxUIError({
+            code: "stream_malformed",
+            message: `UI stream frame ${event.seq} cannot be applied: ${cause instanceof Error ? cause.message : String(cause)}`,
+            cause,
+          });
+        }
         return;
       case "snapshot":
         this.assertSeq(event.seq);
@@ -138,7 +150,11 @@ export class UIStreamAccumulator<T = unknown> {
     // Out-of-order frames cannot be reconciled: a patch assumes the exact
     // document the server had. Better to say so than to render a mixture.
     if (seq !== this.lastSeq + 1) {
-      throw new Error(`UI stream out of order: expected seq ${this.lastSeq + 1}, received ${seq}.`);
+      // A stable code, so a host can tell a broken stream from a broken network.
+      throw new RelaxUIError({
+        code: "stream_malformed",
+        message: `UI stream out of order: expected seq ${this.lastSeq + 1}, received ${seq}.`,
+      });
     }
     this.lastSeq = seq;
   }
