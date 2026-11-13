@@ -559,16 +559,74 @@ apps, the red-team (T-444), and the contenders with the disclosure gate
 
 ## Phase 6 — Running and showing
 
-- [ ] **T-450** CI job "Bench smoke": short ladders against the stored `main`
+- [x] **T-450** CI job "Bench smoke": short ladders against the stored `main`
   result within tolerance, plus the attack suites; under 10 minutes. Test: a
   deliberate 50% slowdown fails it; noise does not, over ten runs.
 - [ ] **T-451** Nightly workflow: everything, both profiles, results uploaded
-  and committed by a bot pull request.
-- [ ] **T-452** The dashboard: a static page built from the results. It shows
+  and committed by a bot pull request. (Written; checked off after its first
+  run on `main`.)
+- [x] **T-452** The dashboard: a static page built from the results. It shows
   break points, ladder curves, desktop against phone, soak trends and attack
   outcomes, and each figure links to its workload and its reproduce command.
-- [ ] **T-453** README and `docs/comparison.md` summary tables; the plan's
+- [x] **T-453** README and `docs/comparison.md` summary tables; the plan's
   Verification filled in.
+
+### Phase 6 notes
+
+- **Pull requests** (`.github/workflows/bench.yml`). Two jobs run in parallel:
+  - ladders: the element at 24 smoke steps, then `bench:regress` against
+    `main`'s last smoke result, kept in the Actions cache by every push to
+    `main`;
+  - attacks: the injection corpus and tricks at both tiers, and protocol
+    abuse.
+
+  Locally the ladders take 3 minutes, plus the build.
+- **The regression check reads main-thread busy time.** The original smoke
+  steps (the first three of each ladder) could not see a slower renderer:
+  - frame p95 sat at 16.7 ms;
+  - completion followed the delivery schedule (static nodes 51 ms at any
+    size).
+
+  So each step now records `busy` (Chromium's `TaskDuration`). The smoke runs
+  each ladder at its first step and at one step where the renderer's work
+  dominates, one or two steps below the element's break point. Chart points
+  at 1,000, right at the break point, flipped over the long-task budget
+  between runs.
+- **Verified on one laptop** (research R6):
+  - `--slowdown 1.5` (CPU throttling) gave a median per-step ratio of 2.02,
+    and failed;
+  - ten quiet runs gave 0.96–1.14, and none failed.
+
+  Three findings shaped the rule:
+  - judging the total, one of the ten quiet runs failed (1.21);
+  - a calibration job meant to scale between machines measured noise
+    (0.5–2.4×), so it is reported, not used;
+  - a baseline taken while other work ran made six runs in ten fail.
+- **Nightly** (`.github/workflows/bench-nightly.yml`):
+  - parallel jobs: the ladders of all ten renderers, the three soaks,
+    attacks on fifteen hosts, connectors and contenders, and the structural
+    gate;
+  - then `bench:merge` joins the results into `bench/results/nightly/`, with
+    raw samples dropped (shared-runner figures, for trends);
+  - the dashboard is built and uploaded;
+  - a bot pull request commits the results. That needs "Allow GitHub Actions
+    to create and approve pull requests" in the repository settings.
+- **The dashboard** (`bench/dashboard`, `pnpm bench:dashboard`) is one static
+  file, 172 KB, with the data inlined. It shows:
+  - summary figures;
+  - break points by profile, each cell opening its curves;
+  - every ladder's curves in two small multiples: the element against the
+    contenders, and the element in each host;
+  - cold start, soak, attacks, the red-team and package versions.
+
+  Each figure names its workload and its reproduce command. Charts have a
+  crosshair, keyboard reading and a table view, and light and dark palettes.
+  Checked at 1,280 and 390 px, light and dark: no errors, no horizontal
+  overflow.
+- **A number the dashboard first got wrong**: soak heap growth as the last
+  sample over the first gave 15.6%. The soak's own rule is the median of the
+  last five minutes over the first five, which gives 3.9%. The page now calls
+  `judgeSoak`, so it cannot disagree with the soak.
 
 ---
 
@@ -582,6 +640,11 @@ apps, the red-team (T-444), and the contenders with the disclosure gate
 
 ## Outstanding
 
-Phase 6. Follow-ups: restricting link hosts in a contract (the red-team's
-off-site link), the desktop depth crash at 96 in the Angular host, phone
-depth sitting on a frame boundary, and SSE with bare carriage returns.
+T-451's first nightly run on `main`. Follow-ups:
+- a full ladder run twice on one machine (plan Verification, "Reproducible");
+- confirming the regression rule on CI's own runs;
+- publishing the dashboard;
+- restricting link hosts in a contract (the red-team's off-site link);
+- the desktop depth crash at 96 in the Angular host;
+- phone depth sitting on a frame boundary;
+- SSE with bare carriage returns.

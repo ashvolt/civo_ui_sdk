@@ -12,6 +12,7 @@ interface ResultFile {
     cpu: string; cores: number; memoryGb: number; os: string;
     browser: string;                   // e.g. "Chromium 141.0.…"
     node: string; commit: string; date: string;
+    calibrationMs?: number;            // smoke runs: a fixed CPU job's time, reported beside the regression check
   };
   renderers: { id: string; packages: Record<string, string>; available: boolean; reason?: string }[];
   workloads: { id: string; dimension: string; seed: number; steps: number[]; contract: "standard" | "bench" }[];
@@ -51,5 +52,11 @@ interface ResultFile {
   Nor is any other result of that contender: they go to
   `bench/results/private/` (untracked), and `withheld` counts them.
 - Raw `samples` may be gzipped beside the file if large; the file names it.
-- A change to this shape bumps `schemaVersion`. The dashboard reads every
+- Nightly results, from shared runners, go to `bench/results/nightly/`, merged
+  from the parallel jobs with raw `samples` dropped; the headline results in
+  `bench/results/` come from one named machine.
+- Step metrics include `busy`: main-thread task time while the step streamed,
+  in ms (Chromium's `TaskDuration`), the pull-request regression check's metric.
+- Adding an optional field (`calibrationMs`, 2026-11-14) keeps the version;
+  any other change to this shape bumps `schemaVersion`. The dashboard reads every
   version it knows.

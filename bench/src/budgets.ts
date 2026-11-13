@@ -34,6 +34,8 @@ export interface Sample {
   firstNode: number;
   complete: number;
   correct: boolean;
+  /** Main-thread task time while the run streamed, ms (Chromium's TaskDuration). */
+  busy?: number;
   /** Filled in by the runner. */
   heap?: number;
   domNodes?: number;
@@ -67,6 +69,7 @@ export function summarise(samples: readonly Sample[]): StepSummary {
     interaction: per((s) => s.interaction),
     firstNode: per((s) => s.firstNode),
     complete: per((s) => s.complete),
+    busy: per((s) => s.busy ?? 0),
     heap: per((s) => s.heap ?? 0),
     domNodes: per((s) => s.domNodes ?? 0),
   };

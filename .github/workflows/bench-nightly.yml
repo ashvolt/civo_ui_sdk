@@ -1,0 +1,214 @@
+name: Bench nightly
+
+# Spec 004, T-451 (FR-441): the full ladders on both profiles for every
+# renderer, the soak, the structural gate and every attack suite, then the
+# results merged, the dashboard built, and the results committed through a
+# bot pull request. Jobs run in parallel so the night stays under two hours
+# (NFR-402).
+#
+# These are shared-runner figures: they show trends and catch breakage. The
+# headline results in bench/results/ come from one named machine (plan,
+# known limitation 5); the nightly ones go to bench/results/nightly/.
+#
+# The bot pull request needs "Allow GitHub Actions to create and approve pull
+# requests" (Settings → Actions → General → Workflow permissions).
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-nightly
+  cancel-in-progress: false
+
+env:
+  PNPM_VERSION: "10.33.0"
+
+jobs:
+  ladders:
+    name: Ladders · ${{ matrix.renderer }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      matrix:
+        renderer: [ours-element, ours-react, ours-vue-host, ours-angular-host, json-render, openui, ai-sdk, a2ui-lit, a2ui-react, a2ui-angular]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build bench pages
+        working-directory: bench
+        run: node build.mjs
+      - name: Full ladders, desktop and phone
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings src/runner/cli.ts --suite nightly --renderer ${{ matrix.renderer }} --out "$RUNNER_TEMP/out/ladders-${{ matrix.renderer }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-ladders-${{ matrix.renderer }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 14
+
+  soak:
+    name: Soak · ${{ matrix.renderer }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        renderer: [ours-element, ours-react, ours-connect-react]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build bench pages
+        working-directory: bench
+        run: node build.mjs
+      - name: Thirty-minute soak
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings src/runner/soak.ts --renderer ${{ matrix.renderer }} --out "$RUNNER_TEMP/out/soak-${{ matrix.renderer }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-soak-${{ matrix.renderer }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 14
+
+  attacks:
+    name: Attacks · ${{ matrix.renderer }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        renderer:
+          [ours-element, ours-react, ours-vue-host, ours-angular-host, ours-bootstrap, ours-shoelace, ours-element-plus, ours-material, ours-mui,
+           json-render, openui, ai-sdk, a2ui-lit, a2ui-react, a2ui-angular]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build bench pages
+        working-directory: bench
+        run: node build.mjs
+      # Every suite, fuzzed with the day's seed. A contender's own finding is
+      # held by the disclosure gate (FR-435): this job's log and artifact carry
+      # only a count, and its private file stays on the runner.
+      - name: Attack suites
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings src/runner/attacks.ts --renderer ${{ matrix.renderer }} --out "$RUNNER_TEMP/out/attacks-${{ matrix.renderer }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-attacks-${{ matrix.renderer }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 14
+
+  gate:
+    name: Structural gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Every renderer draws the reference markup
+        working-directory: bench
+        run: node build.mjs && node --experimental-strip-types --no-warnings src/runner/gate.ts
+
+  publish:
+    name: Merge, dashboard and results pull request
+    needs: [ladders, soak, attacks, gate]
+    # Whatever finished is published; a failed job shows in the run and its
+    # renderer is missing from the results.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The dashboard names each renderer's package versions from the bench's
+      # registry, which imports the workspace packages.
+      - run: pnpm build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nightly-*
+          path: ${{ runner.temp }}/nightly
+      - name: Merge the jobs' results
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings src/runner/merge.ts --in "$RUNNER_TEMP/nightly" --out results/nightly
+      - name: Build the dashboard from them
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings dashboard/build.mjs --results results/nightly --out "$RUNNER_TEMP/dashboard/index.html"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-dashboard
+          path: ${{ runner.temp }}/dashboard/
+          retention-days: 30
+      - name: Open the results pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          date=$(date -u +%Y-%m-%d)
+          branch="bench/nightly-$date"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add bench/results/nightly
+          if git diff --cached --quiet; then
+            echo "No new results."
+            exit 0
+          fi
+          git commit -m "chore(bench): nightly results $date"
+          git push --force origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore(bench): nightly results $date" \
+            --body "Nightly benchmark results from run ${{ github.run_id }} (spec 004, T-451). Shared-runner figures, merged from the parallel jobs; the dashboard built from them is the run's \`bench-dashboard\` artifact." \
+            || echo "A pull request for $branch is already open."

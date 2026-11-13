@@ -306,6 +306,31 @@ milliseconds there are not comparable between runs.
 - **Headline figures:** from one named machine, whose specification is
   recorded in each result.
 
+**Found in implementation (2026-11-14, T-450)**:
+
+- On the smoke steps, frame intervals and completion time follow the delivery
+  schedule. Static nodes complete in 51 ms at any size, so a slower renderer
+  barely moves them. The check reads main-thread busy time (Chromium's
+  `TaskDuration` around each run) instead.
+- A smoke step at the element's break point flips between runs. Chart points
+  at 1,000 measured a 51.9 ms longest task once, against the 50 ms budget.
+  Every second step now sits one or two ladder steps below the break point.
+- A fixed CPU job, timed in the same process before the browser starts, was
+  meant to scale the comparison between machines. Beside ten quiet runs it
+  varied 0.5–2.4×, with no relation to the busy time. It is reported, not
+  used.
+- Other work on the machine is the largest noise. A baseline taken while the
+  test suite ran made the noise runs fail six times in ten. Measured on a quiet
+  machine, against one baseline:
+
+  | Rule | Ten quiet runs | `--slowdown 1.5` |
+  |---|---|---|
+  | The total | 0.94–1.21; one over 20% | 2.06 |
+  | The median of per-step ratios | 0.96–1.14; none over | 2.02 |
+
+  The median is the rule. It was chosen after seeing these runs, so CI's own
+  runs are its confirmation.
+
 ---
 
 ## R7. Script-injection corpus

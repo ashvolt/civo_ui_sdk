@@ -23,6 +23,8 @@ export const resultSchema = z
       node: z.string(),
       commit: z.string(),
       date: z.string(),
+      /** The fixed CPU job's time on this machine, ms (`../regress.ts`); smoke runs. */
+      calibrationMs: z.number().positive().optional(),
     }),
     renderers: z.array(
       z.object({ id: z.string(), packages: z.record(z.string()), available: z.boolean(), reason: z.string().optional() }),

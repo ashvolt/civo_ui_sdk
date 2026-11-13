@@ -4,6 +4,8 @@ bench/dist-angular/
 bench/dist-node/
 # Contender attack findings under embargo (spec 004, FR-435): never committed
 bench/results/private/
+# The dashboard, built from the committed results (pnpm bench:dashboard)
+bench/dashboard/dist/
 bench/angular/ours-material/material.copy.ts
 .angular/
 .next/

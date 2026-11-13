@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-stress-security-benchmark`
 **Created**: 2026-11-10
-**Status**: In progress — phases 1–4 (harness, heavy visuals, this SDK's ladders on desktop and phone, the soak, and the comparison with json-render, OpenUI, the AI SDK, A2UI on Lit, React and Angular, and this SDK in Vue and Angular apps) implemented; phase 5 (attacks on this SDK's nine hosts, the library connectors included, the red-team with two local models, the contenders with the disclosure gate, and ten fixes) implemented; phase 6 outstanding
+**Status**: In progress — phases 1–4 (harness, heavy visuals, this SDK's ladders on desktop and phone, the soak, and the comparison with json-render, OpenUI, the AI SDK, A2UI on Lit, React and Angular, and this SDK in Vue and Angular apps) implemented; phase 5 (attacks on this SDK's nine hosts, the library connectors included, the red-team with two local models, the contenders with the disclosure gate, and ten fixes) implemented; phase 6 (pull-request smoke check, nightly workflow, dashboard, summaries) implemented, the nightly awaiting its first run
 **Input**: "So we need to stress load, with low to highest possible animations
 graphs, text colours high level of data tables, and what possible load anxiety
 test we can do, we should create a automation test. Which includes the security
