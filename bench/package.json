@@ -14,6 +14,9 @@
   },
   "devDependencies": {
     "@ai-sdk/react": "4.0.170",
+    "@angular/build": "21.2.5",
+    "@angular/cli": "21.2.5",
+    "@angular/compiler-cli": "21.2.5",
     "@json-render/core": "0.22.0",
     "@json-render/react": "0.22.0",
     "@openuidev/lang-core": "1.1.0",
@@ -30,7 +33,24 @@
     "relax-ui-react": "workspace:*",
     "relax-ui-render": "workspace:*",
     "relax-ui-theme-base": "workspace:*",
+    "typescript": "5.9.3",
     "zod": "^4.6.7",
     "zod3": "npm:zod@3.25.76"
+  },
+  "dependencies": {
+    "@a2ui/angular": "0.14.0",
+    "@a2ui/lit": "0.15.0",
+    "@a2ui/markdown-it": "0.2.2",
+    "@a2ui/react": "0.15.0",
+    "@a2ui/web_core": "0.15.0",
+    "@angular/common": "21.2.5",
+    "@angular/compiler": "21.2.5",
+    "@angular/core": "21.2.5",
+    "@angular/platform-browser": "21.2.5",
+    "lit": "3.3.3",
+    "relax-ui-connect-angular": "workspace:*",
+    "relax-ui-connect-vue": "workspace:*",
+    "rxjs": "7.8.2",
+    "vue": "3.5.45"
   }
 }

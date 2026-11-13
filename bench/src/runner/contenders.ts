@@ -118,6 +118,47 @@ function split(text: string, parts: number): string[] {
   return Array.from({ length: parts }, (_, i) => text.slice(i * size, (i + 1) * size));
 }
 
+// --- A2UI v0.9: JSONL messages to a surface -----------------------------------
+
+export const A2UI_SURFACE = "bench";
+export const A2UI_CATALOG = "https://bench.relax-ui.invalid/catalogs/kit.json";
+
+/** One A2UI component: its id, its type, its props, and children by id. */
+function a2uiComponent(n: Node, root: Node): Record<string, unknown> {
+  return {
+    id: idOf(n, root),
+    component: n.type,
+    ...n.props,
+    ...(n.children ? { children: n.children.map((c) => idOf(c, root)) } : {}),
+  };
+}
+
+/**
+ * `createSurface`, then for each frame one `updateComponents` with the
+ * components that are new or changed: the flat list of components with child
+ * ids that A2UI's agents send. A changed component is sent whole, the only
+ * update a component has; so an array growing inside one node is that node
+ * sent again each frame.
+ */
+export function a2uiJSONL(frames: readonly Document[]): Encoded {
+  const line = (m: unknown) => `${JSON.stringify({ version: "v0.9", ...(m as object) })}\n`;
+  const written = new Map<string, string>();
+  const chunks = frames.map((frame, i) => {
+    const components: Record<string, unknown>[] = [];
+    for (const n of preorder(frame.root)) {
+      const c = a2uiComponent(n, frame.root);
+      const text = JSON.stringify(c);
+      if (written.get(c.id as string) === text) continue;
+      written.set(c.id as string, text);
+      components.push(c);
+    }
+    let out = i === 0 ? line({ createSurface: { surfaceId: A2UI_SURFACE, catalogId: A2UI_CATALOG } }) : "";
+    if (components.length) out += line({ updateComponents: { surfaceId: A2UI_SURFACE, components } });
+    return out;
+  });
+  return { chunks };
+}
+
 // --- AI SDK: one JSON text, read as partial JSON ------------------------------
 
 /**

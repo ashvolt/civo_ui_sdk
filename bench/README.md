@@ -53,10 +53,17 @@ pnpm bench -- --renderer ours-react --workload table-cells --profile phone --rep
 
 Other open-source renderers run the same ladders through their own entry
 points: json-render (`useUIStream`, JSONL patches), OpenUI Lang (`<Renderer>`
-reading a growing program) and the AI SDK (`useObject`, partial JSON). Each
-draws the same kit through one React drawer (`src/kit/react.ts`), and each
-frame sequence is encoded in the contender's own format
-(`src/runner/contenders.ts`). The encodings are tested by decoding with the
+reading a growing program), the AI SDK (`useObject`, partial JSON), and A2UI
+in Lit, React and Angular (v0.9 messages into a `MessageProcessor`). Each
+draws the same kit, through a drawer per framework (`src/kit/react.ts`,
+`src/kit/lit.ts`, `angular/kit/kit.ts`), and each frame sequence is encoded in
+the contender's own format (`src/runner/contenders.ts`). This SDK's element
+also runs inside a Vue and an Angular app (`ours-vue-host`,
+`ours-angular-host`).
+
+The two Angular pages (`angular/`) are built ahead of time by the Angular CLI,
+as an Angular app is, by the same `node build.mjs`; that adds about 40
+seconds. `BENCH_SKIP_ANGULAR=1` reuses the last Angular build. The encodings are tested by decoding with the
 contender's own code (`test/contenders.test.ts`).
 
 Before any timing counts, `pnpm bench:gate` checks every renderer draws the

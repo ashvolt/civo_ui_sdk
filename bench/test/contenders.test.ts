@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { Catalog, MessageProcessor } from "@a2ui/web_core/v0_9";
 import { createSpecStreamCompiler } from "@json-render/core";
 import { createParser, createLibrary, defineComponent } from "@openuidev/react-lang";
 import { z } from "zod/v4";
 import { oursSSE } from "../src/runner/encode.ts";
-import { aiSdkJSON, jsonRenderJSONL, openuiLang, propOrder, toFlatSpec, type FlatSpec } from "../src/runner/contenders.ts";
+import { kitApis } from "../src/kit/a2ui.ts";
+import { A2UI_CATALOG, A2UI_SURFACE, a2uiJSONL, aiSdkJSON, jsonRenderJSONL, openuiLang, propOrder, toFlatSpec, type FlatSpec } from "../src/runner/contenders.ts";
 import { benchContract } from "../src/workloads/contract.ts";
 import { framesFor, type Node } from "../src/workloads/generator.ts";
 import { LADDERS, planStep } from "../src/workloads/ladders.ts";
@@ -107,9 +109,45 @@ describe("AI SDK: partial JSON", () => {
   });
 });
 
+describe("A2UI: v0.9 messages", () => {
+  /** Our tree, from the surface's components: props as given, children by id. */
+  const tree = (components: Map<string, { type: string; properties: Record<string, unknown> }>, id: string): Omit<Node, "key"> => {
+    const c = components.get(id)!;
+    const { children, ...props } = c.properties as { children?: string[] };
+    return { type: c.type, props, ...(children ? { children: children.map((k) => tree(components, k)) } : {}) };
+  };
+  const withoutKeys = (n: Node): Omit<Node, "key"> => ({
+    type: n.type,
+    props: n.props,
+    ...(n.children ? { children: n.children.map(withoutKeys) } : {}),
+  });
+
+  it.each(cases)("$id: its own message processor builds the final document", ({ frames }) => {
+    const encoded = a2uiJSONL(frames);
+    if (!("chunks" in encoded)) throw new Error("expressible");
+    const processor = new MessageProcessor([new Catalog(A2UI_CATALOG, "v0.9", kitApis as never)]);
+    const errors: unknown[] = [];
+    for (const chunk of encoded.chunks) {
+      for (const line of chunk.split(String.fromCharCode(10)).filter(Boolean)) errors.push(...processor.processMessagesWithErrors(JSON.parse(line)));
+    }
+    expect(errors).toEqual([]);
+    const surface = processor.model.getSurface(A2UI_SURFACE)!;
+    expect(tree(surface.componentsModel.getAll() as never, "root")).toEqual(withoutKeys(frames.at(-1)!.root));
+  });
+
+  it("sends only new and changed components after the first frame", () => {
+    const churn = cases.find((c) => c.id === "text-churn")!;
+    const encoded = a2uiJSONL(churn.frames) as { chunks: string[] };
+    expect(encoded.chunks[0]).toMatch(/^{"version":"v0.9","createSurface"/);
+    const count = (chunk: string) => (JSON.parse(chunk.trim()) as { updateComponents: { components: unknown[] } }).updateComponents.components.length;
+    const half = churn.frames.length / 2;
+    expect(count(encoded.chunks[half]!)).toBeLessThan(count(encoded.chunks[0]!.split(String.fromCharCode(10))[1]!));
+  });
+});
+
 describe("equal deliveries", () => {
   it.each(cases)("$id: every encoder gives one chunk per logical frame", ({ id, frames }) => {
-    const counts = [oursSSE(frames), jsonRenderJSONL(frames), openuiLang(frames, id), aiSdkJSON(frames, id)]
+    const counts = [oursSSE(frames), jsonRenderJSONL(frames), openuiLang(frames, id), aiSdkJSON(frames, id), a2uiJSONL(frames)]
       .map((e) => (Array.isArray(e) ? e : "chunks" in e ? e.chunks : null))
       .filter((c): c is string[] => c !== null)
       .map((c) => c.length);

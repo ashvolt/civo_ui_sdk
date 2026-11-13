@@ -11,8 +11,13 @@ import { benchContract } from "../workloads/contract.ts";
 
 defineGenUI();
 
-/** Feeds one document's SSE bytes into an element that is already on the page. */
-function feed(el: GenUIElement): Mounted {
+/**
+ * Feeds one document's SSE bytes into an element that is already on the page.
+ * `setSource` is how the page hands the element its source: directly, or
+ * through a framework's state when the element sits in a framework's template
+ * (`ours-vue-host`, `ours-angular-host`).
+ */
+export function feedElement(el: GenUIElement, setSource: (source: { stream: ReadableStream<Uint8Array> }) => void = (s) => void (el.source = s)): Mounted {
   const encoder = new TextEncoder();
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   const stream = new ReadableStream<Uint8Array>({ start: (c) => void (controller = c) });
@@ -29,7 +34,7 @@ function feed(el: GenUIElement): Mounted {
     el.addEventListener("gen-ui:complete", ok, { once: true });
     el.addEventListener("gen-ui:error", fail, { once: true });
   });
-  el.source = { stream };
+  setSource({ stream });
   const surface = () => (el.shadowRoot ?? el).querySelector(".gen-theme");
   return {
     push: (chunk) => {
@@ -56,7 +61,7 @@ function feed(el: GenUIElement): Mounted {
     },
     root: () => surface()?.firstElementChild ?? null,
     unmount: () => el.remove(),
-    next: async () => feed(el),
+    next: async () => feedElement(el, setSource),
   };
 }
 
@@ -78,7 +83,7 @@ export function elementAdapter(id = "ours-element", options: ElementOptions = {}
       // The heavy visuals, as any host adds its own components.
       el.connectors = [kitConnector(), ...(options.connectors ?? [])];
       host.replaceChildren(el);
-      return feed(el);
+      return feedElement(el);
     },
   };
 }
