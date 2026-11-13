@@ -405,16 +405,16 @@ built is in research R3.
 
 ## Phase 5 — Attacks
 
-- [ ] **T-440** Tests: the classifier.
+- [x] **T-440** Tests: the classifier.
   - a deliberately unsafe renderer is "executed" by every evidence kind:
     canary, policy violation, forbidden DOM, external request, global change,
     bounds escape;
   - a safe one is "blocked" or "inert".
 - [ ] **T-441** The injection corpus (`contracts/attacks.md`) and a seeded
   fuzzer, placed in every prop, connector, tier and host.
-- [ ] **T-442** The protocol and denial-of-service cases, each with its required
+- [x] **T-442** The protocol and denial-of-service cases, each with its required
   outcome.
-- [ ] **T-443** The injection tricks: prototype keys, CSS-shaped values, `style`
+- [x] **T-443** The injection tricks: prototype keys, CSS-shaped values, `style`
   and identity attributes through props, overlays, policy bypass.
 - [ ] **T-444** The red-team: about twenty prompts × five runs × two local
   models, through the real route; attempt and leak rates.
@@ -422,6 +422,62 @@ built is in research R3.
   (FR-435).
 - [ ] **T-446** Fix every finding in this SDK, each with a test that fails
   without the fix.
+
+### Phase 5 notes (part a: this SDK's own hosts)
+
+Done in this part: the classifier and its self-test (T-440), the corpus and
+fuzzer on this SDK's four hosts (T-441, except the library connectors), the
+protocol cases (T-442), the injection tricks (T-443), and the fixes for what
+they found (T-446, so far). Left for part b: the library connectors
+(Bootstrap, Shoelace, MUI, Element Plus, Angular Material) through the example
+apps, the red-team (T-444), and the contenders with the disclosure gate
+(T-445).
+
+- **The harness** (`bench/src/attacks/`, `pnpm bench:attacks`; the bench
+  README has the evidence table). Each case runs in a fresh renderer, read
+  from a same-origin route, on a page served with a report-only policy; the
+  outcome is decided by rule from six kinds of evidence. `--self-test` shows a
+  deliberately unsafe page caught by every kind, and this SDK's element by none.
+- **Placement**: each payload in one string prop of one node, every string
+  prop of every component in turn (text, URLs and enumerations, the kit's
+  included), so a refused node never hides another prop.
+- **Five findings, fixed**, each with a test that fails without the fix:
+
+  | Finding | Seen as | Fix |
+  |---|---|---|
+  | An out-of-order, duplicate or unappliable frame ended as `transport_error`, a network failure | protocol `seq-*` | `stream_malformed`, and nothing of the frame applied (`UIStreamAccumulator`) |
+  | No limit on one SSE event: a 100 MB frame froze the page for 47 s at 1.4 GB of heap, 10 MB for 0.5 s at 199 MB; the reader also searched the whole buffer again on every chunk | protocol `oversized-*`, `unterminated-10mb` | events over 8 Mi characters refused with `stream_malformed` (`DEFAULT_MAX_EVENT_LENGTH`, configurable on `decodeSSE`), sockets too; the search resumes where it stopped. Now refused within 150 ms, the page responsive |
+  | The element drew an over-depth document down to the limit, where the contract's document schema refuses it | protocol `over-budget-depth` | refused before drawing, with `schema_violation`, as an over-budget node count already was |
+  | Model text drew outside its component: chart labels past the chart (the plot does not clip), and an unbroken word out of badges, links and table captions | bounds evidence on every server-tier case with a long payload; trick `overlay.unbroken-word` | the theme clips the chart card and breaks generated text anywhere |
+  | A patch path through `__proto__` gave the patched copy a new prototype (no global changed) | review of `applyPatch` for the proto-path case (research R9) | keys are written and read as own properties |
+
+- **Results** (`bench/results/attacks-2026-11-13.json`, fuzz seed 20770, 100
+  variants): 1,486 cases, none executed, every protocol requirement met.
+
+  | Host | Full validation | Server tier |
+  |---|---|---|
+  | element | 179 blocked, 2 inert | 181 inert |
+  | React hook | 179 blocked, 2 inert | 179 blocked, 2 inert |
+  | element in Vue | 179 blocked, 2 inert | 181 inert |
+  | element in Angular | 179 blocked, 2 inert | 181 inert |
+
+  Under full validation nearly every case is blocked: a payload in any
+  enumerated or length-limited prop is refused, and a refused node makes the
+  case "blocked" though its other nodes drew the payload as text. At the
+  server tier the element validates nothing, so every case is drawn, and every
+  one is inert: text stays text, and URLs pass the URL guard. The React
+  renderer validates props at either tier.
+
+  Protocol cases, element and React hook alike: bad sequences and
+  over-budget documents refused within 20 ms; truncation reported as
+  `truncated`; malformed JSON and garbage ignored; a slow drip stopped at
+  once; 10,000 colliding keys as fast as unique ones (282 against 233 ms); a
+  socket flood of 20,000 messages held at 5 MB. The 100 MB case's 440 MB peak
+  is the page's own copy of the test frame: the reader refuses it at 8 Mi
+  characters.
+- **Not a finding**: SSE with bare carriage returns as line ends (allowed by
+  the SSE specification) is not read as events, so such a stream ends as
+  `truncated`. A refusal, not a risk; recorded for a later fix.
 
 ## Phase 6 — Running and showing
 
@@ -448,5 +504,6 @@ built is in research R3.
 
 ## Outstanding
 
-Phases 5 and 6. Follow-ups from phase 4: the desktop depth crash at 96 in the
-Angular host, and phone depth sitting on a frame boundary.
+Phase 5 part b (the library connectors, T-444, T-445, the rest of T-446) and
+phase 6. Follow-ups: the desktop depth crash at 96 in the Angular host, phone
+depth sitting on a frame boundary, and SSE with bare carriage returns.

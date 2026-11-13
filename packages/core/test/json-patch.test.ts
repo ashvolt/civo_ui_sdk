@@ -89,4 +89,19 @@ describe("diffJson / applyPatch", () => {
     expect(diffJson({ a: 1 }, [1, 2])).toEqual([{ op: "replace", path: "", value: [1, 2] }]);
     expect(roundTrip({ a: 1 }, [1, 2])).toEqual([1, 2]);
   });
+
+  it("writes a key named __proto__ or constructor as the document's own, never a prototype (T-446)", () => {
+    const doc = JSON.parse('{"props":{"text":"x"}}') as JsonValue;
+    const patched = applyPatch(doc, [
+      { op: "add", path: "/props/__proto__", value: { polluted: "pwn" } },
+      { op: "add", path: "/props/constructor/prototype/polluted", value: "pwn" },
+      { op: "add", path: "/__proto__/polluted", value: "pwn" },
+    ]) as Record<string, Record<string, unknown>>;
+    const props = patched.props!;
+    expect(Object.getPrototypeOf(props)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(patched)).toBe(Object.prototype);
+    expect(props.polluted).toBeUndefined();
+    expect(Object.hasOwn(props, "__proto__")).toBe(true);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
 });

@@ -116,6 +116,7 @@ const s = (n: number) => `calc(var(--gen-space-unit) * ${n})`;
 export const components: string = /* @__PURE__ */ (() => `
 .gen-theme {
   container-type: inline-size;
+  overflow-wrap: anywhere;
   font-family: var(--gen-font-family);
   font-size: var(--gen-font-size-2);
   line-height: var(--gen-line-height);
@@ -216,6 +217,7 @@ export const components: string = /* @__PURE__ */ (() => `
 .gen-theme .gen-link { color: var(--gen-color-primary); text-decoration: underline; text-underline-offset: 2px; align-self: flex-start; }
 .gen-theme .gen-link:focus-visible { outline: 2px solid var(--gen-color-primary); outline-offset: 2px; border-radius: var(--gen-radius-s); }
 
+.gen-theme .gen-chart { overflow: hidden; }
 .gen-theme .gen-chart__title { font-weight: 600; margin-bottom: ${s(2)}; }
 .gen-theme .gen-chart__plot { display: block; width: 100%; height: auto; aspect-ratio: 5 / 2; overflow: visible; }
 .gen-theme .gen-chart__axis { stroke: var(--gen-color-outline); stroke-width: 1; }

@@ -28,7 +28,8 @@ export {
 } from "./json-patch.js";
 export type { JsonPatchOp } from "./json-patch.js";
 
-export { decodeSSE, isStreamTerminator } from "./sse.js";
+export { DEFAULT_MAX_EVENT_LENGTH, decodeSSE, isStreamTerminator } from "./sse.js";
+export type { DecodeSSEOptions } from "./sse.js";
 export type { SSEEvent } from "./sse.js";
 
 export {

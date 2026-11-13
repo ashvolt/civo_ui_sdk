@@ -323,11 +323,20 @@ export class GenUIElement extends Base {
     const accumulator = new UIStreamAccumulator();
     const draw = (value: unknown, complete: boolean) => {
       const root = (value as { root?: UINode } | undefined)?.root;
-      // Feature 001's node budget, in the browser too (spec, Edge Cases).
-      if (root && measureTree(root).nodes > limits.maxNodes) {
+      // Feature 001's node and depth budgets, in the browser too (spec, Edge
+      // Cases): a document over either is refused before it is drawn, as the
+      // contract's document schema refuses it, not drawn down to the limit.
+      const size = root ? measureTree(root) : undefined;
+      if (size && size.nodes > limits.maxNodes) {
         throw new RelaxUIError({
           code: "schema_violation",
           message: `The document has more than ${limits.maxNodes} nodes; it was not rendered further.`,
+        });
+      }
+      if (size && size.depth > limits.maxDepth) {
+        throw new RelaxUIError({
+          code: "schema_violation",
+          message: `The document is ${size.depth} levels deep; the limit is ${limits.maxDepth}. It was not rendered further.`,
         });
       }
       renderer.render(root, { complete });

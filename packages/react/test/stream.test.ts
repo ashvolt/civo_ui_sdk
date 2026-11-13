@@ -95,4 +95,32 @@ describe("readUIStream", () => {
       accumulator.apply({ type: "patch", seq: 3, ops: [{ op: "add", path: "/b", value: 2 }] }),
     ).toThrowError(/out of order/);
   });
+
+  it("refuses an out-of-order, duplicate or unappliable frame with stream_malformed, applying none of it (T-446)", () => {
+    const code = (f: () => void) => {
+      try {
+        f();
+      } catch (e) {
+        return (e as { code?: string }).code;
+      }
+      return "none";
+    };
+    const accumulator = new UIStreamAccumulator();
+    accumulator.apply({ type: "patch", seq: 1, ops: [{ op: "add", path: "/a", value: [1] }] });
+    expect(code(() => accumulator.apply({ type: "patch", seq: 3, ops: [] }))).toBe("stream_malformed");
+    expect(code(() => accumulator.apply({ type: "patch", seq: 1, ops: [] }))).toBe("stream_malformed");
+    expect(
+      code(() =>
+        accumulator.apply({
+          type: "patch",
+          seq: 2,
+          ops: [
+            { op: "add", path: "/b", value: 2 },
+            { op: "add", path: "/a/not-an-index", value: 3 },
+          ],
+        }),
+      ),
+    ).toBe("stream_malformed");
+    expect(accumulator.current()).toEqual({ a: [1] });
+  });
 });

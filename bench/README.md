@@ -124,3 +124,41 @@ Two problems were found before any result was recorded:
   Badge's 32-character limit. This SDK's React hook rightly stopped the stream,
   while its element quietly refused the badges. The generator's test now
   validates every frame, not only the last.
+
+## The attacks
+
+`pnpm bench:attacks` runs the attack suites against this SDK on every host
+(the element, the React hook, the element in a Vue and in an Angular app), at
+both validation tiers, and exits non-zero if any case executes or a protocol
+requirement is missed:
+
+```bash
+pnpm bench:attacks -- --self-test               # the harness must catch a deliberately unsafe page
+pnpm bench:attacks                              # injection, fuzz, tricks, protocol
+pnpm bench:attacks -- --suite protocol --renderer ours-element
+pnpm bench:attacks -- --fuzz 500 --seed 42      # more fuzzed variants, a fixed seed
+```
+
+Each case runs in a fresh renderer on a page served with a report-only
+Content Security Policy, reading the case from a same-origin route, as a
+production page reads the SDK's route. The outcome comes from evidence, never
+from looking (`src/attacks/classify.ts`):
+
+| Evidence | How it is seen |
+|---|---|
+| canary | every payload calls `window.__relaxPwned(id)` if it runs |
+| policy | a violation of the report-only policy |
+| dom | an element or attribute the benign document never draws, a handler attribute, a URL with a forbidden scheme, CSS that loads |
+| requests | a request leaving the page's origin (aborted, so nothing reaches the network) |
+| globals | built-in prototypes, the window and the element's class, before and after |
+| bounds | a generated element visible outside the host's box |
+
+Any evidence is "executed"; otherwise a refusal is "blocked" and the rest
+"inert". `--self-test` runs one case per evidence kind against a page that
+draws props as HTML, merges them into shared defaults and applies a `style`
+prop: each kind must be seen there, and none on this SDK's element.
+
+Payloads are this repository's own (`src/attacks/corpus.ts`), each placed in
+one string prop of one node, every string prop of every component in turn, so
+a node refused for one bad prop never hides another. Fuzzed variants are
+seeded mutations of them (`src/attacks/fuzz.ts`); the seed is in the result.
