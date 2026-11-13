@@ -1,0 +1,6 @@
+/*
+ * Adopted with the Shoelace connector into the element's shadow root, where
+ * Shoelace's elements are. A badge's inner part never wraps, so a long word
+ * would run out of it; this lets it wrap.
+ */
+sl-badge::part(base) { white-space: normal; overflow-wrap: anywhere; text-align: start; }

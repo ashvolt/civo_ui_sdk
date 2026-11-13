@@ -58,6 +58,34 @@
           }
         }
       }
+    },
+    "ours-material": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "ours-material",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "../dist-angular/ours-material",
+              "browser": ""
+            },
+            "browser": "ours-material/main.ts",
+            "index": false,
+            "tsConfig": "tsconfig.json",
+            "aot": true,
+            "optimization": true,
+            "outputHashing": "none",
+            "sourceMap": true,
+            "extractLicenses": false,
+            "progress": false,
+            "styles": [
+              "@angular/material/prebuilt-themes/azure-blue.css"
+            ]
+          }
+        }
+      }
     }
   }
 }

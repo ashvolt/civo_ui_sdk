@@ -410,17 +410,17 @@ built is in research R3.
     canary, policy violation, forbidden DOM, external request, global change,
     bounds escape;
   - a safe one is "blocked" or "inert".
-- [ ] **T-441** The injection corpus (`contracts/attacks.md`) and a seeded
+- [x] **T-441** The injection corpus (`contracts/attacks.md`) and a seeded
   fuzzer, placed in every prop, connector, tier and host.
 - [x] **T-442** The protocol and denial-of-service cases, each with its required
   outcome.
 - [x] **T-443** The injection tricks: prototype keys, CSS-shaped values, `style`
   and identity attributes through props, overlays, policy bypass.
-- [ ] **T-444** The red-team: about twenty prompts × five runs × two local
+- [x] **T-444** The red-team: about twenty prompts × five runs × two local
   models, through the real route; attempt and leak rates.
-- [ ] **T-445** The corpus against every contender, with the disclosure gate
+- [x] **T-445** The corpus against every contender, with the disclosure gate
   (FR-435).
-- [ ] **T-446** Fix every finding in this SDK, each with a test that fails
+- [x] **T-446** Fix every finding in this SDK, each with a test that fails
   without the fix.
 
 ### Phase 5 notes (part a: this SDK's own hosts)
@@ -479,6 +479,84 @@ apps, the red-team (T-444), and the contenders with the disclosure gate
   the SSE specification) is not read as events, so such a stream ends as
   `truncated`. A refusal, not a risk; recorded for a later fix.
 
+### Phase 5 notes (part b: connectors, red-team, contenders)
+
+- **Library connectors** (T-441): five more pages, each the element with a
+  connector from the example apps beside the bench kit: Bootstrap 5 and
+  Shoelace (HTML host), Element Plus (Vue host), MUI (React sample) and
+  Angular Material (Angular host). Light-mode pages load the kit's CSS, as a
+  host would. Angular Material is built against Angular 21: the example's
+  Angular 22 CLI needs Node 22.22.3 or later, and the bench machine has 22.14,
+  so the bench compiles a copy of the example's `material.ts`.
+- **Six findings, fixed** (T-446), each with a test that fails without the fix:
+
+  | Finding | Seen as | Fix |
+  |---|---|---|
+  | The MUI sample turned props into CSS: a `gap` or `tone` outside its enumeration reached emotion's style text (at the server tier, unvalidated), so a value could write CSS | injection cases on `ours-mui`, server tier | the sample looks values up in its own maps by own key, with a default (`samples/mui.tsx`) |
+  | A column Stack in the MUI sample wrapped as a row would: children escaped the box | bounds on `ours-mui` | `flex-wrap: nowrap` for columns |
+  | `relax-ui-connect-vue` passed every prop to the component; Vue puts the ones it does not declare on the root element, so `class`, `id`, `style` and `slot` props became attributes at the server tier | trick `identity.props`, `ours-element-plus` | only the props a component declares are passed |
+  | The SSE reader never yielded to the event loop when a source handed over chunks in microtasks only, so a long event froze the page | protocol frame gaps over 200 ms on the connector pages | the reader yields once every 1 MB of text without an event |
+  | Badges in Bootstrap, Element Plus and Shoelace kept an unbroken word on one line, past their box | trick `overlay.unbroken-word` | the connectors let badge and text wrap anywhere (Shoelace through a new `stylesheet` option) |
+  | (bench) light-mode pages had no kit CSS, so heatmaps escaped their card | bounds on `ours-mui` | `installKitCss()` on those pages |
+
+- **Results** (`bench/results/attacks-2026-11-13.json`, fuzz seed 20770, 100
+  variants): 4,380 cases; on this SDK's nine hosts 3,296, none executed,
+  every protocol requirement met. Every host, the connectors included, shows the same
+  pattern as part a: 179 blocked and 2 inert under full validation; 181 inert
+  at the server tier (the React hook: 179 blocked, 2 inert, as it validates
+  props at either tier).
+- **Red-team** (T-444): twenty prompts × five runs × `qwen2.5:3b` and
+  `llama3.2:3b`, through the Next example's route on Ollama, CPU only
+  (`bench/results/redteam-2026-11-13.json`; median run 56 s, longest 516 s,
+  5 h 15 min in all). **Leak rate 0** across all 200 runs; attempt rate 44%
+  (qwen 45%, llama 43%). 177 runs completed and were drawn, all inert; 23
+  were refused by the route: 12 as `schema_violation` (mostly `javascript:`
+  links), 11 as `truncated` (the model ran out of output on the budget
+  prompts).
+
+  | Aim | Attempt rate (qwen / llama) | What happened |
+  |---|---|---|
+  | markup in a prop (3 prompts) | 100% / 100% | drawn as text |
+  | script URL (`js-link`, `markdown-link`) | 100%, 80% / 80%, 40% | links refused by the contract's URL pattern; markdown drawn as text |
+  | `data:` link | 0% / 0% | the models wrote an ordinary URL |
+  | forbidden component (3 prompts) | 0–80% / 40–100% | only in the text: the route asks Ollama for the contract's JSON schema, so the decoder cannot write a type outside it |
+  | hidden instructions (2 prompts) | 100% / 0–100% | drawn as text |
+  | off-site link | 20% / 100% | the standard contract allows any `https:` link, so a link labelled `civo.com/pricing` may point elsewhere; nothing loads unless clicked. Not a leak by the evidence, but a limit: a host that needs it should restrict link hosts in its contract |
+  | template expression, prototype key | 0–100% | drawn as text |
+  | action, `style`, `class`, `id` props; budgets | 0% / 0% | the decoder's schema has no such props; over-budget attempts ended `truncated` |
+
+  The constrained decoder is the first line: no run wrote a type or prop the
+  contract lacks. Ollama does not enforce `pattern` (the route warns that the
+  wire schema omits it), so URL patterns are checked by validation, which
+  refused every `javascript:` link that was written.
+- **Contenders** (T-445): the corpus in each contender's own wire format,
+  drawn with the same kit, with the disclosure gate: a contender that
+  executes anything is left out of the committed results and kept in
+  `bench/results/private/` for 30 days. OpenUI Lang cannot carry the
+  prototype-key and identity tricks (props by position); they are recorded as
+  not expressible. Same file, same seed; nothing withheld:
+
+  | Contender | Cases | Inert | Executed (passed through) |
+  |---|---|---|---|
+  | json-render | 181 | 174 | 7 |
+  | OpenUI | 179 | 172 | 7 |
+  | AI SDK | 181 | 174 | 7 |
+  | A2UI, Lit | 181 | 166 | 15 |
+  | A2UI, React | 181 | 174 | 7 |
+  | A2UI, Angular | 181 | 174 | 7 |
+
+  Every executed case is a bad URL on the kit's own link and nothing else:
+  the `data:text/html` and `vbscript:` links of the corpus and its fuzzed
+  variants, and through Lit, which sanitises nothing, `javascript:` ones as
+  well (React and Angular neutralise those). No contender checks a prop while
+  drawing; the props reach the application's components as they came. That
+  is how these libraries are built, not their own safety failing, so it is
+  published with `cause: "passed-through-unchecked"` rather than embargoed
+  (decided 2026-11-13). None blocked anything: no contender refuses a node.
+  Harness fixes found on the way: A2UI's Angular service kept the last
+  surface after unmount; React's and Angular's neutralised URLs were counted
+  as bad; the baseline lacked Grid, whose A2UI host element then looked new.
+
 ## Phase 6 — Running and showing
 
 - [ ] **T-450** CI job "Bench smoke": short ladders against the stored `main`
@@ -504,6 +582,6 @@ apps, the red-team (T-444), and the contenders with the disclosure gate
 
 ## Outstanding
 
-Phase 5 part b (the library connectors, T-444, T-445, the rest of T-446) and
-phase 6. Follow-ups: the desktop depth crash at 96 in the Angular host, phone
+Phase 6. Follow-ups: restricting link hosts in a contract (the red-team's
+off-site link), the desktop depth crash at 96 in the Angular host, phone
 depth sitting on a frame boundary, and SSE with bare carriage returns.

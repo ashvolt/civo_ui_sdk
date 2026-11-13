@@ -7,6 +7,10 @@
  * `children` — where the renderer's children go. Each root carries the role the
  * contract names for its type, explicitly, as the base theme does.
  *
+ * A prop that becomes CSS is chosen from a fixed list, never passed through:
+ * MUI writes `direction`, `columns` and the like into a stylesheet, and at the
+ * server validation tier the page has not checked them (spec 004, T-446).
+ *
  * Not published: a starting point to copy, and what the conformance suite runs.
  */
 import Alert from "@mui/material/Alert";
@@ -34,17 +38,29 @@ type P<T> = GenProps<T>;
 const TONE = { info: "info", success: "success", warning: "warning", danger: "error" } as const;
 const GAP = { sm: 1, md: 2, lg: 3 } as const;
 
+/** `map[key]` for a key the map really has; never an inherited property such as `constructor`. */
+const pick = <T extends object>(map: T, key: unknown): T[keyof T] | undefined =>
+  typeof key === "string" && Object.hasOwn(map, key) ? map[key as keyof T] : undefined;
+
 const components = {
-  Stack: ({ direction, gap, children }: P<{ direction?: "row" | "column"; gap?: keyof typeof GAP }>) => (
-    <Stack role="group" direction={direction ?? "column"} spacing={GAP[gap ?? "md"]} useFlexGap sx={{ flexWrap: "wrap" }}>
-      {children}
-    </Stack>
-  ),
-  Grid: ({ columns, children }: P<{ columns?: number }>) => (
-    <Box role="group" sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: `repeat(${columns ?? 3}, 1fr)` } }}>
-      {children}
-    </Box>
-  ),
+  Stack: ({ direction, gap, children }: P<{ direction?: "row" | "column"; gap?: keyof typeof GAP }>) => {
+    const row = direction === "row";
+    // Only a row wraps: a wrapping column sizes its items before stretching
+    // them, and a full-width chart then overflows its card.
+    return (
+      <Stack role="group" direction={row ? "row" : "column"} spacing={pick(GAP, gap) ?? GAP.md} useFlexGap sx={{ flexWrap: row ? "wrap" : "nowrap" }}>
+        {children}
+      </Stack>
+    );
+  },
+  Grid: ({ columns, children }: P<{ columns?: number }>) => {
+    const n = Number.isInteger(columns) && columns! >= 1 && columns! <= 12 ? columns! : 3;
+    return (
+      <Box role="group" sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: `repeat(${n}, 1fr)` } }}>
+        {children}
+      </Box>
+    );
+  },
   Card: ({ title, subtitle, children }: P<{ title?: string; subtitle?: string }>) => (
     <Card role="region" aria-label={title} variant="outlined">
       {title !== undefined && <CardHeader title={title} subheader={subtitle} />}
@@ -52,7 +68,7 @@ const components = {
     </Card>
   ),
   Heading: ({ text, level }: P<{ text?: string; level?: number }>) => {
-    const l = Math.min(Math.max(level ?? 2, 1), 4) as 1 | 2 | 3 | 4;
+    const l = level === 1 || level === 3 || level === 4 ? level : 2;
     return (
       <Typography role="heading" aria-level={l} variant={(["h4", "h5", "h6", "subtitle1"] as const)[l - 1]} component={`h${l}`}>
         {text}
@@ -99,13 +115,13 @@ const components = {
     </Table>
   ),
   Callout: ({ tone, title, body }: P<{ tone?: keyof typeof TONE; title?: string; body?: string }>) => (
-    <Alert role="note" severity={TONE[tone ?? "info"]}>
+    <Alert role="note" severity={pick(TONE, tone) ?? "info"}>
       <AlertTitle>{title}</AlertTitle>
       {body}
     </Alert>
   ),
   Badge: ({ text, tone }: P<{ text?: string; tone?: "neutral" | keyof typeof TONE }>) => (
-    <Chip role="note" size="small" label={text} color={tone === undefined || tone === "neutral" ? "default" : TONE[tone]} sx={{ alignSelf: "flex-start" }} />
+    <Chip role="note" size="small" label={text} color={pick(TONE, tone) ?? "default"} sx={{ alignSelf: "flex-start" }} />
   ),
   Link: ({ label, href }: P<{ label?: string; href?: string }>) => (
     // `href` passed the contract's URL guard, and the renderer's guard again.

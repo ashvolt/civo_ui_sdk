@@ -16,11 +16,17 @@
     "allowImportingTsExtensions": true,
     "noImplicitOverride": true,
     "useDefineForClassFields": false,
-    "types": []
+    "types": [],
+    "paths": {
+      "@angular/core": [
+        "../node_modules/@angular/core"
+      ]
+    }
   },
   "files": [
     "a2ui-angular/main.ts",
-    "ours-angular-host/main.ts"
+    "ours-angular-host/main.ts",
+    "ours-material/main.ts"
   ],
   "angularCompilerOptions": {
     "strictTemplates": true,

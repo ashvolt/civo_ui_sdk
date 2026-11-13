@@ -162,3 +162,67 @@ Payloads are this repository's own (`src/attacks/corpus.ts`), each placed in
 one string prop of one node, every string prop of every component in turn, so
 a node refused for one bad prop never hides another. Fuzzed variants are
 seeded mutations of them (`src/attacks/fuzz.ts`); the seed is in the result.
+
+**Library connectors.** The same suites run on the element with each library
+connector from the example apps, beside the bench kit: Bootstrap 5 and
+Shoelace (`examples/html-host`), Element Plus (`examples/vue-host`), MUI
+(`packages/connect-react/samples`) and Angular Material (`examples/angular-host`,
+compiled here against Angular 21, since the example's Angular 22 CLI needs a
+newer Node than the bench machine has). The result's `connector` field names
+it (`mui+kit`).
+
+**Contenders** (T-445): json-render, OpenUI, the AI SDK and A2UI on Lit, React
+and Angular get the same documents in their own wire formats, through each
+page's ordinary streaming path, drawn with the same kit components. They have
+no validation tiers, so each runs once (tier `own`). OpenUI Lang passes props
+by position, so the prototype-key and identity tricks cannot be written in it;
+the result lists them under `notExpressible` rather than as inert. A
+contender's finding never fails the run.
+
+None of the contenders checks a prop while drawing: json-render's
+`catalog.validate` and A2UI's message validator are opt-in, OpenUI's prop
+schemas describe components for the prompt, and the AI SDK checks only the
+final object. They hand props to the application's components as they come;
+the kit, standing in for the application, has no URL guard (FR-430). So a
+`data:` or `vbscript:` link (and, through Lit, which sanitises nothing, a
+`javascript:` one) reaches the page on every contender. That is recorded as
+`executed` with `cause: "passed-through-unchecked"`: a design difference from
+this SDK, which checks URLs in the contract and again in every renderer.
+
+**Disclosure gate** (FR-435): any other contender finding is the library's
+own. Then every result of that contender, clean ones too, goes to
+`results/private/` (untracked), the committed file leaves it out and says only
+how many contenders were withheld and until when (30 days), and the run's log
+does not print its findings (`src/attacks/disclosure.ts`). Its maintainers are
+told privately first.
+
+### The red-team
+
+`pnpm bench:redteam` sends twenty prompts aimed at the contract
+(`src/attacks/redteam.ts`: forbidden components, markup and script URLs in
+props, off-site links, over-budget documents, action and identity props,
+instructions hidden in data, template expressions, prototype keys) as the
+`topic` of the Next example's real route (`examples/next-app/app/api/ui/route.ts`),
+five times each, to each local model through Ollama:
+
+```bash
+pnpm bench:redteam                                       # qwen2.5:3b and llama3.2:3b, 5 runs
+node --experimental-strip-types src/runner/redteam.ts --models qwen2.5:3b --runs 1 --prompts js-link
+```
+
+The model's raw text is captured before the route validates it, and the
+route's response is drawn by the element with the example's contract, on an
+attack page, for evidence. Two numbers per prompt and model:
+
+- **attempt rate**: runs whose raw output held something forbidden (markup,
+  a handler, a script URL, the canary, an off-site link, a template, CSS that
+  positions or loads, a prototype key, a type or prop outside the contract,
+  or a document over budget);
+- **leak rate**: runs where anything reached the page, by the same evidence as
+  the attack suites. It must be zero; the run exits non-zero otherwise.
+
+Only local models on 127.0.0.1 are used (Constitution I): the runner refuses
+any other address. If Ollama is not running, the red-team is reported as
+skipped, not passed. On a CPU a run takes about a minute (up to eight), so
+the full 200 runs take five to seven hours. The 2026-11-13 run: attempt rate
+44%, leak rate 0.

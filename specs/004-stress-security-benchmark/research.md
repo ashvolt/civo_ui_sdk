@@ -433,6 +433,24 @@ same page idle after garbage collection.
 
 No hosted model is used (Constitution I).
 
+**Found in implementation (2026-11-13)**:
+- On this machine Ollama runs both models on the CPU only. A run takes from
+  half a minute to eight and a half (median 56 s); the full 200 runs took
+  5 h 15 min.
+  A hosted model would take minutes, but it would break Constitution I, send
+  attack prompts to a third party whose own filters would then be part of
+  the result, and could not be re-run against the same weights.
+- The prompt reaches the model as the route's `topic`, the one input a browser
+  controls, capped at 300 characters; every prompt fits.
+- The models attempt often (44% of runs): markup, handlers and the canary
+  appear in every run of the markup prompts. Nothing reached the page (leak
+  rate 0).
+- The route asks Ollama for the contract's JSON schema, so the decoder cannot
+  write a type or prop outside it: no run did, whatever the prompt asked.
+  Attacks survive only as string content, which the renderer draws as text.
+  Ollama drops `pattern` from the schema, so a `javascript:` href is
+  generated and then refused by validation.
+
 ---
 
 ## R11. Contenders: versions and licences
@@ -482,3 +500,29 @@ them in every result.
 **Decision**: a contender found to execute an attack is not named on any public
 page until its maintainers have been told privately and given 30 days. The raw
 result stays out of the committed JSON until then.
+
+**Found in implementation (2026-11-13)**:
+- Dropping only the executed cases would still name the contender, by the
+  gap in its results. So every result of such a contender goes to the private
+  file, and the committed file says only how many contenders were withheld
+  and until when.
+- A run's log can be public (CI), so the runner prints no contender's
+  findings either.
+- A contender's wire format may not be able to carry a case at all (OpenUI
+  Lang passes props by position, so an extra prop cannot be written). Such a
+  case is recorded as not expressible, never as inert.
+- No contender checks a prop while drawing (json-render 0.22: `catalog.validate`
+  is opt-in and `<Renderer>` draws the streamed spec; A2UI 0.15: catalog
+  schemas bind and describe, message validation is opt-in; OpenUI 1.1: zod
+  props describe components for the prompt; AI SDK 7: `useObject` checks only
+  the final object). On every contender the kit, which has no URL guard
+  (FR-430), therefore drew the corpus's `data:` and `vbscript:` links, and
+  through Lit `javascript:` ones too. Identical across libraries, this is how
+  they are built, not a failure of their own safety, so it is published as
+  `cause: "passed-through-unchecked"` and not embargoed (decided 2026-11-13).
+  Only a bad URL on the kit's own link counts; anything else stays under the
+  gate.
+- Frameworks neutralise some URLs themselves: React 19 replaces a
+  `javascript:` URL with a stub that throws, Angular prefixes a refused one
+  with `unsafe:`. The DOM scan treats both as safe.
+

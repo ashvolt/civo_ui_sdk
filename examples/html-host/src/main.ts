@@ -32,7 +32,7 @@ el("bootstrap").connectors = [bootstrap5({ stylesheet: "/vendor/bootstrap.min.cs
 el("bootstrap").source = { document: labelled("Bootstrap") };
 
 // Any ReadableStream in the SDK's SSE framing: validated in full.
-el("shoelace").connectors = [shoelace({ darkStylesheet: "/vendor/shoelace-dark.css" })];
+el("shoelace").connectors = [shoelace({ stylesheet: "/vendor/shoelace-connector.css", darkStylesheet: "/vendor/shoelace-dark.css" })];
 void fetch("/api/ui", { method: "POST", body: JSON.stringify({ label: "Shoelace" }) }).then((response) => {
   el("shoelace").source = { stream: response.body! };
 });

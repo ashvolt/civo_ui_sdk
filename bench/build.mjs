@@ -21,6 +21,24 @@ const out = join(here, "dist");
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
+/** Where the connector pages' libraries are installed: the example apps and the MUI sample. */
+const LIBRARY_HOMES = ["examples/html-host", "examples/vue-host", "packages/connect-react"];
+const fromHome = (home, path) => createRequire(join(here, "..", home, "package.json")).resolve(path);
+/** Library stylesheets a connector page links, as its example app does. */
+const VENDOR = {
+  "bootstrap.min.css": ["examples/html-host", "bootstrap/dist/css/bootstrap.min.css"],
+  "shoelace-light.css": ["examples/html-host", "@shoelace-style/shoelace/dist/themes/light.css"],
+  "element-plus.css": ["examples/vue-host", "element-plus/dist/index.css"],
+};
+/** The example apps' own files a connector page serves, as those apps do. */
+const EXAMPLE_FILES = { "shoelace-connector.css": "examples/html-host/src/connectors/shoelace.css" };
+const PAGE_CSS = {
+  "ours-bootstrap": ["/vendor/bootstrap.min.css"],
+  "ours-shoelace": ["/vendor/shoelace-light.css"],
+  "ours-element-plus": ["/vendor/element-plus.css"],
+  "ours-material": ["/ng/ours-material/styles.css"],
+};
+
 const pages = readdirSync(join(here, "pages")).filter((f) => /\.(ts|tsx)$/.test(f));
 await build({
   entryPoints: Object.fromEntries(pages.map((f) => [parse(f).name, join("pages", f)])),
@@ -36,10 +54,17 @@ await build({
   jsx: "automatic",
   chunkNames: "chunks/[name]-[hash]",
   define: { "process.env.NODE_ENV": '"production"' },
+  // The connector pages import the example apps' connectors, whose libraries
+  // are those apps' dependencies; one copy of each framework for the page.
+  nodePaths: LIBRARY_HOMES.map((h) => join(here, "..", h, "node_modules")),
+  alias: { vue: "vue", react: "react", "react-dom": "react-dom" },
   logLevel: "warning",
 });
 
-const ANGULAR = ["a2ui-angular", "ours-angular-host"];
+const ANGULAR = ["a2ui-angular", "ours-angular-host", "ours-material"];
+// The Material page compiles the Angular example's connector as it is, but from
+// here, so that its imports resolve to the bench's Angular (see its main.ts).
+copyFileSync(join(here, "..", "examples/angular-host/src/connectors/material.ts"), join(here, "angular/ours-material/material.copy.ts"));
 const angularOut = join(here, "dist-angular");
 
 /** Runs `ng build <project>`; rejects with its output if it fails. */
@@ -63,7 +88,7 @@ function shell(name, script) {
   writeFileSync(
     join(out, `${name}.html`),
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${name}</title>
-<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/theme.css">${(PAGE_CSS[name] ?? []).map((h) => `<link rel="stylesheet" href="${h}">`).join("")}
 <style>body{margin:0;font-family:system-ui}#bench-interact{position:fixed;top:4px;right:4px;z-index:1}#host{padding:8px}</style>
 <script type="module" src="${script}"></script></head>
 <body><button id="bench-interact" type="button">interact</button><div id="host"></div></body></html>\n`,
@@ -71,6 +96,9 @@ function shell(name, script) {
 }
 
 copyFileSync(require.resolve("relax-ui-theme-base/theme.css"), join(out, "theme.css"));
+mkdirSync(join(out, "vendor"));
+for (const [file, [home, path]] of Object.entries(VENDOR)) copyFileSync(fromHome(home, path), join(out, "vendor", file));
+for (const [file, path] of Object.entries(EXAMPLE_FILES)) copyFileSync(join(here, "..", path), join(out, "vendor", file));
 for (const f of pages) shell(parse(f).name, `/${parse(f).name}.js`);
 for (const p of ANGULAR) shell(p, `/ng/${p}/main.js`);
 console.log(`built ${pages.length + ANGULAR.length} bench pages`);

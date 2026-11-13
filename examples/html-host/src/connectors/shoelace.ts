@@ -13,13 +13,16 @@ import { defineConnector, type Connector } from "relax-ui-element";
  * shadow root and the class follows the element's variant. (Shoelace's file
  * also targets `:host`, which would make every host dark; the example's build
  * serves a copy without it.)
+ *
+ * Given `stylesheet`, the URL of `shoelace.css` beside this file, that is
+ * adopted too: it lets a badge wrap a long word rather than run out of its box.
  */
-export function shoelace(options: { darkStylesheet?: string } = {}): Connector {
+export function shoelace(options: { darkStylesheet?: string; stylesheet?: string } = {}): Connector {
   return defineConnector({
     name: "shoelace",
     kind: "element",
     mode: "shadow",
-    stylesheets: options.darkStylesheet ? [options.darkStylesheet] : [],
+    stylesheets: [options.stylesheet, options.darkStylesheet].filter((s): s is string => s !== undefined),
     variants: options.darkStylesheet ? { dark: { class: "sl-theme-dark" } } : {},
     requires: () => ["sl-card", "sl-alert", "sl-badge"].every((tag) => customElements.get(tag) !== undefined),
     implementations: {

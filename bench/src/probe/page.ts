@@ -1,3 +1,4 @@
+import { attackFromMount } from "../attacks/contender.ts";
 import { installAttacks, type AttackAdapter } from "../attacks/page.ts";
 
 /**
@@ -111,7 +112,8 @@ declare global {
 }
 
 export function installHarness(adapter: PageAdapter): void {
-  if (adapter.attack) installAttacks({ attack: adapter.attack });
+  // A contender's page is attacked through its ordinary mount (T-445).
+  installAttacks({ attack: adapter.attack ?? attackFromMount((host) => adapter.mount(host)) });
   let data: StepData | undefined;
   const bench: Window["__bench"] = {
     pushed: 0,
