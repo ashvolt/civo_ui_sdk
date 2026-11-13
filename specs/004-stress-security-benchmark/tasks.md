@@ -211,20 +211,20 @@ phase is releasable on its own (plan, phase 3).
 
 ## Phase 4 — Comparison
 
-- [ ] **T-430** Kit drawers for React, Lit and Angular. Test: each draws every
+- [x] **T-430** Kit drawers for React, Lit and Angular. Test: each draws every
   template to the same markup as the DOM renderer.
 - [x] **T-431** [P] `json-render` adapter (JSONL patches, registry of kit
   components).
-- [ ] **T-432** [P] `a2ui-lit`, `a2ui-react` and `a2ui-angular` adapters
+- [x] **T-432** [P] `a2ui-lit`, `a2ui-react` and `a2ui-angular` adapters
   (v0.9 messages, a custom catalog of kit components).
 - [x] **T-433** [P] `openui` adapter (OpenUI Lang encoding, library of kit
   components).
 - [x] **T-434** [P] `ai-sdk` adapter (partial JSON through `useObject`,
   hand-written kit components).
-- [ ] **T-435** [P] `ours-vue-host` and `ours-angular-host` adapters.
+- [x] **T-435** [P] `ours-vue-host` and `ours-angular-host` adapters.
 - [x] **T-436** Structural gate: every adapter's markup equals the reference
   for every workload, or it is reported as not expressible with a reason.
-- [ ] **T-437** Full comparison on both profiles; results committed.
+- [x] **T-437** Full comparison on both profiles; results committed.
 
 ### Phase 4 notes (part a: the React contenders)
 
@@ -317,6 +317,92 @@ hook (T-437's first half). Left for part b: A2UI on Lit, React and Angular
 - This SDK's rows supersede `local-2026-11-10.json`, which predates the
   schema fix and the equal deliveries.
 
+### Phase 4 notes (part b: A2UI, and the Vue and Angular hosts)
+
+Done in this part: the Lit and Angular kit drawers (the rest of T-430), A2UI
+on Lit, React and Angular (T-432), this SDK's element inside a Vue and an
+Angular app (T-435), and their comparison (the rest of T-437). How each was
+built is in research R3.
+
+- **A2UI's wire format**: `createSurface`, then one `updateComponents` per
+  frame with the components that are new or changed, decoded in the tests by
+  A2UI's own `MessageProcessor`. A component has no partial update, so an
+  array growing inside one node is that node sent whole each frame.
+- **The hosts A2UI puts around each component** are its DOM: the timings keep
+  them, and the comparison reads through them (`unwrap` on the page adapter).
+  Two changes to the canonical markup made the gate stricter: a run of text is
+  one text whatever comments sit in it, and an SVG element must be one
+  (`svg:rect`), so one made in the HTML namespace, which draws nothing, fails.
+- **Angular** is compiled ahead of time by the Angular CLI and runs zoneless,
+  as a production app does. `@a2ui/angular` 0.14.0 needs Angular 21, so the
+  bench pins 21.2.5 for both Angular pages (research R11).
+- **The gate**: 246 cases draw the reference's markup and 4 are not
+  expressible, over the ten renderers.
+- **Results**, merged into `bench/results/compare-2026-11-11.json` (same
+  laptop, Chromium 153, five repetitions per step, on mains power).
+
+  Desktop:
+
+  | Workload | Ours, element | Ours, in Vue | Ours, in Angular | A2UI Lit | A2UI React | A2UI Angular |
+  |---|---|---|---|---|---|---|
+  | nodes (streamed) | all (10k) | all | all | 5,000 | 5,000 | 1,000 |
+  | static nodes | all (10k) | 500 | 1,000 | 5,000 | 250 | 100 |
+  | depth | 96 | 96 | 48 | 48 | 96 | 48 |
+  | table cells | 10,000 | 10,000 | 10,000 | 10,000 | 10,000 | 5,000 |
+  | chart points | 1,000 | 1,000 | 1,000 | 1,000 | 250 | 1,000 |
+  | frame rate | all | all | all | all | all | all |
+  | text churn | all | all | all | all | all | all |
+  | tone density | all | all | all | all | all | all |
+  | heatmap cells | 10,000 | 10,000 | 10,000 | 10,000 | 10,000 | 5,000 |
+  | scatter points | 5,000 | 5,000 | 5,000 | 2,500 | 2,500 | 2,500 |
+  | sparklines | all | all | all | all | all | 500 |
+  | counters | 500 | 500 | 500 | 200 | 200 | 200 |
+
+  Phone (4x CPU):
+
+  | Workload | Ours, element | Ours, in Vue | Ours, in Angular | A2UI Lit | A2UI React | A2UI Angular |
+  |---|---|---|---|---|---|---|
+  | nodes (streamed) | 250 | 100 | 250 | 25 | 50 | 25 |
+  | static nodes | 500 | 250 | 500 | 50 | none | 25 |
+  | depth | 48 | 48 | 2 | none | none | none |
+  | table cells | 100 | 100 | 100 | 20 | 100 | 20 |
+  | chart points | 50 | 8 | 8 | none | 8 | 8 |
+  | frame rate | none | none | none | none | none | none |
+  | text churn | 1 | none | none | none | none | none |
+  | tone density | none | none | none | none | none | none |
+  | heatmap cells | 1,000 | 100 | 100 | 100 | 100 | 25 |
+  | scatter points | 100 | 100 | 100 | 100 | 100 | 100 |
+  | sparklines | 100 | 25 | 25 | 5 | 25 | 5 |
+  | counters | 10 | 10 | 10 | 10 | 10 | 5 |
+
+  Cold start (median, ms; first node / complete / longest task):
+
+  | | Ours, in Vue | Ours, in Angular | A2UI Lit | A2UI React | A2UI Angular |
+  |---|---|---|---|---|---|
+  | desktop | 9 / 54 / 0 | 3 / 51 / 0 | 31 / 82 / 0 | 19 / 74 / 0 | 65 / 98 / 0 |
+  | phone | 30 / 205 / 154 | 68 / 205 / 180 | 250 / 302 / 0 | 172 / 324 / 247 | 254 / 329 / 0 |
+
+- **Reading it.** Differences of one step are noise. Beyond that:
+  - A2UI trails the other contenders, most on the phone. Likely causes, not
+    yet profiled: its message processor builds a component model and resolves
+    each child by id before a framework draws anything, and each component is
+    an element or component of its own. A2UI on Angular is the slowest of the
+    ten on desktop.
+  - A2UI on Lit and Angular show no long task at cold start on the phone, but
+    the latest first node (about 250 ms).
+  - This SDK's element is about as fast inside Vue or Angular as alone on
+    desktop, except static nodes, where the host's update is in the timed
+    path. On the phone it keeps its lead on node counts in Angular; in Vue it
+    loses steps on node counts, chart points, heatmap cells and sparklines.
+  - **Depth on the phone is unstable for this SDK**: frame p95 sits on the
+    16.7/33.3 ms boundary at every step. A rerun of the depth ladder alone
+    gave "none" for both the element (48 here) and the Angular host (2 here).
+    Read the phone depth row as "about the first step" for all of them.
+  - **Depth on desktop**: the renderer process crashes at 96 levels in the
+    Angular host, as it does for A2UI on Lit and Angular, and at 128 for the
+    element alone; repeated on a rerun. Follow-up: find which nesting the
+    crash comes from (Blink's own limit, or the host's extra stack).
+
 ## Phase 5 — Attacks
 
 - [ ] **T-440** Tests: the classifier.
@@ -362,5 +448,5 @@ hook (T-437's first half). Left for part b: A2UI on Lit, React and Angular
 
 ## Outstanding
 
-Phase 4 part b (T-430's Lit and Angular drawers, T-432, T-435, the rest of
-T-437), phases 5 and 6.
+Phases 5 and 6. Follow-ups from phase 4: the desktop depth crash at 96 in the
+Angular host, and phone depth sitting on a frame boundary.

@@ -34,6 +34,13 @@ export interface PageAdapter {
   mountedComponents?(): number;
   /** How many framework components `document` should have mounted (soak). */
   expectedComponents?(document: unknown): number;
+  /**
+   * The contender's own elements between the document's: host elements a
+   * framework puts around each component (A2UI's `<a2ui-react-card>`, a Lit
+   * or Angular host). The comparison reads through them; the timing keeps
+   * them, since the page pays for them.
+   */
+  unwrap?(element: Element): boolean;
 }
 
 /**
@@ -190,7 +197,7 @@ export function installHarness(adapter: PageAdapter): void {
       lof.disconnect();
       evo.disconnect();
 
-      const got = canonical(mounted.root());
+      const got = canonical(mounted.root(), adapter.unwrap);
       const want = adapter.reference(data.final);
       return {
         // The first delta spans the time before the run began.
@@ -269,25 +276,44 @@ function soakLoop(adapter: PageAdapter): Window["__bench"]["soak"] {
   };
 }
 
-/** Elements, sorted attributes and text, in order (as the cross-host test). */
-export function canonical(root: Element | null): string {
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/**
+ * Elements, sorted attributes and text, in order (as the cross-host test).
+ * Text is what renders: runs of text nodes are one text, whatever comments
+ * (a template library's markers) or unwrapped elements sit between them. An
+ * SVG element is marked as one, so an element made in the wrong namespace,
+ * which draws nothing, does not pass for the right one.
+ */
+export function canonical(root: Element | null, unwrap?: (element: Element) => boolean): string {
   if (!root) return "";
   const out: string[] = [];
-  const walk = (node: Node) => {
+  let text = "";
+  const flush = () => {
+    if (text !== "") out.push(JSON.stringify(text));
+    text = "";
+  };
+  const walk = (node: Node): void => {
     if (node.nodeType === Node.TEXT_NODE) {
-      const t = (node as Text).data;
-      if (t !== "") out.push(JSON.stringify(t));
+      text += (node as Text).data;
       return;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as Element;
+    if (unwrap?.(el)) {
+      for (const child of el.childNodes) walk(child);
+      return;
+    }
+    flush();
+    const name = `${el.namespaceURI === SVG_NS ? "svg:" : ""}${el.localName}`;
     const attrs = [...el.attributes].map((a) => `${a.name}=${JSON.stringify(a.value)}`).sort();
-    out.push(`<${el.localName}${attrs.length ? " " + attrs.join(" ") : ""}>`);
-    el.normalize();
+    out.push(`<${name}${attrs.length ? " " + attrs.join(" ") : ""}>`);
     for (const child of el.childNodes) walk(child);
-    out.push(`</${el.localName}>`);
+    flush();
+    out.push(`</${name}>`);
   };
   walk(root);
+  flush();
   return out.join("\n");
 }
 

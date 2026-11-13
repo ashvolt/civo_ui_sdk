@@ -4,6 +4,9 @@ import { themeAttributes } from "relax-ui-theme-base";
 import { installKitCss } from "../kit/css.ts";
 import type { Mounted, PageAdapter } from "../probe/page.ts";
 import { referenceMarkup } from "../probe/reference.ts";
+import { componentRoot } from "./contender-root.ts";
+
+export { componentRoot };
 
 /**
  * A page for a React contender (T-431, T-433, T-434). Every contender reads
@@ -68,25 +71,10 @@ function feed(root: Root, host: HTMLElement, View: ContenderView): Mounted {
   };
 }
 
-/**
- * The outermost kit element: what the document drew. A contender may wrap it
- * in elements of its own (OpenUI's renderer adds a `<div aria-busy>`); those
- * are the contender's, not the document's, and are left out of the
- * comparison.
- */
-export function componentRoot(host: HTMLElement): Element | null {
-  const theme = host.querySelector(".gen-theme");
-  if (!theme) return null;
-  const walk = document.createTreeWalker(theme, NodeFilter.SHOW_ELEMENT);
-  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
-    if ([...(n as Element).classList].some((c) => c.startsWith("gen-"))) return n as Element;
-  }
-  return null;
-}
-
-export function reactContender(id: string, view: ContenderView): PageAdapter {
+export function reactContender(id: string, view: ContenderView, extra: Pick<PageAdapter, "unwrap"> = {}): PageAdapter {
   installKitCss();
   return {
+    ...extra,
     id,
     reference: referenceMarkup,
     async mount(host) {

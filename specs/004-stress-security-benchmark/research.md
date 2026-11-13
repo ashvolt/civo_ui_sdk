@@ -210,6 +210,46 @@ with the contender's own code (`bench/test/contenders.test.ts`).
 - **AI SDK**: the final document's JSON, cut where each frame's content ends.
   A partial-JSON stream only appends, so the two workloads that change what
   is shown (text churn, counters) are reported as not expressible.
+- **A2UI v0.9**: JSONL messages, `createSurface` first, then per frame one
+  `updateComponents` with the components that are new or changed: the flat
+  list with child ids its agents send. A component has no partial update, so
+  an edit, or an array growing inside one node, sends that component whole.
+  Decoded in the test by A2UI's own `MessageProcessor`. One catalog of kit
+  component APIs serves the three renderers: every prop optional and of any
+  type, children a `ChildList`.
+
+**Measured in phase 4 (part b): the hosts around each component.** A2UI wraps
+every component in an element of its own: `<a2ui-react-card>` (style
+`display: contents`) in React, the component's element in Lit,
+`<a2ui-v09-component-host>` and the component's selector in Angular. They are
+the contender's DOM, so the timings keep them; the comparison reads through
+them (`unwrap` on the page adapter). Two changes to the canonical markup, made
+while doing so, each make the gate stricter, not looser:
+- text is what renders: a run of text nodes is one text, whatever comments
+  (Lit's and Angular's markers) or unwrapped elements sit between them;
+- an SVG element is written as one (`svg:rect`), so an element made in the
+  HTML namespace, which draws nothing, no longer passes for it. Lit needs its
+  `svg` tag below an `<svg>`, and Angular the `svg:` prefix in a template;
+  both drawers do so.
+
+How each renderer was built:
+- **Lit**: one `A2uiLitElement` per kit component, rendering into light DOM
+  as A2UI's own basic catalog does (`<a2ui-surface>` is light DOM too), so
+  the page's stylesheet reaches it. The kit's templates become Lit templates
+  with static tags and an attribute directive.
+- **Angular**: compiled ahead of time by the Angular CLI (Angular 21, which
+  `@a2ui/angular` 0.14.0 needs; the repo's example is on 22) and zoneless,
+  as a production app is; just-in-time compilation would have timed the
+  compiler. One recursive template draws the kit's markup as data, a case
+  per tag, so Angular creates and diffs each element. URL attributes pass
+  Angular's `DomSanitizer`, as an `[attr.href]` binding would: Angular's
+  safety stays Angular's for the attack phase. A2UI's renderer service keeps
+  one processor, so a new document is `deleteSurface`, then a new surface.
+- **This SDK's element in Vue and Angular apps** (`ours-vue-host`,
+  `ours-angular-host`): the app's template renders `<gen-ui>` and binds its
+  contract, connectors and source; each document is a new source set through
+  the app's state (a `shallowRef`, a signal), which the framework hands to
+  the element on its next update.
 
 ---
 
@@ -387,6 +427,10 @@ Checked on npm, 2026-11-10:
 Notes:
 - OpenUI needs React 19 and Zod 4 (`zod/v4`). A2UI's Angular renderer's
   version is a minor behind its Lit and React renderers.
+- `@a2ui/angular` 0.14.0 needs Angular 21; the benchmark pins Angular
+  21.2.5 and its CLI for both Angular pages, separate from the repo's
+  Angular 22 example. `@a2ui/react` and `@a2ui/lit` 0.15.0 need Zod 3, the
+  bench's `zod3` instance.
 - `@openuidev/lang-core` runs a telemetry script on install. pnpm blocks
   install scripts by default and it stays blocked; the renderer works without
   it.

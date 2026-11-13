@@ -1,0 +1,63 @@
+{
+  "$schema": "../node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "analytics": false,
+    "cache": {
+      "enabled": false
+    }
+  },
+  "newProjectRoot": ".",
+  "projects": {
+    "a2ui-angular": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "a2ui-angular",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "../dist-angular/a2ui-angular",
+              "browser": ""
+            },
+            "browser": "a2ui-angular/main.ts",
+            "index": false,
+            "tsConfig": "tsconfig.json",
+            "aot": true,
+            "optimization": true,
+            "outputHashing": "none",
+            "sourceMap": true,
+            "extractLicenses": false,
+            "progress": false
+          }
+        }
+      }
+    },
+    "ours-angular-host": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "ours-angular-host",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "../dist-angular/ours-angular-host",
+              "browser": ""
+            },
+            "browser": "ours-angular-host/main.ts",
+            "index": false,
+            "tsConfig": "tsconfig.json",
+            "aot": true,
+            "optimization": true,
+            "outputHashing": "none",
+            "sourceMap": true,
+            "extractLicenses": false,
+            "progress": false
+          }
+        }
+      }
+    }
+  }
+}
