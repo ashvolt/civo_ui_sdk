@@ -68,7 +68,8 @@ export function bootstrap5(options: { stylesheet?: string } = {}): Connector {
       },
       Badge: {
         classes: {
-          root: "badge align-self-start",
+          // Bootstrap's badge never wraps; a long word would run out of it.
+          root: "badge align-self-start text-wrap text-break text-start",
           tone: {
             neutral: "text-bg-secondary",
             info: "text-bg-info",

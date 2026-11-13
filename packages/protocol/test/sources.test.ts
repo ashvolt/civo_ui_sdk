@@ -269,6 +269,25 @@ describe("stream source (T-213)", () => {
     ).rejects.toMatchObject({ code: "stream_malformed" });
   });
 
+  it("lets the event loop run while a long event arrives, however the source delivers it (T-446)", async () => {
+    // Chunks handed over in microtasks only, as a stream built in the page is:
+    // without a yield the decoder would hold the thread for the whole body.
+    const chunk = new TextEncoder().encode("x".repeat(65_536));
+    let sent = 0;
+    let timerFiredAt = -1;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(c) {
+        if (sent === 0) c.enqueue(new TextEncoder().encode("data: "));
+        if (sent++ < 64) c.enqueue(chunk);
+        else c.close();
+      },
+    });
+    setTimeout(() => (timerFiredAt = sent), 0);
+    await collect({ stream });
+    expect(timerFiredAt).toBeGreaterThan(0);
+    expect(timerFiredAt).toBeLessThan(64);
+  });
+
   it("an error frame is a proper ending, not a truncation", async () => {
     const { events, error } = await collect({ stream: sse([PATCH_1, ERROR].map(data)) });
     expect(events.map((e) => e.type)).toEqual(["patch", "error"]);

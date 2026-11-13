@@ -91,6 +91,16 @@ installHarness({
     });
     const ref = app.bootstrap(Root, rootElement);
     const service = app.injector.get(A2uiRendererService);
-    return feed(app, ref.instance, service, host, () => ref.destroy());
+    // The service outlives the component: a fresh mount (an attack case)
+    // must not find the last surface still there.
+    const destroy = () => {
+      try {
+        service.processMessages({ version: "v0.9", deleteSurface: { surfaceId: A2UI_SURFACE } } as never);
+      } catch {
+        // no surface was created
+      }
+      ref.destroy();
+    };
+    return feed(app, ref.instance, service, host, destroy);
   },
 });

@@ -31,10 +31,16 @@ interface ResultFile {
   }[];
   attacks: {
     caseId: string; family: string; technique: string;
-    renderer: string; host?: string; connector?: string; tier?: "full" | "server";
+    renderer: string; host?: string; connector?: string; tier?: "full" | "server" | "own";
     outcome: "blocked" | "inert" | "executed";
     evidence: Record<string, unknown>; errorCode?: string;
+    /** A contender's `executed` that is published: "passed-through-unchecked". */
+    cause?: string;
   }[];
+  /** Cases a contender's wire format cannot carry (`own` tier only). */
+  notExpressible?: { renderer: string; id: string; why: string }[];
+  /** Present when the disclosure gate held contenders back; no names. */
+  withheld?: { contenders: number; until: string; why: string };
   redteam?: { model: string; prompt: string; runs: number; attempts: number; leaks: number }[];
 }
 ```
@@ -42,6 +48,8 @@ interface ResultFile {
 **Rules**
 
 - Embargoed outcomes (a contender's `executed`) are not written here (FR-435).
+  Nor is any other result of that contender: they go to
+  `bench/results/private/` (untracked), and `withheld` counts them.
 - Raw `samples` may be gzipped beside the file if large; the file names it.
 - A change to this shape bumps `schemaVersion`. The dashboard reads every
   version it knows.

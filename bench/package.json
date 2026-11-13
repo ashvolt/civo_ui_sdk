@@ -11,7 +11,8 @@
     "bench:selftest": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/selftest.ts",
     "bench:soak": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/soak.ts",
     "bench:attacks": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/attacks.ts",
-    "bench:gate": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/gate.ts"
+    "bench:gate": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/gate.ts",
+    "bench:redteam": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/redteam.ts"
   },
   "devDependencies": {
     "@ai-sdk/react": "4.0.170",
@@ -44,9 +45,12 @@
     "@a2ui/markdown-it": "0.2.2",
     "@a2ui/react": "0.15.0",
     "@a2ui/web_core": "0.15.0",
+    "@angular/cdk": "21.2.14",
     "@angular/common": "21.2.5",
     "@angular/compiler": "21.2.5",
     "@angular/core": "21.2.5",
+    "@angular/forms": "21.2.5",
+    "@angular/material": "21.2.14",
     "@angular/platform-browser": "21.2.5",
     "lit": "3.3.3",
     "relax-ui-connect-angular": "workspace:*",

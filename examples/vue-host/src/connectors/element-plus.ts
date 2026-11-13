@@ -19,6 +19,13 @@ const TAG = { neutral: "info", info: "primary", success: "success", warning: "wa
 
 const str = { type: String, required: false } as const;
 
+/**
+ * Element Plus's tag never wraps and its text keeps a long word whole; either
+ * would run out of its box. Set through the CSSOM, which a strict
+ * `style-src` allows.
+ */
+const WRAP = { overflowWrap: "anywhere", whiteSpace: "normal", height: "auto", textAlign: "start" } as const;
+
 const Card = defineComponent({
   props: { title: str, subtitle: str },
   setup(props, { slots }) {
@@ -44,14 +51,14 @@ const Metric = defineComponent({
     const tone = { up: "success", down: "danger", flat: "info" } as const;
     return () =>
       h(ElCard, { role: "group", "aria-label": props.label, shadow: "never", bodyStyle: { padding: "12px 16px" } }, () => [
-        h(ElText, { tag: "p", type: "info", size: "small" }, () => props.label),
-        h(ElText, { tag: "p", size: "large", class: "gen-ep-value" }, () => [
+        h(ElText, { tag: "p", type: "info", size: "small", style: WRAP }, () => props.label),
+        h(ElText, { tag: "p", size: "large", class: "gen-ep-value", style: WRAP }, () => [
           props.value,
           props.trend
             ? h(ElText, { type: tone[props.trend], role: "img", "aria-label": `trend ${props.trend}`, class: "gen-ep-trend" }, () => ` ${glyph[props.trend!]}`)
             : null,
         ]),
-        props.caption === undefined ? null : h(ElText, { tag: "p", type: "info", size: "small" }, () => props.caption),
+        props.caption === undefined ? null : h(ElText, { tag: "p", type: "info", size: "small", style: WRAP }, () => props.caption),
       ]);
   },
 });
@@ -67,7 +74,7 @@ const Callout = defineComponent({
 const Badge = defineComponent({
   props: { text: str, tone: { type: String as PropType<keyof typeof TAG>, required: false } },
   setup(props) {
-    return () => h(ElTag, { role: "note", type: TAG[props.tone ?? "neutral"], size: "small", disableTransitions: true }, () => props.text);
+    return () => h(ElTag, { role: "note", type: TAG[props.tone ?? "neutral"], size: "small", disableTransitions: true, style: WRAP }, () => props.text);
   },
 });
 
@@ -82,7 +89,7 @@ const Link = defineComponent({
 const Text = defineComponent({
   props: { text: str, tone: { type: String as PropType<"default" | "muted">, required: false } },
   setup(props) {
-    return () => h(ElText, { tag: "p", role: "paragraph", type: props.tone === "muted" ? "info" : undefined, class: "gen-ep-text" }, () => props.text);
+    return () => h(ElText, { tag: "p", role: "paragraph", type: props.tone === "muted" ? "info" : undefined, class: "gen-ep-text", style: WRAP }, () => props.text);
   },
 });
 

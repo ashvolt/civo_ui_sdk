@@ -115,7 +115,18 @@ const SAFE_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
 const CSS_LOADS = /url\s*\(|expression\s*\(|@import|javascript:/i;
 const MARKERS = [PWN_HOST, "__relaxPwned", "relaxident"];
 
-function badUrl(value: string): boolean {
+/**
+ * What React 19 writes in place of a `javascript:` URL it blocks: a stub that
+ * only throws React's own error when followed. The payload is gone, so it is
+ * not a script URL that runs anything.
+ */
+const REACT_BLOCKED_URL = "javascript:throw new Error('React has blocked a javascript: URL as a security precaution.')";
+
+/** Angular's sanitizer prefixes a URL it refuses with `unsafe:`: a scheme no browser follows. */
+const ANGULAR_SANITIZED = /^unsafe:/;
+
+export function badUrl(value: string): boolean {
+  if (value === REACT_BLOCKED_URL || ANGULAR_SANITIZED.test(value)) return false;
   // eslint-disable-next-line no-control-regex
   const v = value.replace(/[\u0000- \u007f-\u009f]/g, "").toLowerCase();
   const scheme = /^([a-z][a-z0-9+.-]*):/.exec(v)?.[1];
@@ -183,6 +194,9 @@ function describe(el: Element, attr?: Attr): string {
   return `<${tagOf(el)}${v ? " " + v : ""}>`;
 }
 
+/** How the DOM scan names a bad URL on the kit's Link (`<a class="gen-link">`). */
+export const KIT_LINK = "kit-link";
+
 /** What the rendered tree has that the benign document's never had, or should never have. */
 function scanDom(root: Node | null, base: Profile): string[] {
   const out: string[] = [];
@@ -194,7 +208,12 @@ function scanDom(root: Node | null, base: Profile): string[] {
       const name = a.name.toLowerCase();
       if (name.startsWith("on")) out.push(`handler ${describe(el, a)}`);
       else if (!base.attrs.has(`${tag}@${a.name}`)) out.push(`new attribute ${describe(el, a)}`);
-      if (URL_ATTRS.has(name) && badUrl(a.value)) out.push(`url ${describe(el, a)}`);
+      // The kit's own link is named, so a URL the library passed through to the
+      // app's component can be told from one the library drew itself (T-445).
+      if (URL_ATTRS.has(name) && badUrl(a.value)) {
+        const where = el.classList.contains("gen-link") ? `${KIT_LINK} ${a.name}=${JSON.stringify(a.value.slice(0, 120))}` : describe(el, a);
+        out.push(`url ${where}`);
+      }
       if (name === "style" && CSS_LOADS.test(a.value)) out.push(`css ${describe(el, a)}`);
       if (name === "srcdoc") out.push(`srcdoc ${describe(el, a)}`);
       if (["style", "class", "slot", "part", "id", "is"].includes(name) && a.value.includes("relaxident")) out.push(`identity ${describe(el, a)}`);

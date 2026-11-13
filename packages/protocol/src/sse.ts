@@ -42,6 +42,9 @@ export function tooLong(max: number): RelaxUIError {
  * billing, for a reader that has gone; on a local runtime it also keeps the
  * model busy, so the next request queues behind an answer nobody wants.
  */
+/** Characters read without an event before the decoder lets the event loop run. */
+const YIELD_EVERY = 1024 * 1024;
+
 export async function* decodeSSE(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
@@ -53,6 +56,10 @@ export async function* decodeSSE(
   let buffer = "";
   let scanFrom = 0;
   let drained = false;
+  // Characters read since the last event or the last yield. A source that
+  // hands over chunks without ever leaving the microtask queue (a stream built
+  // in the page) would otherwise hold the main thread for a whole large body.
+  let sinceYield = 0;
 
   const onAbort = () => void reader.cancel().catch(() => {});
   signal?.addEventListener("abort", onAbort, { once: true });
@@ -67,7 +74,9 @@ export async function* decodeSSE(
         drained = true;
         break;
       }
-      buffer += decoder.decode(value, { stream: true });
+      const text = decoder.decode(value, { stream: true });
+      buffer += text;
+      sinceYield += text.length;
 
       // Events are separated by a blank line; tolerate CRLF and bare LF. The
       // search resumes where the last one stopped, so a long event costs its
@@ -78,10 +87,15 @@ export async function* decodeSSE(
         const raw = buffer.slice(0, boundary.index);
         buffer = buffer.slice(boundary.index + boundary.length);
         const event = parseEventBlock(raw);
+        sinceYield = 0;
         if (event) yield event;
         boundary = findBoundary(buffer, 0);
       }
       if (buffer.length > max) throw tooLong(max);
+      if (sinceYield >= YIELD_EVERY) {
+        sinceYield = 0;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
       // A boundary may straddle two chunks: look again from its first character.
       scanFrom = Math.max(0, buffer.length - 3);
     }

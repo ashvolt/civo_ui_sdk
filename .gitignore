@@ -1,6 +1,10 @@
 node_modules/
 dist/
 bench/dist-angular/
+bench/dist-node/
+# Contender attack findings under embargo (spec 004, FR-435): never committed
+bench/results/private/
+bench/angular/ours-material/material.copy.ts
 .angular/
 .next/
 out/

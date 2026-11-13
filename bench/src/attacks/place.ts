@@ -62,6 +62,24 @@ const keyOf = (s: string) => s.replace(/[^A-Za-z0-9]/g, "_");
 /** A case's id for one slot: what the canary and the request URL carry. */
 export const caseId = (payload: Payload, slot: Slot) => `${payload.id}~${slot.id}`;
 
+/**
+ * The baseline every case is compared with: the benign placed document, plus
+ * every component that has no string prop to place a payload in (Grid), since
+ * the tricks use every component and a contender may wrap each in a host
+ * element of its own (`<kit-lit-grid>`).
+ */
+export function baselineDocument(): Document {
+  const doc = placedDocument(undefined);
+  const placed = new Set(slots().map((s) => s.type));
+  Object.keys(BENIGN)
+    .filter((type) => !placed.has(type))
+    .forEach((type, i) => {
+      const b = BENIGN[type]!;
+      doc.root.children!.push({ ...structuredClone(b), key: `b${i}`, ...(b.children ? { children: b.children.map((c, j) => ({ ...c, key: `b${i}c${j}` })) } : {}) });
+    });
+  return doc;
+}
+
 /** One document per payload: a node per slot, each with the payload in that slot only. */
 export function placedDocument(payload: Payload | undefined, list: readonly Slot[] = slots()): Document {
   return {

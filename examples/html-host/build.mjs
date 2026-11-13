@@ -38,6 +38,7 @@ await build({
 copyFileSync(require.resolve("relax-ui-theme-base/theme.css"), join(out, "theme.css"));
 copyFileSync(require.resolve("bootstrap/dist/css/bootstrap.min.css"), join(vendor, "bootstrap.min.css"));
 copyFileSync(require.resolve("@shoelace-style/shoelace/dist/themes/light.css"), join(vendor, "shoelace-light.css"));
+copyFileSync(join(here, "src", "connectors", "shoelace.css"), join(vendor, "shoelace-connector.css"));
 // Shoelace's dark theme applies to `:host` as well as `.sl-theme-dark`; adopted
 // into a shadow root, `:host` would make that element dark whatever its
 // variant. The class alone is what the connector switches.

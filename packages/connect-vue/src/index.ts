@@ -65,11 +65,12 @@ export function vueConnector(options: VueConnectorOptions): Connector {
  * child host stays where the component put it.
  */
 export function mountVue(component: Component, app?: App): MountImplementation {
+  const declared = declaredProps(component);
   return {
     mount(host, props, childHost) {
       const slot = () => h(ChildHost, { host: childHost });
       const draw = (p: Record<string, unknown>) => {
-        const vnode = h(component, p, { default: slot });
+        const vnode = h(component, only(p, declared), { default: slot });
         if (app) vnode.appContext = app._context;
         render(vnode, host);
       };
@@ -97,6 +98,31 @@ const ChildHost = {
     return () => h("div", { ref: place, "data-gen-children": "", style: { display: "contents" } });
   },
 };
+
+/**
+ * The props a component declares, or `undefined` if it declares none (a
+ * functional component, which takes what it is given).
+ */
+function declaredProps(component: Component): ReadonlySet<string> | undefined {
+  const props = (component as { props?: readonly string[] | Record<string, unknown> }).props;
+  if (props === undefined) return undefined;
+  return new Set(Array.isArray(props) ? props : Object.keys(props));
+}
+
+/**
+ * Only the props the component declares. Vue puts any other on the
+ * component's root element as an attribute, so a prop the contract does not
+ * have (`class`, `id`, `slot`, `style`, an own `__proto__`), which a page
+ * validating at the server tier has not removed, would reach the DOM.
+ */
+function only(props: Record<string, unknown>, declared: ReadonlySet<string> | undefined): Record<string, unknown> {
+  if (!declared) return props;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(props)) {
+    if (declared.has(key)) out[key] = props[key];
+  }
+  return out;
+}
 
 function isLazy(entry: unknown): entry is LazyComponent {
   return typeof entry === "object" && entry !== null && typeof (entry as LazyComponent).load === "function";
