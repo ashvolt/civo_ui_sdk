@@ -585,3 +585,60 @@ describe("stopping early actually stops the upstream", () => {
     expect(cancelled()).toBe(true);
   });
 });
+
+describe("a model that goes quiet mid-answer (spec 002, T-160)", () => {
+  /** An SSE body that sends its frames, then stays open and silent; records being cancelled. */
+  function stallingBody(frames: unknown[]): { body: ReadableStream<Uint8Array>; cancelled: () => boolean } {
+    const encoder = new TextEncoder();
+    let wasCancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const f of frames) controller.enqueue(encoder.encode(`data: ${JSON.stringify(f)}\n\n`));
+      },
+      cancel() {
+        wasCancelled = true;
+      },
+    });
+    return { body, cancelled: () => wasCancelled };
+  }
+
+  const clientFor = (body: ReadableStream<Uint8Array>, limits: { timeoutMs?: number; idleTimeoutMs?: number }) =>
+    new OpenAICompatibleClient({
+      apiKey: "k",
+      fetch: async () => new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }),
+      capabilities: ALL_TIERS(),
+      retry: { maxRetries: 0 },
+      ...limits,
+    });
+
+  it("ends the UI stream with a timeout error frame and cancels the upstream", async () => {
+    const { body, cancelled } = stallingBody(contentChunks('{"title":"A title that stops', 8));
+    const client = clientFor(body, { idleTimeoutMs: 60 });
+
+    const events = await collect(streamObject({ client, model: "test-model", schema: Report, prompt: "x" }));
+
+    expect(events.at(-1)).toMatchObject({ type: "error", error: { code: "timeout", retryable: true } });
+    expect(cancelled()).toBe(true);
+  });
+
+  it("defaults the idle limit to the request timeout, so a stall no longer holds the request for good", async () => {
+    const { body, cancelled } = stallingBody(contentChunks('{"title":"Stops', 8));
+    const client = clientFor(body, { timeoutMs: 60 });
+
+    const events = await collect(streamObject({ client, model: "test-model", schema: Report, prompt: "x" }));
+
+    expect(events.at(-1)).toMatchObject({ type: "error", error: { code: "timeout" } });
+    expect(cancelled()).toBe(true);
+  });
+
+  it("a per-request idle limit overrides the client's", async () => {
+    const { body } = stallingBody(contentChunks('{"title":"Stops', 8));
+    const client = clientFor(body, { idleTimeoutMs: 60_000 });
+    const started = Date.now();
+
+    const events = await collect(streamObject({ client, model: "test-model", schema: Report, prompt: "x", idleTimeoutMs: 60 }));
+
+    expect(events.at(-1)).toMatchObject({ type: "error", error: { code: "timeout" } });
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+});

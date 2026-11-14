@@ -477,7 +477,9 @@ apps, the red-team (T-444), and the contenders with the disclosure gate
   characters.
 - **Not a finding**: SSE with bare carriage returns as line ends (allowed by
   the SSE specification) is not read as events, so such a stream ends as
-  `truncated`. A refusal, not a risk; recorded for a later fix.
+  `truncated`. A refusal, not a risk; recorded for a later fix. **Fixed
+  2026-11-14**: `decodeSSE` reads CRLF, LF and bare CR, across chunk
+  boundaries, with a test that fails without the fix.
 
 ### Phase 5 notes (part b: connectors, red-team, contenders)
 
@@ -647,4 +649,4 @@ T-451's first nightly run on `main`. Follow-ups:
 - restricting link hosts in a contract (the red-team's off-site link);
 - the desktop depth crash at 96 in the Angular host;
 - phone depth sitting on a frame boundary;
-- SSE with bare carriage returns.
+- ~~SSE with bare carriage returns~~ (fixed 2026-11-14).

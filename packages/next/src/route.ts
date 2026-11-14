@@ -68,6 +68,12 @@ export interface GenerativeUIRouteConfig<TInput, TObject> {
    * of a nested document routinely outlasts two minutes.
    */
   timeoutMs?: number;
+  /**
+   * Once the model's stream is open, the longest it may send nothing, in ms,
+   * before the route closes it and sends a `timeout` error frame. Default: the
+   * client's own, which equals its `timeoutMs`.
+   */
+  idleTimeoutMs?: number;
 }
 
 export type GenerativeUIRouteHandler = (request: Request) => Promise<Response>;
@@ -143,6 +149,7 @@ export function createGenerativeUIRoute<TInput, TObject>(
       ...(config.transport ? { transport: config.transport } : {}),
       ...(config.onEvent ? { onEvent: config.onEvent } : {}),
       ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+      ...(config.idleTimeoutMs !== undefined ? { idleTimeoutMs: config.idleTimeoutMs } : {}),
       signal: request.signal,
     });
 
@@ -188,6 +195,7 @@ export function createGenerativeObjectRoute<TInput, TObject>(
           : {}),
         ...(config.onEvent ? { onEvent: config.onEvent } : {}),
         ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+        ...(config.idleTimeoutMs !== undefined ? { idleTimeoutMs: config.idleTimeoutMs } : {}),
         signal: request.signal,
       });
       return Response.json({ object: result.object, metadata: result.metadata });

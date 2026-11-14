@@ -19,6 +19,38 @@ export const DEFAULT_MAX_EVENT_LENGTH = 8 * 1024 * 1024;
 export interface DecodeSSEOptions {
   /** Refuse an event longer than this many characters. Default `DEFAULT_MAX_EVENT_LENGTH`. */
   maxEventLength?: number;
+  /**
+   * Give up when no bytes arrive for this many ms once the body is open, with
+   * a `timeout` error, and cancel the body. A model that stops emitting would
+   * otherwise hold the reader until the caller's own signal fires. Default:
+   * none.
+   */
+  idleTimeoutMs?: number;
+}
+
+/** The refusal for a stream that went quiet for `ms`. */
+function idle(ms: number): RelaxUIError {
+  return new RelaxUIError({
+    code: "timeout",
+    message: `The stream sent nothing for ${ms} ms; it was closed.`,
+    retryable: true,
+  });
+}
+
+/**
+ * Line endings as the SSE specification allows them (CRLF, LF or a bare CR),
+ * made LF, across chunk boundaries: a chunk that ends in CR may be the first
+ * half of a CRLF.
+ */
+class LineEndings {
+  private pendingCR = false;
+  normalise(text: string): string {
+    let s = text;
+    if (this.pendingCR && s.startsWith("\n")) s = s.slice(1);
+    if (s === "") return s;
+    this.pendingCR = s.endsWith("\r");
+    return s.replace(/\r\n?/g, "\n");
+  }
 }
 
 /** The refusal for an event longer than `max` characters. */
@@ -51,8 +83,22 @@ export async function* decodeSSE(
   options: DecodeSSEOptions = {},
 ): AsyncGenerator<SSEEvent, void, unknown> {
   const max = options.maxEventLength ?? DEFAULT_MAX_EVENT_LENGTH;
+  const idleMs = options.idleTimeoutMs && options.idleTimeoutMs > 0 ? options.idleTimeoutMs : undefined;
   const reader = body.getReader();
   const decoder = new TextDecoder();
+  const endings = new LineEndings();
+  const read = (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+    const next = reader.read();
+    if (!idleMs) return next;
+    // The read left behind when the timer wins is settled by the cancel below;
+    // it must not surface as an unhandled rejection.
+    next.catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const quiet = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(idle(idleMs)), idleMs);
+    });
+    return Promise.race([next, quiet]).finally(() => clearTimeout(timer));
+  };
   let buffer = "";
   let scanFrom = 0;
   let drained = false;
@@ -69,18 +115,18 @@ export async function* decodeSSE(
       if (signal?.aborted) {
         throw new RelaxUIError({ code: "aborted", message: "Stream aborted by caller." });
       }
-      const { done, value } = await reader.read();
+      const { done, value } = await read();
       if (done) {
         drained = true;
         break;
       }
-      const text = decoder.decode(value, { stream: true });
+      const text = endings.normalise(decoder.decode(value, { stream: true }));
       buffer += text;
       sinceYield += text.length;
 
-      // Events are separated by a blank line; tolerate CRLF and bare LF. The
-      // search resumes where the last one stopped, so a long event costs its
-      // length once, not once per chunk.
+      // Events are separated by a blank line; every line ending is LF by now.
+      // The search resumes where the last one stopped, so a long event costs
+      // its length once, not once per chunk.
       let boundary = findBoundary(buffer, scanFrom);
       while (boundary !== null) {
         if (boundary.index > max) throw tooLong(max);
@@ -97,10 +143,10 @@ export async function* decodeSSE(
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
       // A boundary may straddle two chunks: look again from its first character.
-      scanFrom = Math.max(0, buffer.length - 3);
+      scanFrom = Math.max(0, buffer.length - 1);
     }
 
-    buffer += decoder.decode();
+    buffer += endings.normalise(decoder.decode());
     const tail = parseEventBlock(buffer);
     if (tail) yield tail;
   } finally {
@@ -115,14 +161,11 @@ export async function* decodeSSE(
 
 function findBoundary(buffer: string, from: number): { index: number; length: number } | null {
   const lf = buffer.indexOf("\n\n", from);
-  const crlf = buffer.indexOf("\r\n\r\n", from);
-  if (lf === -1 && crlf === -1) return null;
-  if (crlf !== -1 && (lf === -1 || crlf < lf)) return { index: crlf, length: 4 };
-  return { index: lf, length: 2 };
+  return lf === -1 ? null : { index: lf, length: 2 };
 }
 
 function parseEventBlock(block: string): SSEEvent | null {
-  const lines = block.split(/\r?\n/);
+  const lines = block.split("\n");
   const dataLines: string[] = [];
   let event: string | undefined;
   let id: string | undefined;
