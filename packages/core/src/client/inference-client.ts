@@ -4,7 +4,10 @@ import type { ChatCompletionRequest, ChatCompletionResponse, ModelDescriptor } f
 
 export interface RequestOptions {
   signal?: AbortSignal;
+  /** Until the response's headers arrive. */
   timeoutMs?: number;
+  /** Once a streamed body is open: the longest silence before it is closed with `timeout`. */
+  idleTimeoutMs?: number;
   headers?: Record<string, string>;
 }
 

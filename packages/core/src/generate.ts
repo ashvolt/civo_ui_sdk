@@ -743,6 +743,7 @@ function requestOptions<T>(options: GenerateObjectOptions<T>): RequestOptions {
   const out: RequestOptions = {};
   if (options.signal) out.signal = options.signal;
   if (options.timeoutMs !== undefined) out.timeoutMs = options.timeoutMs;
+  if (options.idleTimeoutMs !== undefined) out.idleTimeoutMs = options.idleTimeoutMs;
   if (options.headers) out.headers = options.headers;
   return out;
 }

@@ -421,6 +421,16 @@ nested document routinely outlasts two minutes, and a cold model load comes out
 of the same allowance. The route adapter's `timeoutMs` overrides either. Note that `timeout` is retryable and `aborted` is not — they are
 deliberately distinct codes.
 
+### `timeout`: "The stream sent nothing for … ms"
+
+The model started answering, then sent nothing for the idle limit, so the
+stream was closed and the upstream request cancelled. `timeoutMs` covers only
+the wait for the response's headers; `idleTimeoutMs` covers silence once the
+body is open, and defaults to the same value. Raise `idleTimeoutMs` (on the
+client, per request, or on the route) for a model that pauses for long
+stretches mid-answer, such as one that reasons before it writes. A stall that
+repeats points at the runtime: check its logs for a crash or an evicted model.
+
 ### `metadata.downgradedFrom` contains a tier the server never refused
 
 The mechanism was accepted and the model returned nothing through it — most

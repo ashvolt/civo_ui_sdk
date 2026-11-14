@@ -215,9 +215,15 @@ Each defect below was **reproduced first** against the pre-change code.
   document. An `append` op fixes it and is a **protocol major**, since a client
   that does not understand it cannot render — so it is recorded here rather
   than slipped into an additive change.
-- [ ] **T-160** An idle timeout for a stalled upstream stream. `timeoutMs` bounds
+- [x] **T-160** An idle timeout for a stalled upstream stream. `timeoutMs` bounds
   time-to-headers; once the body is open, a model that stops emitting holds the
-  request until the caller's own signal fires.
+  request until the caller's own signal fires. **Done 2026-11-14**:
+  `idleTimeoutMs` on `decodeSSE`, the client, each request and the route. A
+  stream silent that long is closed with a retryable `timeout` and its body
+  cancelled, so the upstream stops generating. The default is the request's
+  `timeoutMs`, so a slow model is never cut off sooner than before. Tested in
+  protocol (decoder), core (`streamObject` ends with a `timeout` error frame)
+  and next (the route); each fails without the change.
 - [ ] **T-056c** (feature 001, unchanged) Measure relaxAI's priors against the
   live API. `pnpm probe` — and now `pnpm frames -- --provider relaxai` — need a
   key and network access this environment does not have.

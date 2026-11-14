@@ -59,8 +59,15 @@ export interface OpenAICompatibleClientOptions {
   headers?: Record<string, string>;
   fetch?: FetchLike;
   retry?: RetryPolicy;
-  /** Per-request timeout in ms. Default: the provider's, else 120_000. */
+  /** Per-request timeout in ms, until the response's headers. Default: the provider's, else 120_000. */
   timeoutMs?: number;
+  /**
+   * Once a streamed body is open, the longest the model may send nothing, in
+   * ms, before the stream is closed with a `timeout` error. Default: the same
+   * as `timeoutMs`, so a slow model is never cut off sooner than the request
+   * itself would be, and a stalled one no longer holds the request for good.
+   */
+  idleTimeoutMs?: number;
   capabilities?: CapabilityRegistry;
   onAttempt?: HttpClientOptions["onAttempt"];
 }
@@ -90,6 +97,7 @@ export class OpenAICompatibleClient implements InferenceClient {
   private readonly apiKey: string | undefined;
   private readonly extraHeaders: Record<string, string>;
   private readonly timeoutMs: number;
+  private readonly idleTimeoutMs: number;
   private readonly redactionRules: readonly RedactionRule[] | null;
   private readonly onRedaction?: (hits: Record<string, number>) => void;
 
@@ -120,6 +128,7 @@ export class OpenAICompatibleClient implements InferenceClient {
     });
     this.extraHeaders = options.headers ?? {};
     this.timeoutMs = options.timeoutMs ?? profile.timeoutMs ?? 120_000;
+    this.idleTimeoutMs = options.idleTimeoutMs ?? this.timeoutMs;
     this.capabilities = options.capabilities ?? sharedRegistry(profile, this.baseURL);
 
     this.redactionRules =
@@ -191,7 +200,11 @@ export class OpenAICompatibleClient implements InferenceClient {
       });
     }
 
-    for await (const event of decodeSSE(response.body, options.signal)) {
+    // A model that stops emitting mid-answer is closed after the idle limit,
+    // which cancels the upstream request, rather than held until the caller's
+    // own signal fires (spec 002, T-160).
+    const idleTimeoutMs = options.idleTimeoutMs ?? options.timeoutMs ?? this.idleTimeoutMs;
+    for await (const event of decodeSSE(response.body, options.signal, { idleTimeoutMs })) {
       if (isStreamTerminator(event)) return;
       if (event.data.trim() === "") continue;
       let chunk: ChatCompletionResponse;

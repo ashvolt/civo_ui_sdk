@@ -18,7 +18,8 @@ const client = new RelaxClient({
   redaction: true,                          // false | true | RedactionRule[]
   onRedaction: (hits) => logger.warn({ hits }),
   retry: { maxRetries: 2, baseDelayMs: 400, maxDelayMs: 8_000 },
-  timeoutMs: 120_000,
+  timeoutMs: 120_000,                       // until the response's headers
+  idleTimeoutMs: 120_000,                   // a streamed body's longest silence; default: timeoutMs
   headers: { "X-Tenant": "acme" },
   fetch: myFetch,                           // injection point for proxies and tests
   capabilities: new CapabilityRegistry({ /* corrections */ }),
@@ -142,6 +143,7 @@ const { object, metadata } = await generateObject({
   onEvent: (e) => logger.info({ e }),
   signal: controller.signal,
   timeoutMs: 60_000,
+  idleTimeoutMs: 30_000,              // streaming: close a model that goes quiet this long
 });
 ```
 

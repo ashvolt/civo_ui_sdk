@@ -1,5 +1,5 @@
 import { defineStructuredSchema, RelaxUIError, UIStreamAccumulator, type UIStreamEvent } from "relax-ui-core";
-import { CapabilityRegistry } from "relax-ui-core";
+import { CapabilityRegistry, RelaxClient } from "relax-ui-core";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { completion, contentChunks, stubFetch, testClient } from "../../core/test/helpers.js";
@@ -271,5 +271,34 @@ describe("createGenerativeObjectRoute", () => {
 
     const response = await handler(post({ topic: "x" }));
     expect(response.status).toBe(502);
+  });
+});
+
+describe("a model that goes quiet mid-answer (spec 002, T-160)", () => {
+  it("the route's idleTimeoutMs closes it with a timeout error frame", async () => {
+    const encoder = new TextEncoder();
+    // The opening of an answer, then silence: the body never closes.
+    const stalling = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of contentChunks('{"title":"Half a tit', 6)) controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+      },
+    });
+    const client = new RelaxClient({
+      apiKey: "test-key",
+      fetch: async () => new Response(stalling, { status: 200, headers: { "content-type": "text/event-stream" } }),
+      capabilities: CAPS,
+      retry: { maxRetries: 0, sleep: async () => undefined },
+    });
+    const handler = createGenerativeUIRoute({
+      client,
+      model: "test-model",
+      schema: Report,
+      inputSchema: InputSchema,
+      toMessages: (input) => [{ role: "user", content: input.topic }],
+      idleTimeoutMs: 60,
+    });
+
+    const events = await readEvents(await handler(post({ topic: "x" })));
+    expect(events.at(-1)).toMatchObject({ type: "error", error: { code: "timeout", retryable: true } });
   });
 });
