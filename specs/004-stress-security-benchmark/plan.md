@@ -199,17 +199,17 @@ them, each with a test that fails without the fix.
 
 ---
 
-## Verification (to be filled when implemented)
+## Verification (filled 2026-11-14)
 
-| Gate | How |
-|---|---|
-| Equal terms | structural equality of every contender's markup for every workload, before timing |
-| Budgets fixed in advance | `contracts/budgets.md` committed before the first result |
-| Reproducible | the same seed and machine, run twice, within the reported spread |
-| Ladder correctness | a deliberately slowed renderer breaks at an earlier step; a deliberately wrong renderer breaks on correctness |
-| Attack harness | a deliberately unsafe renderer (inserting HTML) is classified "executed" for every family it should fail |
-| PR smoke | a deliberate 50% slowdown fails the check; noise alone does not, over ten runs |
-| Isolation | no published package depends on `bench/` (CI) |
+| Gate | How | Result |
+|---|---|---|
+| Equal terms | structural equality of every contender's markup for every workload, before timing | **Met.** `pnpm bench:gate`: 246 cases draw the reference's markup; 4 are not expressible, each with its reason (the AI SDK's text churn and counters). Runs nightly |
+| Budgets fixed in advance | `contracts/budgets.md` committed before the first result | **Met.** Version 2 (the 25 ms frame interval) was set before any result was kept. The regression metric was added later, with the tolerance unchanged |
+| Reproducible | the same seed and machine, run twice, within the reported spread | **Partly; not run in full.** Seeds, machine and versions are in every result, and one command reproduces each (FR-443). Two reruns are recorded. The desktop depth crash repeated. Phone depth did not: frame p95 sits on the 16.7/33.3 ms boundary at every step, and a rerun gave "none" where the first run gave 48 (a follow-up). A full ladder run twice on one machine is still to do |
+| Ladder correctness | a deliberately slowed renderer breaks at an earlier step; a deliberately wrong renderer breaks on correctness | **Met.** `pnpm bench:selftest`, in CI: untouched passes, an 80 ms block per frame breaks on the long task, a dropped node on correctness, a hang on the timeout |
+| Attack harness | a deliberately unsafe renderer (inserting HTML) is classified "executed" for every family it should fail | **Met.** `pnpm bench:attacks -- --self-test`: the unsafe page is caught by each of the six evidence kinds, and this SDK's element by none |
+| PR smoke | a deliberate 50% slowdown fails the check; noise alone does not, over ten runs | **Met on one laptop.** `--slowdown 1.5` gave a median per-step ratio of 2.02 and failed. Ten quiet runs against one baseline gave 0.96–1.14; none failed. The rule was settled on those runs, so CI's own runs confirm it (research R6) |
+| Isolation | no published package depends on `bench/` (CI) | **Met.** The constitution job checks that `bench` is private and that no package depends on it |
 
 ---
 

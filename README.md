@@ -432,6 +432,42 @@ no network and no wall-clock waiting. There are no module mocks.
 
 ---
 
+## Benchmark: stress, soak and security
+
+`bench/` (spec 004, never published) measures where each renderer stops
+keeping up, whether it leaks over half an hour, and whether hostile output gets
+through, against json-render, OpenUI, the AI SDK and A2UI on Lit, React and
+Angular, each drawing the same components from the same stream. Figures from
+one laptop (Intel i7-1165G7, Chromium 153), November 2026; the phone profile is
+the CPU slowed four times.
+
+| | This SDK (element) | Best of the others |
+|---|---|---|
+| Nodes streamed, desktop | all 10,000 | 5,000 |
+| Nodes streamed, phone | 250 | 100 |
+| Nodes in one frame, desktop | all 10,000 | 5,000 |
+| Table cells, desktop | 10,000 | 25,000 (AI SDK, which validates nothing while streaming) |
+| Animated counters, desktop | 500 | 200 |
+| First node at cold start, desktop | 7 ms | 8 ms |
+| Attacks that ran (injection, fuzz, tricks, protocol) | **0** of 3,296, on nine hosts and connectors | 7 to 15 each: links passed to the app's components unchecked |
+| Heap growth over a 30-minute soak | 2.2% to 3.9% (budget 10%) | not soaked |
+| Red-team: hostile prompts that reached the page | **0** of 200 runs on two local models | — |
+
+"All" is every step of the ladder. Differences of one ladder step are noise.
+Every number, the curves behind it and how each was measured are on the
+dashboard; the method and its limits are in [bench/README.md](./bench/README.md)
+and the [comparison](./docs/comparison.md#measured).
+
+```bash
+pnpm --filter relax-ui-bench bench:dashboard   # then open bench/dashboard/dist/index.html
+pnpm --filter relax-ui-bench bench -- --renderer ours-element --workload nodes   # reproduce one ladder
+```
+
+Every pull request runs a smoke version (a regression beyond 20% fails it);
+the full run is nightly.
+
+---
+
 ## Status and honest caveats
 
 Feature-complete and tested, **not yet published**. Two things a reviewer should

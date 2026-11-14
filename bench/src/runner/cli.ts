@@ -1,11 +1,15 @@
 /**
  * `pnpm bench` — climbs the ladders and writes a result file.
  *
- *   --suite smoke|nightly|local   smoke: ours-element, first 3 steps, 3 repetitions, desktop
+ *   --suite smoke|nightly|local   smoke: ours-element, desktop, 3 repetitions, two
+ *                                 steps per ladder (`SMOKE_SIZES`), with the machine's
+ *                                 calibration time (reported, not used to scale)
  *   --renderer ours-element,…     default: every renderer with a page
  *   --workload nodes,…            default: every ladder
  *   --profile desktop,phone       default: both (smoke: desktop)
  *   --reps N                      default: 5 (smoke: 3)
+ *   --slowdown X                  throttle the CPU X times more on every run (proves
+ *                                 the regression check catches a slowdown)
  *   --out path.json               default: bench/results/<suite>-<date>.json
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -13,6 +17,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { BUDGET_VERSION } from "../budgets.ts";
+import { calibrate, SMOKE_SIZES } from "../regress.ts";
 import { resultSchema, type ResultFile } from "../results.ts";
 import { countNodes, depthOf, documentFor } from "../workloads/generator.ts";
 import { contractFor, LADDERS, planStep } from "../workloads/ladders.ts";
@@ -39,6 +44,9 @@ const renderers = list("renderer") ?? (smoke ? ["ours-element"] : Object.keys(RE
 const ladders = LADDERS.filter((l) => !list("workload") || list("workload")!.includes(l.id));
 const profiles = (list("profile") ?? (smoke ? ["desktop"] : ["desktop", "phone"])) as ProfileId[];
 const reps = Number(arg("reps") ?? (smoke ? 3 : 5));
+const slowdown = arg("slowdown") ? Number(arg("slowdown")) : undefined;
+// Before the browser starts, so nothing else competes for the CPU.
+const calibrationMs = smoke ? calibrate() : undefined;
 
 const server = await startServer(join(root, "dist"));
 const browser = await chromium.launch();
@@ -46,7 +54,7 @@ const result: ResultFile = {
   schemaVersion: 1,
   budgetVersion: BUDGET_VERSION,
   suite,
-  environment: environment(browser),
+  environment: { ...environment(browser), ...(calibrationMs ? { calibrationMs } : {}) },
   renderers: renderers.map((id) => ({ id, packages: RENDERERS[id]?.packages ?? {}, available: id in RENDERERS })),
   workloads: ladders.map((l) => {
     const largest = documentFor(planStep(l, l.steps.at(-1)!));
@@ -75,7 +83,8 @@ try {
             page: r.page,
             profile,
             reps,
-            ...(smoke ? { maxSteps: 3 } : {}),
+            ...(smoke && SMOKE_SIZES[ladder.id] ? { sizes: SMOKE_SIZES[ladder.id] } : {}),
+            ...(slowdown ? { slowdown } : {}),
             ...(r.encode ? { encode: r.encode } : {}),
             log: (line) => console.log(line),
           }),

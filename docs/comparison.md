@@ -1,7 +1,7 @@
 # How this compares
 
-**Date**: 2026-11-10. This is a fast-moving field: check each project's own
-documentation before relying on a detail here.
+**Date**: 2026-11-10; measurements added 2026-11-14. This is a fast-moving
+field: check each project's own documentation before relying on a detail here.
 
 ## Is generative UI built into React, Angular or Vue?
 
@@ -36,6 +36,64 @@ relaxAI. Everything below follows from those two.
 | **Weight** | A page with `<gen-ui>` and no document loads 13.6 KB gzip and no component code; each connector is about 1.9 KB | Varies; chat UIs and agent clients are typically larger |
 | **Models** | Any OpenAI-compatible endpoint, with structuring negotiated per model (constrained decoding, tool call, or prompted JSON) and a sovereignty guard on the endpoint. Runs on local open-weight models | Usually tied to providers with strong tool calling or structured output |
 
+## Measured
+
+The benchmark in `bench/` (spec 004) runs five of these projects in a browser
+against this SDK on equal terms. Each gets the same documents in its own wire
+format, through its own streaming entry point, and draws the same components.
+A structural gate checks that every renderer's markup equals the reference
+before any timing counts. Figures come from one laptop (Intel i7-1165G7, 16 GB,
+Chromium 153, November 2026), five runs per step. The phone profile is the
+same machine with the CPU slowed four times. Package versions are on the
+dashboard (`pnpm --filter relax-ui-bench bench:dashboard`).
+
+The largest step each renderer passed within every budget: frame interval p95
+25 ms, longest task 50 ms, interaction 200 ms. "All" is every step, "none" not
+even the first, "n/e" not expressible in the format.
+
+| Workload, profile | This SDK, element | json-render | OpenUI | AI SDK | A2UI Lit | A2UI React | A2UI Angular |
+|---|---|---|---|---|---|---|---|
+| Nodes streamed, desktop | all (10,000) | 1,000 | 5,000 | 5,000 | 5,000 | 5,000 | 1,000 |
+| Nodes streamed, phone | 250 | 100 | 100 | 100 | 25 | 50 | 25 |
+| Nodes in one frame, desktop | all (10,000) | 500 | 1,000 | 5,000 | 5,000 | 250 | 100 |
+| Table cells, desktop | 10,000 | 10,000 | 10,000 | 25,000 | 10,000 | 10,000 | 5,000 |
+| Chart points, phone | 50 | 8 | 250 | 250 | none | 8 | 8 |
+| Animated counters, desktop | 500 | 200 | 200 | n/e | 200 | 200 | 200 |
+| First node at cold start, desktop (ms) | 7 | 17 | 14 | 8 | 31 | 19 | 65 |
+| First node at cold start, phone (ms) | 23 | 62 | 115 | 35 | 250 | 172 | 254 |
+
+Validation is not equal, and that favours the others. This SDK validates every
+frame against the full contract. The contenders' pages declare permissive prop
+schemas, so json-render and OpenUI check structure only, and the AI SDK nothing
+while streaming. That is why the AI SDK leads on table cells.
+
+**Attacks.** The same injection corpus, 100 fuzzed variants and the injection
+tricks went into every string prop of every component:
+
+- **This SDK:** none executed, 3,296 cases on nine hosts and design-system
+  connectors. Every protocol-abuse requirement held: malformed, truncated,
+  oversized and flooded streams.
+- **The others:** none checks a prop while it draws. A `data:` or `vbscript:`
+  link reached the page on every one (7 cases each), and through Lit, which
+  sanitises nothing, `javascript:` links too (15). The libraries leave that to
+  the application's components. It is a difference in design, not a bug in
+  them.
+
+**Red-team.** Twenty hostile prompts, five runs each on two small local models,
+went through the example app's real route. The models tried in 44% of runs;
+nothing reached the page.
+
+**Soak.** Thirty minutes of documents patched and replaced in one renderer:
+heap grew 2.2% to 3.9%, against a 10% budget. DOM nodes and listeners stayed
+flat, with no detached DOM.
+
+Limits:
+- Chromium only.
+- One component kit for everyone, so this measures framework overhead, not
+  each project's own components.
+- Small local models only.
+- Differences of one ladder step are noise.
+
 ## Where others are ahead
 
 Being specific about this is the point of the comparison.
@@ -52,7 +110,8 @@ Being specific about this is the point of the comparison.
 - **Native and mobile.** A2UI has a Flutter renderer and json-render a React
   Native one. This SDK is web only.
 - **Maturity.** The others are published, used and documented by teams. This
-  SDK is tested (736 unit tests, 42 browser tests) but not yet published.
+  SDK is tested (1,034 unit tests, browser tests for every host, and the
+  benchmark above) but not yet published.
 
 ## When to use which
 

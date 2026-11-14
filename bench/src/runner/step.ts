@@ -23,6 +23,8 @@ export interface StepRequest {
   dataUrl: string;
   profile: ProfileId;
   timeoutMs?: number;
+  /** Extra CPU throttling on top of the profile's: the regression check's deliberate slowdown (T-450). */
+  slowdown?: number;
 }
 
 export async function runOnce(browser: Browser, server: BenchServer, req: StepRequest): Promise<Sample> {
@@ -38,10 +40,17 @@ export async function runOnce(browser: Browser, server: BenchServer, req: StepRe
   page.on("pageerror", (e) => errors.push(String(e)));
   const cdp = await context.newCDPSession(page);
   try {
-    if (profile.cpuSlowdown > 1) await cdp.send("Emulation.setCPUThrottlingRate", { rate: profile.cpuSlowdown });
+    const rate = profile.cpuSlowdown * (req.slowdown ?? 1);
+    if (rate > 1) await cdp.send("Emulation.setCPUThrottlingRate", { rate });
     await page.goto(`${server.url}/${req.page}`);
     await page.waitForFunction(() => window.__bench?.ready === true);
     await page.evaluate((url) => window.__bench.load(url), req.dataUrl);
+    // Main-thread task time around the run: the renderer's own work, whatever
+    // the delivery schedule (the pull-request regression check, FR-440).
+    await cdp.send("Performance.enable");
+    const taskTime = async () =>
+      ((await cdp.send("Performance.getMetrics")) as { metrics: { name: string; value: number }[] }).metrics.find((m) => m.name === "TaskDuration")?.value ?? 0;
+    const busyFrom = await taskTime();
 
     const timeout = req.timeoutMs ?? BUDGETS.timeoutMs[req.profile];
     const run = page.evaluate(() => window.__bench.run());
@@ -59,6 +68,7 @@ export async function runOnce(browser: Browser, server: BenchServer, req: StepRe
     if (result === "timeout") {
       return { frames: [], longFrames: [], interaction: 0, firstNode: 0, complete: timeout, correct: false, timedOut: true };
     }
+    const busy = Math.round(((await taskTime()) - busyFrom) * 10_000) / 10;
 
     await cdp.send("HeapProfiler.collectGarbage");
     const heap = (await cdp.send("Runtime.getHeapUsage")) as { usedSize: number };
@@ -70,6 +80,7 @@ export async function runOnce(browser: Browser, server: BenchServer, req: StepRe
       firstNode: result.firstNode,
       complete: result.complete,
       correct: result.correct,
+      busy,
       heap: heap.usedSize,
       domNodes: counters.nodes,
       listeners: counters.jsEventListeners,

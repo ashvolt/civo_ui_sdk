@@ -1,0 +1,134 @@
+name: Bench smoke
+
+# Spec 004, T-450 (FR-440): every pull request runs a short ladder against the
+# last main result, and the script-injection, injection-trick and protocol
+# suites against this SDK's element. Two jobs in parallel, each under ten
+# minutes (NFR-402). A push to main stores its smoke result as the next
+# baseline.
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: "10.33.0"
+
+jobs:
+  ladders:
+    name: Bench smoke · ladders
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build bench pages
+        working-directory: bench
+        run: node build.mjs
+
+      # Each ladder at its first step and at one step where the renderer's own
+      # work dominates (src/regress.ts), with this machine's calibration time.
+      - name: Smoke ladders
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings src/runner/cli.ts --suite smoke --out "$RUNNER_TEMP/smoke.json"
+
+      # The last main run's result. A pull request may read caches saved on
+      # its base branch, so a PR compares against main; main against itself.
+      - name: Restore main's smoke result
+        uses: actions/cache/restore@v4
+        with:
+          path: .bench/main-smoke.json
+          key: bench-smoke-main-${{ github.sha }}
+          restore-keys: bench-smoke-main-
+
+      - name: Compare with main (20% tolerance on main-thread time)
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings src/runner/regress.ts --baseline ../.bench/main-smoke.json --current "$RUNNER_TEMP/smoke.json"
+
+      - name: Keep this result as main's baseline
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: mkdir -p .bench && cp "$RUNNER_TEMP/smoke.json" .bench/main-smoke.json
+
+      - name: Save main's smoke result
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: .bench/main-smoke.json
+          key: bench-smoke-main-${{ github.sha }}
+
+      - name: Upload smoke result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-smoke-ladders
+          path: ${{ runner.temp }}/smoke.json
+          retention-days: 14
+
+  attacks:
+    name: Bench smoke · attacks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build bench pages
+        working-directory: bench
+        run: node build.mjs
+
+      # The injection corpus and tricks at both validation tiers, and protocol
+      # abuse, on the element. Fails on any executed case or missed protocol
+      # requirement (invariant A1). The nightly run adds the fuzzed variants,
+      # every host and connector, and the contenders.
+      - name: Attack suites
+        working-directory: bench
+        run: node --experimental-strip-types --no-warnings src/runner/attacks.ts --renderer ours-element --suite injection,tricks,protocol --out "$RUNNER_TEMP/attacks.json"
+
+      - name: Upload attack result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-smoke-attacks
+          path: ${{ runner.temp }}/attacks.json
+          retention-days: 14

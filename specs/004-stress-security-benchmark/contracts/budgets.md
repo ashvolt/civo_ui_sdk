@@ -42,3 +42,15 @@ comparable by recording the budget version with every result.
 
 A metric regresses if its median is worse than the stored `main` median by more
 than **20% or 2 ms, whichever is larger**. Memory uses 10%.
+
+The metric judged is main-thread busy time (`busy`) on the smoke steps
+(`bench/src/regress.ts`). On those steps, frame intervals and completion
+times follow the delivery schedule, not the renderer, so a renderer twice as
+slow moves them little.
+
+The check fails if the median, over the steps, of each step's median against
+`main`'s exceeds the tolerance. Steps under 2 ms on `main` are not judged.
+
+It also fails if a smoke step breaks a budget now and did not on `main`.
+
+(Added 2026-11-14, T-450; the tolerance is unchanged.)

@@ -19,8 +19,12 @@ export interface LadderOptions {
   page: string;
   profile: ProfileId;
   reps: number;
-  /** Only the first N steps (the pull-request smoke run). */
+  /** Only the first N steps. */
   maxSteps?: number;
+  /** Only these steps, in order (the pull-request smoke run); a step not on the ladder is an error. */
+  sizes?: readonly number[];
+  /** Extra CPU throttling on every run (the regression check's deliberate slowdown). */
+  slowdown?: number;
   /** The renderer's wire format. Default: this SDK's SSE. */
   encode?: (frames: readonly Document[], dimension: Dimension) => Encoded;
   log?: (line: string) => void;
@@ -54,7 +58,9 @@ export async function climb(browser: Browser, server: BenchServer, ladder: Ladde
   const steps: LadderEntry["steps"] = [];
   const encode = encoderOf(opts);
   const warmup = chunksOf(encode([warmupDocument()], "static-nodes"));
-  for (const size of ladder.steps.slice(0, opts.maxSteps ?? ladder.steps.length)) {
+  const sizes = opts.sizes ?? ladder.steps.slice(0, opts.maxSteps ?? ladder.steps.length);
+  for (const size of sizes) {
+    if (!ladder.steps.includes(size)) throw new Error(`${ladder.id}: ${size} is not a step of the ladder`);
     const step = planStep(ladder, size);
     const frames = framesFor(step);
     const encoded = encode(frames, ladder.id);
@@ -69,7 +75,7 @@ export async function climb(browser: Browser, server: BenchServer, ladder: Ladde
       rateMs: 1000 / step.rate,
       warmup,
     });
-    const run = () => runOnce(browser, server, { page: opts.page, dataUrl, profile: opts.profile });
+    const run = () => runOnce(browser, server, { page: opts.page, dataUrl, profile: opts.profile, ...(opts.slowdown ? { slowdown: opts.slowdown } : {}) });
     await run(); // warm-up: browser caches, JIT
     const samples: Sample[] = [];
     for (let i = 0; i < opts.reps; i++) {
@@ -89,7 +95,7 @@ export async function climb(browser: Browser, server: BenchServer, ladder: Ladde
     });
     const m = summary.metrics;
     opts.log?.(
-      `${opts.renderer} ${opts.profile} ${ladder.id} ${size}: p95 ${m.frameP95!.median}ms, longest ${m.longestTask!.median}ms, interaction ${m.interaction!.median}ms, complete ${Math.round(m.complete!.median)}ms${summary.broken ? `  BROKEN (${summary.broken})` : ""}`,
+      `${opts.renderer} ${opts.profile} ${ladder.id} ${size}: p95 ${m.frameP95!.median}ms, longest ${m.longestTask!.median}ms, interaction ${m.interaction!.median}ms, complete ${Math.round(m.complete!.median)}ms, busy ${m.busy!.median}ms${summary.broken ? `  BROKEN (${summary.broken})` : ""}`,
     );
     if (summary.broken) break;
   }

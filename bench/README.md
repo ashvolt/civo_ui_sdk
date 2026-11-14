@@ -9,8 +9,78 @@ pnpm bench:selftest             # the harness proves itself first
 pnpm bench:smoke                # what a pull request runs
 pnpm bench                      # every ladder, both profiles
 pnpm bench:soak                 # 30 minutes per renderer; --minutes, --sample-every
+pnpm bench:attacks              # the attack suites (below)
+pnpm bench:redteam              # hostile prompts through a local model (below)
+pnpm bench:dashboard            # the dashboard, from the newest results
 pnpm bench -- --renderer ours-react --workload table-cells --profile phone --reps 5
 ```
+
+## Pull requests, nightly runs and the dashboard
+
+**Every pull request** (`.github/workflows/bench.yml`, two jobs in parallel,
+each under ten minutes):
+
+- **ladders**: this SDK's element on the desktop profile, each ladder at its
+  first step and at one step where the renderer's own work dominates
+  (`src/regress.ts`), then `bench:regress` against the last `main` result;
+- **attacks**: the injection corpus and tricks at both tiers, and protocol
+  abuse, on the element.
+
+On those steps, frame intervals and completion time follow the delivery
+schedule, not the renderer, so the regression check reads **main-thread busy
+time** (Chromium's `TaskDuration` around each run). Each step's median is
+divided by `main`'s, and the median of those ratios must stay within the
+budgets contract's tolerance: 20%. A slower renderer moves every step. Noise
+moves a few steps, or the whole run a little. The total is reported too.
+
+A step that breaks a budget now, but did not on `main`, also fails. Each
+machine's time for a fixed CPU job is reported, but does not scale the result:
+next to ten quiet runs it varied far more than the busy time did.
+
+On one laptop, against one baseline:
+
+| Runs | Median ratio |
+|---|---|
+| Ten quiet runs | 0.96 to 1.14; none failed |
+| `--slowdown 1.5` | 2.02; failed |
+
+Judging the total instead would have failed one of the ten quiet runs (1.21). `--slowdown 1.5` throttles the CPU; it is how the check is shown to
+catch a 50% slowdown.
+
+```bash
+pnpm bench:smoke -- --out main.json        # on main
+pnpm bench:smoke -- --out mine.json        # on your branch
+pnpm bench:regress -- --baseline main.json --current mine.json
+```
+
+**Nightly** (`.github/workflows/bench-nightly.yml`), in parallel jobs:
+
+- the full ladders for every renderer on both profiles;
+- the three soaks;
+- every attack suite on every host, connector and contender, with the day's
+  fuzz seed;
+- the structural gate.
+
+`bench:merge` then joins the results into `results/nightly/` and drops raw
+samples. The dashboard is built from them, and a bot pull request commits
+them. These are shared-runner figures, for trends and breakage. The headline
+results in `results/` come from one named machine.
+
+**The dashboard** (`dashboard/`, `pnpm bench:dashboard`) is one static HTML
+file built from the newest result of each kind, with the data inlined. It
+shows:
+
+- summary figures;
+- break points per renderer, workload and profile;
+- every ladder's curve;
+- cold start;
+- soak trends;
+- attack outcomes;
+- the red-team;
+- package versions.
+
+Each figure names its workload and the command that reproduces it.
+`--results results/nightly` builds it from the nightly files instead.
 
 ## How a number is made
 

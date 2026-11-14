@@ -12,7 +12,10 @@
     "bench:soak": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/soak.ts",
     "bench:attacks": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/attacks.ts",
     "bench:gate": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/gate.ts",
-    "bench:redteam": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/redteam.ts"
+    "bench:redteam": "node build.mjs && node --experimental-strip-types --no-warnings src/runner/redteam.ts",
+    "bench:regress": "node --experimental-strip-types --no-warnings src/runner/regress.ts",
+    "bench:merge": "node --experimental-strip-types --no-warnings src/runner/merge.ts",
+    "bench:dashboard": "node --experimental-strip-types --no-warnings dashboard/build.mjs"
   },
   "devDependencies": {
     "@ai-sdk/react": "4.0.170",
