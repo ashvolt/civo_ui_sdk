@@ -298,7 +298,11 @@ test that asserts the refusal path.
 ## 7. Deployment recommendations
 
 1. Put the key in a server-only secret. Never `NEXT_PUBLIC_*`.
-2. Set `allowedHosts` on URL props to the hosts you actually link to.
+2. Set `allowedHosts` on URL props to the hosts you actually link to. The
+   standard contract's Link allows any https host, so a model can label a link
+   "civo.com/pricing" and point it elsewhere (the spec 004 red-team saw this).
+   Restrict it in one line:
+   `standardContract.extend({ Link: linkSpec({ allowedHosts: ["civo.com", "*.civo.com"] }) })`.
 3. Turn `redaction` on, and alarm on `onRedaction` — a prompt that needed
    redacting means something upstream is passing data it should not.
 4. Implement `authorize` with real authentication and a per-user quota.

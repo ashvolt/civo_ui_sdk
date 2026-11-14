@@ -4,7 +4,7 @@ import type { InferenceClient, RequestOptions } from "./client/inference-client.
 import { RelaxUIError } from "./errors.js";
 import {
   encodeUIStreamEvent,
-  UI_STREAM_PROTOCOL_VERSION,
+  type UIStreamProtocol,
   type UIStreamEvent,
 } from "./protocol.js";
 import type { StructuredSchema } from "./schema/define.js";
@@ -78,6 +78,13 @@ export interface StreamObjectOptions<T> extends GenerateObjectOptions<T> {
   frameIntervalMs?: number;
   /** Emit full snapshots instead of patches. Larger, but trivial to debug. */
   transport?: "patch" | "snapshot";
+  /**
+   * The protocol to write. 2 sends a string that only grew as `append` of
+   * what it gained instead of the whole text again (spec 002, T-159). Send it
+   * only to a client that asked for it (`negotiateProtocol`); the route
+   * adapters do. Default 1.
+   */
+  protocol?: UIStreamProtocol;
   /** Injected in tests so throttling is deterministic. */
   now?: () => number;
 }
@@ -287,7 +294,7 @@ async function* streamTiers<T>(
   const clock = options.now ?? nowMs;
   const baseMessages = buildMessages(options);
   const frameInterval = options.frameIntervalMs ?? 0;
-  const transport = options.transport ?? "patch";
+  const transport: Transport = { mode: options.transport ?? "patch", append: (options.protocol ?? 1) >= 2 };
   const provider = providerIdOf(options.client);
 
   const negotiation = negotiateStrategy({
@@ -551,6 +558,12 @@ export function toSSEStream<T>(
 
 // --- internals --------------------------------------------------------------
 
+/** How frames are written: patches or snapshots, and whether `append` may be used (protocol 2). */
+interface Transport {
+  mode: "patch" | "snapshot";
+  append: boolean;
+}
+
 type Frame =
   | "noop"
   | { kind: "ok"; event: UIStreamEvent<never>; value: JsonValue }
@@ -560,7 +573,7 @@ function buildFrame<T>(
   accumulator: JsonTextAccumulator,
   attempt: Attempt<T>,
   emitted: JsonValue | undefined,
-  transport: "patch" | "snapshot",
+  transport: Transport,
   seq: number,
 ): Frame {
   const text = accumulator.jsonText();
@@ -579,14 +592,14 @@ function buildFrame<T>(
 }
 
 function emitFrame(
-  transport: "patch" | "snapshot",
+  transport: Transport,
   seq: number,
   previous: JsonValue | undefined,
   next: JsonValue,
 ): UIStreamEvent<never> {
-  if (transport === "snapshot") return { type: "snapshot", seq, value: next };
+  if (transport.mode === "snapshot") return { type: "snapshot", seq, value: next };
 
-  const ops: JsonPatchOp[] = diffJson(previous, next);
+  const ops: JsonPatchOp[] = diffJson(previous, next, [], { append: transport.append });
   // A patch bigger than the document is a false economy.
   if (JSON.stringify(ops).length >= JSON.stringify(next).length) {
     return { type: "snapshot", seq, value: next };
@@ -596,13 +609,13 @@ function emitFrame(
 
 function metaEvent<T>(
   requestId: string,
-  options: GenerateObjectOptions<T>,
+  options: StreamObjectOptions<T>,
   strategy: StructuringStrategyName,
   provider: string | undefined,
 ): UIStreamEvent<never> {
   return {
     type: "meta",
-    protocol: UI_STREAM_PROTOCOL_VERSION,
+    protocol: options.protocol ?? 1,
     requestId,
     model: options.model,
     ...(provider ? { provider } : {}),

@@ -260,6 +260,26 @@ source, which is the argument for the test.
 `add`, `replace`, `remove` only. `move`/`copy`/`test` buy nothing for a document
 that grows monotonically, and every op we ship is one a reviewer can check by eye.
 
+**Protocol 2** adds `append` (spec 002, T-159): the string at `path` gets
+`value` added to its end. Without it, a text the model is still writing goes as
+a `replace` carrying the whole text so far on every frame, which is quadratic in
+its length. A 304-character text in 51 frames took 10,523 characters of ops;
+with `append` it takes 2,823. `diffJson(…, { append: true })` emits one only
+when the new string starts with the old one and is longer. Applying it to
+anything but a string throws, and the accumulator turns that into
+`stream_malformed`.
+
+It is negotiated, because a protocol-1 client would apply an `append` as a
+`replace` and silently show only the new characters:
+
+- the browser's reader sends `Accept: text/event-stream; relax-ui-protocol=2`
+  (`UI_STREAM_ACCEPT`). `Accept` is CORS-safelisted, so a cross-origin route
+  need not allow a new header;
+- the route adapters answer in protocol 2 only to such a request
+  (`negotiateProtocol`), and say so in `meta.protocol`. Everyone else gets
+  protocol 1;
+- a client refuses a `meta` for a protocol newer than it reads.
+
 ### 6.2 Array diffing
 
 Positional, not keyed:

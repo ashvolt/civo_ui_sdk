@@ -1,4 +1,4 @@
-import { defineContract, displayText, standardContract, STANDARD_COMPONENT_NAMES, type Contract } from "relax-ui-contract";
+import { defineContract, displayText, linkSpec, standardContract, STANDARD_COMPONENT_NAMES, type Contract } from "relax-ui-contract";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -256,5 +256,37 @@ describe("the node schema", () => {
     const doc = standardContract.documentSchema as unknown as { _def: { schema: z.AnyZodObject } };
     const lazy = doc._def.schema.shape.root as z.ZodLazy<z.ZodTypeAny>;
     expect(lazy.schema).toBe(lazy.schema);
+  });
+});
+
+describe("links limited to some hosts (spec 004 red-team follow-up)", () => {
+  const doc = (href: string) => ({ root: { type: "Link", props: { label: "civo.com/pricing", href } } });
+  const restricted = standardContract.extend({ Link: linkSpec({ allowedHosts: ["civo.com", "*.civo.com"] }) });
+
+  it("refuses an https link to any other host, a mislabelled one included", () => {
+    for (const href of ["https://evil.example/collect", "https://civo.com.evil.example/", "https://notcivo.com/"]) {
+      expect(restricted.documentSchema.safeParse(doc(href)).success, href).toBe(false);
+    }
+  });
+
+  it("allows the listed host, its subdomains, site-relative paths and mailto", () => {
+    for (const href of ["https://civo.com/pricing", "https://www.civo.com/pricing", "/docs", "mailto:sales@civo.com"]) {
+      expect(restricted.documentSchema.safeParse(doc(href)).success, href).toBe(true);
+    }
+  });
+
+  it("still refuses what the standard Link refuses", () => {
+    for (const href of ["javascript:alert(1)", "http://civo.com/", "data:text/html,x"]) {
+      expect(restricted.documentSchema.safeParse(doc(href)).success, href).toBe(false);
+    }
+  });
+
+  it("names the hosts in the description the model reads", () => {
+    expect(restricted.spec("Link")!.description).toContain("https links only to: civo.com, *.civo.com");
+  });
+
+  it("leaves the standard contract unchanged: any https host", () => {
+    expect(standardContract.documentSchema.safeParse(doc("https://evil.example/")).success).toBe(true);
+    expect(standardContract.spec("Link")!.description).not.toContain("only to");
   });
 });

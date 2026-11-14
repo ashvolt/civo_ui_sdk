@@ -16,6 +16,45 @@ import { displayText, urlString } from "./fields.js";
 
 const tone = <T extends [string, ...string[]]>(values: T, fallback: T[number]) => z.enum(values).default(fallback);
 
+export interface LinkPolicy {
+  /**
+   * Hosts an https link may point to: `"civo.com"` is that host exactly,
+   * `"*.civo.com"` any subdomain of it (not `civo.com` itself, so list both).
+   * Absent, any https host. Site-relative paths and `mailto:` are unaffected.
+   */
+  allowedHosts?: readonly string[];
+}
+
+/**
+ * The standard Link, optionally limited to some hosts.
+ *
+ * The standard contract allows any https link, so a model can label a link
+ * "civo.com/pricing" and point it elsewhere (red-team, spec 004). A host that
+ * needs links to stay on its own sites overrides Link with a policy:
+ *
+ * ```ts
+ * const contract = standardContract.extend({ Link: linkSpec({ allowedHosts: ["civo.com", "*.civo.com"] }) });
+ * ```
+ *
+ * The check is the URL guard, at validation time on the server and in the
+ * browser, so a link elsewhere fails the schema rather than reaching the DOM.
+ * The hosts are also named in the description the model reads.
+ */
+export function linkSpec(policy: LinkPolicy = {}) {
+  const hosts = policy.allowedHosts?.length ? policy.allowedHosts : undefined;
+  return {
+    description: `A link to a source or further reading. https, a site-relative path, or mailto only.${hosts ? ` https links only to: ${hosts.join(", ")}.` : ""}`,
+    role: "link",
+    children: "none",
+    props: z.object({
+      label: displayText(80),
+      // The guard runs at validation time, so `javascript:` fails the schema
+      // rather than reaching the DOM.
+      href: urlString({ schemes: ["https:", "mailto:"], ...(hosts ? { allowedHosts: hosts } : {}) }),
+    }),
+  } as const;
+}
+
 export const STANDARD_COMPONENTS = {
   Stack: {
     description:
@@ -122,17 +161,7 @@ export const STANDARD_COMPONENTS = {
     }),
   },
 
-  Link: {
-    description: "A link to a source or further reading. https, a site-relative path, or mailto only.",
-    role: "link",
-    children: "none",
-    props: z.object({
-      label: displayText(80),
-      // The guard runs at validation time, so `javascript:` fails the schema
-      // rather than reaching the DOM.
-      href: urlString({ schemes: ["https:", "mailto:"] }),
-    }),
-  },
+  Link: linkSpec(),
 
   Chart: {
     description:

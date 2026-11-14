@@ -1,5 +1,5 @@
 import { RelaxUIError } from "./errors.js";
-import { isUIStreamEvent, type UIStreamEvent } from "./events.js";
+import { isUIStreamEvent, UI_STREAM_ACCEPT, type UIStreamEvent } from "./events.js";
 import { readUIStream } from "./read.js";
 import { DEFAULT_MAX_EVENT_LENGTH, tooLong } from "./sse.js";
 import type { JsonValue } from "./types.js";
@@ -108,7 +108,9 @@ async function* readUrl<T>(url: string, options: ReadSourceOptions): AsyncGenera
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const response = await fetchImpl(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...options.headers },
+    // The newest protocol this reader understands (`UI_STREAM_ACCEPT`); a
+    // server that does not negotiate answers in protocol 1, which it reads too.
+    headers: { "Content-Type": "application/json", Accept: UI_STREAM_ACCEPT, ...options.headers },
     ...(options.credentials ? { credentials: options.credentials } : {}),
     body: JSON.stringify(options.body),
     ...(options.signal ? { signal: options.signal } : {}),

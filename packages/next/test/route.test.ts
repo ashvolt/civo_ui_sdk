@@ -1,4 +1,4 @@
-import { defineStructuredSchema, RelaxUIError, UIStreamAccumulator, type UIStreamEvent } from "relax-ui-core";
+import { defineStructuredSchema, RelaxUIError, UI_STREAM_ACCEPT, UIStreamAccumulator, type UIStreamEvent } from "relax-ui-core";
 import { CapabilityRegistry, RelaxClient } from "relax-ui-core";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -300,5 +300,38 @@ describe("a model that goes quiet mid-answer (spec 002, T-160)", () => {
 
     const events = await readEvents(await handler(post({ topic: "x" })));
     expect(events.at(-1)).toMatchObject({ type: "error", error: { code: "timeout", retryable: true } });
+  });
+});
+
+describe("protocol negotiation (spec 002, T-159)", () => {
+  const route = () =>
+    createGenerativeUIRoute({
+      // Long enough that a patch is smaller than the document; a short one goes as snapshots.
+      client: testClient(stubFetch([{ sse: contentChunks('{"title":"Sovereign inference keeps every prompt and every answer in the UK","score":10}', 4) }]), CAPS),
+      model: "test-model",
+      schema: Report,
+      inputSchema: InputSchema,
+      toMessages: (input) => [{ role: "user", content: input.topic }],
+    });
+  const withAccept = (accept?: string) =>
+    new Request("https://app.example/api/ui", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(accept ? { accept } : {}) },
+      body: JSON.stringify({ topic: "x" }),
+    });
+  const appends = (events: UIStreamEvent[]) => events.some((e) => e.type === "patch" && e.ops.some((op) => op.op === "append"));
+
+  it("answers a client that reads protocol 2 in protocol 2", async () => {
+    const events = await readEvents(await route()(withAccept(UI_STREAM_ACCEPT)));
+    expect(events[0]).toMatchObject({ type: "meta", protocol: 2 });
+    expect(appends(events)).toBe(true);
+  });
+
+  it("answers any other client in protocol 1, with no append", async () => {
+    for (const accept of [undefined, "text/event-stream", "*/*"]) {
+      const events = await readEvents(await route()(withAccept(accept)));
+      expect(events[0], String(accept)).toMatchObject({ type: "meta", protocol: 1 });
+      expect(appends(events), String(accept)).toBe(false);
+    }
   });
 });

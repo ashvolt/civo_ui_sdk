@@ -642,3 +642,41 @@ describe("a model that goes quiet mid-answer (spec 002, T-160)", () => {
     expect(Date.now() - started).toBeLessThan(5_000);
   });
 });
+
+describe("protocol 2: a growing text sent as append (spec 002, T-159)", () => {
+  const json = '{"title":"Sovereign inference keeps prompts in the UK","score":7}';
+  const run = (protocol?: 1 | 2) =>
+    collect(
+      streamObject({
+        client: testClient(stubFetch([{ sse: contentChunks(json, 4) }]), ALL_TIERS()),
+        model: "test-model",
+        schema: Report,
+        prompt: "x",
+        ...(protocol ? { protocol } : {}),
+      }),
+    );
+  const ops = (events: UIStreamEvent<unknown>[]) => events.flatMap((e) => (e.type === "patch" ? e.ops : []));
+
+  it("writes append ops and says protocol 2 when asked", async () => {
+    const events = await run(2);
+    expect(events[0]).toMatchObject({ type: "meta", protocol: 2 });
+    expect(ops(events).some((op) => op.op === "append" && op.path === "/title")).toBe(true);
+    const acc = new UIStreamAccumulator();
+    for (const e of events) acc.apply(e);
+    expect(acc.result()?.value).toEqual({ title: "Sovereign inference keeps prompts in the UK", score: 7 });
+  });
+
+  it("by default writes protocol 1, with no append, so an older client is never sent one", async () => {
+    const events = await run();
+    expect(events[0]).toMatchObject({ type: "meta", protocol: 1 });
+    expect(ops(events).some((op) => op.op === "append")).toBe(false);
+  });
+
+  it("both protocols draw the same document at every frame", async () => {
+    const fold = (events: UIStreamEvent<unknown>[]) => {
+      const acc = new UIStreamAccumulator();
+      return events.filter((e) => e.type === "patch" || e.type === "snapshot").map((e) => (acc.apply(e), JSON.stringify(acc.current())));
+    };
+    expect(fold(await run(2))).toEqual(fold(await run(1)));
+  });
+});
