@@ -1,5 +1,6 @@
 import {
   generateObject,
+  negotiateProtocol,
   RelaxUIError,
   streamObject,
   toSSEStream,
@@ -147,6 +148,8 @@ export function createGenerativeUIRoute<TInput, TObject>(
         : {}),
       ...(config.frameIntervalMs !== undefined ? { frameIntervalMs: config.frameIntervalMs } : {}),
       ...(config.transport ? { transport: config.transport } : {}),
+      // Protocol 2 (`append`) only for a client whose `Accept` says it reads it.
+      protocol: negotiateProtocol(request.headers.get("accept")),
       ...(config.onEvent ? { onEvent: config.onEvent } : {}),
       ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
       ...(config.idleTimeoutMs !== undefined ? { idleTimeoutMs: config.idleTimeoutMs } : {}),

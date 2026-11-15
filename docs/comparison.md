@@ -105,7 +105,7 @@ Being specific about this is the point of the comparison.
   conversation state, tools in the browser, human-in-the-loop and threads. This
   SDK renders documents; it is not a chat framework.
 - **A shared protocol.** A2UI and AG-UI are becoming common ground between
-  agent frameworks. This SDK has its own wire protocol, version 1; it does not
+  agent frameworks. This SDK has its own wire protocol, version 2; it does not
   read A2UI messages yet.
 - **Native and mobile.** A2UI has a Flutter renderer and json-render a React
   Native one. This SDK is web only.

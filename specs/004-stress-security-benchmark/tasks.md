@@ -646,7 +646,7 @@ T-451's first nightly run on `main`. Follow-ups:
 - a full ladder run twice on one machine (plan Verification, "Reproducible");
 - confirming the regression rule on CI's own runs;
 - publishing the dashboard;
-- restricting link hosts in a contract (the red-team's off-site link);
+- ~~restricting link hosts in a contract~~ (done 2026-11-14: `linkSpec({ allowedHosts })`);
 - the desktop depth crash at 96 in the Angular host;
 - phone depth sitting on a frame boundary;
 - ~~SSE with bare carriage returns~~ (fixed 2026-11-14).

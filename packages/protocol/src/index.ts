@@ -26,7 +26,7 @@ export {
   fromPointer,
   toPointer,
 } from "./json-patch.js";
-export type { JsonPatchOp } from "./json-patch.js";
+export type { DiffOptions, JsonPatchOp } from "./json-patch.js";
 
 export { DEFAULT_MAX_EVENT_LENGTH, decodeSSE, isStreamTerminator } from "./sse.js";
 export type { DecodeSSEOptions } from "./sse.js";
@@ -35,6 +35,8 @@ export type { SSEEvent } from "./sse.js";
 export {
   encodeUIStreamEvent,
   isUIStreamEvent,
+  negotiateProtocol,
+  UI_STREAM_ACCEPT,
   UI_STREAM_PROTOCOL_VERSION,
   UIStreamAccumulator,
 } from "./events.js";
@@ -43,6 +45,7 @@ export type {
   UIStreamErrorEvent,
   UIStreamEvent,
   UIStreamMetaEvent,
+  UIStreamProtocol,
   UIStreamPatchEvent,
   UIStreamSnapshotEvent,
 } from "./events.js";

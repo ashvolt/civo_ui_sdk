@@ -10,11 +10,24 @@ import type { JsonValue } from "./types.js";
  *
  * Only `add`, `replace` and `remove` are emitted: `move`/`copy`/`test` buy
  * nothing here and every op we support is one a reviewer can check by eye.
+ *
+ * Protocol 2 adds one op of its own, `append`: the string at `path` gets
+ * `value` added to its end. A text the model is still writing grows by a few
+ * characters a frame; sent as `replace`, every frame repeats the whole text so
+ * far, which is quadratic in its length (spec 002, T-159). Only a client that
+ * says it reads protocol 2 is sent one: an older client would apply it as a
+ * `replace` and show only the new characters.
  */
 export type JsonPatchOp =
   | { op: "add"; path: string; value: JsonValue }
   | { op: "replace"; path: string; value: JsonValue }
-  | { op: "remove"; path: string };
+  | { op: "remove"; path: string }
+  | { op: "append"; path: string; value: string };
+
+export interface DiffOptions {
+  /** Protocol 2: a string that only grew is sent as `append` of what it gained. */
+  append?: boolean;
+}
 
 /** Encodes a single path segment per RFC 6901. */
 export function encodePointerSegment(segment: string | number): string {
@@ -51,9 +64,10 @@ export function diffJson(
   before: JsonValue | undefined,
   after: JsonValue | undefined,
   basePath: readonly (string | number)[] = [],
+  options: DiffOptions = {},
 ): JsonPatchOp[] {
   const ops: JsonPatchOp[] = [];
-  collect(before, after, basePath, ops);
+  collect(before, after, basePath, ops, options.append === true);
   return ops;
 }
 
@@ -62,6 +76,7 @@ function collect(
   after: JsonValue | undefined,
   path: readonly (string | number)[],
   ops: JsonPatchOp[],
+  append: boolean,
 ): void {
   if (before === after) return;
 
@@ -79,7 +94,7 @@ function collect(
       if (!(key in after)) ops.push({ op: "remove", path: toPointer([...path, key]) });
     }
     for (const key of Object.keys(after)) {
-      collect(before[key], after[key], [...path, key], ops);
+      collect(before[key], after[key], [...path, key], ops, append);
     }
     return;
   }
@@ -87,7 +102,7 @@ function collect(
   if (Array.isArray(before) && Array.isArray(after)) {
     const shared = Math.min(before.length, after.length);
     for (let i = 0; i < shared; i++) {
-      collect(before[i], after[i], [...path, i], ops);
+      collect(before[i], after[i], [...path, i], ops, append);
     }
     for (let i = before.length - 1; i >= after.length; i--) {
       ops.push({ op: "remove", path: toPointer([...path, i]) });
@@ -99,7 +114,18 @@ function collect(
   }
 
   if (Number.isNaN(before as number) && Number.isNaN(after as number)) return;
+  if (append && typeof before === "string" && typeof after === "string" && after.length > before.length && after.startsWith(before)) {
+    ops.push({ op: "append", path: toPointer(path), value: after.slice(before.length) });
+    return;
+  }
   ops.push({ op: "replace", path: toPointer(path), value: after });
+}
+
+/** The string `value` extended by `tail`, or a refusal when it is not a string. */
+function appended(value: JsonValue | undefined, tail: string, where: string): string {
+  if (typeof value !== "string") throw new Error(`append needs a string at "${where}", found ${value === undefined ? "nothing" : typeof value}`);
+  if (typeof tail !== "string") throw new Error(`append needs a string value at "${where}"`);
+  return value + tail;
 }
 
 /**
@@ -121,6 +147,7 @@ function applyOne(
   op: JsonPatchOp,
 ): JsonValue | undefined {
   if (segments.length === 0) {
+    if (op.op === "append") return appended(doc, op.value, op.path);
     return op.op === "remove" ? undefined : op.value;
   }
 
@@ -135,6 +162,7 @@ function applyOne(
     if (rest.length === 0) {
       if (op.op === "remove") next.splice(index, 1);
       else if (op.op === "add") next.splice(index, 0, op.value);
+      else if (op.op === "append") next[index] = appended(next[index], op.value, op.path);
       else next[index] = op.value;
     } else {
       const child = applyOne(next[index], rest, op);
@@ -147,6 +175,7 @@ function applyOne(
   const base: Record<string, JsonValue> = isPlainObject(doc) ? { ...doc } : {};
   if (rest.length === 0) {
     if (op.op === "remove") delete base[head];
+    else if (op.op === "append") setOwn(base, head, appended(Object.hasOwn(base, head) ? base[head] : undefined, op.value, op.path));
     else setOwn(base, head, op.value);
   } else {
     // Own properties only: `__proto__` or `constructor` in a path names a key

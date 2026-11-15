@@ -17,7 +17,7 @@ export function oursSSE(frames: readonly Document[]): string[] {
   const meta =
     encodeUIStreamEvent({
       type: "meta",
-      protocol: 1,
+      protocol: 2,
       requestId: "bench",
       model: "bench",
       provider: "bench",
@@ -26,7 +26,8 @@ export function oursSSE(frames: readonly Document[]): string[] {
     } as unknown as UIStreamEvent);
   let previous: unknown;
   frames.forEach((frame, i) => {
-    out.push(encodeUIStreamEvent({ type: "patch", seq: i + 1, ops: diffJson(previous as never, frame as never) } as UIStreamEvent));
+    // Protocol 2, as the route answers this SDK's own readers: a grown string is an `append`.
+    out.push(encodeUIStreamEvent({ type: "patch", seq: i + 1, ops: diffJson(previous as never, frame as never, [], { append: true }) } as UIStreamEvent));
     previous = frame;
   });
   const complete =

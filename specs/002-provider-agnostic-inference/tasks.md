@@ -208,13 +208,27 @@ Each defect below was **reproduced first** against the pre-change code.
   address and a loopback policy and nothing else, and say so in `note`. Neither
   runtime was on the bench. `pnpm frames -- --provider lmstudio` and
   `pnpm probe -- --provider lmstudio` are the two commands.
-- [ ] **T-159** A string-append patch op. A growing string is sent as a
+- [x] **T-159** A string-append patch op. A growing string is sent as a
   `replace` carrying the whole value so far, which is quadratic in the length of
   that one string. Measured on the bench: a 304-character `Prose` text arrived as
   55 patches totalling 11.4 kB, and the whole stream was 27.5 kB for a 953-byte
   document. An `append` op fixes it and is a **protocol major**, since a client
   that does not understand it cannot render — so it is recorded here rather
   than slipped into an additive change.
+
+  **Done 2026-11-14 as protocol 2, negotiated:**
+  - `append` extends a string; applied to anything else it is
+    `stream_malformed`.
+  - The browser's reader asks for protocol 2 in `Accept`
+    (`text/event-stream; relax-ui-protocol=2`). `Accept` is CORS-safelisted,
+    so a cross-origin route needs no new allowed header.
+  - The route adapters answer protocol 2 only to such a request, and say so in
+    `meta.protocol`; every other client gets protocol 1, unchanged.
+  - A client refuses a protocol newer than it reads, since an older client
+    would apply `append` as a `replace` and show only the new characters.
+  - The same text in 51 frames: 10,523 characters of ops without `append`,
+    2,823 with.
+  - Tests in protocol, core and next; 9 fail without the change.
 - [x] **T-160** An idle timeout for a stalled upstream stream. `timeoutMs` bounds
   time-to-headers; once the body is open, a model that stops emitting holds the
   request until the caller's own signal fires. **Done 2026-11-14**:

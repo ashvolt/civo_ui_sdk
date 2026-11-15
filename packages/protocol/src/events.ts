@@ -19,7 +19,38 @@ import type { GenerationMetadata, JsonValue, StructuringStrategyName } from "./t
  * survives proxies, works with `fetch` body streaming, and is legible in
  * devtools without a decoder.
  */
-export const UI_STREAM_PROTOCOL_VERSION = 1 as const;
+/**
+ * The newest protocol this package reads and writes.
+ *
+ * - **1**: patches of `add`, `replace` and `remove`.
+ * - **2**: adds `append`, a string extended in place (spec 002, T-159).
+ *
+ * A server sends protocol 2 only to a client that asks for it with
+ * {@link UI_STREAM_PROTOCOL_HEADER}; everyone else gets protocol 1.
+ */
+export const UI_STREAM_PROTOCOL_VERSION = 2 as const;
+
+/** The protocol versions there are. */
+export type UIStreamProtocol = 1 | 2;
+
+/**
+ * The `Accept` value a client sends to say the newest protocol it reads.
+ *
+ * In `Accept`, not a header of its own: `Accept` is CORS-safelisted, so a
+ * cross-origin route that allows only `Content-Type` keeps working. A custom
+ * header would have to be added to every such server's allowed headers.
+ */
+export const UI_STREAM_ACCEPT = `text/event-stream; relax-ui-protocol=${UI_STREAM_PROTOCOL_VERSION}`;
+
+/**
+ * The protocol to answer a request in, from its `Accept` header. No
+ * `relax-ui-protocol` parameter, or one this package does not know, is
+ * protocol 1, which every client reads.
+ */
+export function negotiateProtocol(accept: string | null | undefined): UIStreamProtocol {
+  const asked = /(?:^|[;,\s])relax-ui-protocol\s*=\s*"?(\d+)/i.exec(accept ?? "")?.[1];
+  return asked !== undefined && Number(asked) >= 2 ? 2 : 1;
+}
 
 export type UIStreamEvent<T = unknown> =
   | UIStreamMetaEvent
@@ -30,7 +61,8 @@ export type UIStreamEvent<T = unknown> =
 
 export interface UIStreamMetaEvent {
   type: "meta";
-  protocol: typeof UI_STREAM_PROTOCOL_VERSION;
+  /** The protocol the rest of the stream is in. */
+  protocol: UIStreamProtocol;
   requestId: string;
   model: string;
   /**
@@ -115,6 +147,14 @@ export class UIStreamAccumulator<T = unknown> {
   apply(event: UIStreamEvent<T>): void {
     switch (event.type) {
       case "meta":
+        // A newer protocol may carry ops this reader would misapply silently
+        // (an unknown op falls through to a replace). Refuse it instead.
+        if (typeof event.protocol === "number" && event.protocol > UI_STREAM_PROTOCOL_VERSION) {
+          throw new RelaxUIError({
+            code: "stream_malformed",
+            message: `The UI stream is in protocol ${event.protocol}; this client reads protocol ${UI_STREAM_PROTOCOL_VERSION} and older.`,
+          });
+        }
         this.metaEvent = event;
         return;
       case "patch":

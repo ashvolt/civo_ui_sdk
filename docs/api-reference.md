@@ -162,6 +162,7 @@ Same options plus:
 |---|---|---|
 | `frameIntervalMs` | `0` | Minimum ms between frames. 0 emits per token; 40–60 suits dense trees |
 | `transport` | `"patch"` | `"snapshot"` sends whole documents — larger, easier to debug |
+| `protocol` | `1` | `2` sends a string that only grew as an `append` of what it gained. Only for a client that asked for it: `negotiateProtocol(request.headers.get("accept"))`. The route adapters do this for you |
 | `now` | `performance.now` | Injected for deterministic throttle tests |
 
 ```ts
@@ -226,6 +227,23 @@ displayText(400)   // no control characters, bounded length
 
 `urlString` refines **and** normalises, so `javascript:alert(1)` fails *schema
 validation* — before a frame is sent. `z.string().url()` would accept it.
+
+#### `linkSpec(policy?)`
+
+The standard Link, optionally limited to some hosts. The standard contract's
+Link allows any https host; to keep links on your own sites:
+
+```ts
+import { linkSpec, standardContract } from "relax-ui-contract";
+
+const contract = standardContract.extend({
+  Link: linkSpec({ allowedHosts: ["civo.com", "*.civo.com"] }),   // "*.x" is subdomains only: list both
+});
+```
+
+A link to any other host fails validation, on the server and in the browser.
+Site-relative paths and `mailto:` are unaffected. The hosts are named in the
+description the model reads, so it is told before it is refused.
 
 ---
 
@@ -460,7 +478,7 @@ for await (const event of readSource(source, { body: { topic }, signal })) {
 | Export | Notes |
 |---|---|
 | `Source` | Exactly one of `{ document }`, `{ url }` (POSTed, SSE response), `{ stream }` (SSE bytes) or `{ socket }` (one event per message) |
-| `readSource(source, options?)` | Protocol 1 events from any source. A stream or socket that ends before `complete` throws `truncated`. A socket is never closed: the host owns it |
+| `readSource(source, options?)` | Protocol 1 and 2 events from any source; a `url` is asked for protocol 2 in `Accept`. A stream or socket that ends before `complete` throws `truncated`. A socket is never closed: the host owns it |
 | `resolveValidation(source, requested)` | `"full"`, or `"server"` only for an http(s) URL on the page's origin. Anything else with `"server"` is `config_invalid` ([ADR-0011](./adr/0011-same-origin-trust-boundary.md)) |
 | `isSameOriginUrl(url, origin?)` | The check behind it. Protocol-relative URLs to another host are not same-origin |
 | `UIStreamAccumulator`, `applyPatch`, `encodeUIStreamEvent`, `sanitizeUrl`, `measureTree` | The wire protocol's primitives, as in `relax-ui-core`, which re-exports all of them |

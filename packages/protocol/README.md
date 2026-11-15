@@ -38,7 +38,7 @@ for await (const event of readSource(source)) {
 | `{ stream }` | SSE framing from any `ReadableStream<Uint8Array>` | `complete`, `error`, `[DONE]` | `truncated` |
 | `{ socket }` | one event per message (text, ArrayBuffer, typed array or Blob) | `complete`, `error`, `[DONE]` | `truncated` |
 
-Every kind is folded by the same `UIStreamAccumulator`, with protocol 1's
+Every kind is folded by the same `UIStreamAccumulator`, with the protocol's
 sequencing. A socket is never closed by the reader: it belongs to the host and
 may carry other traffic, so stopping only removes the reader's listeners.
 
