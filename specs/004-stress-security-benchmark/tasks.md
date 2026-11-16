@@ -402,6 +402,24 @@ built is in research R3.
     Angular host, as it does for A2UI on Lit and Angular, and at 128 for the
     element alone; repeated on a rerun. Follow-up: find which nesting the
     crash comes from (Blink's own limit, or the host's extra stack).
+    **Found 2026-11-16: the browser build, on Windows.** Plain nested
+    `<div>`s, no SDK at all, crash Playwright's headless Chromium 153 on
+    Windows between 180 and 200 levels. The same Chromium headed survives
+    1,000 (crashes by 4,000), and on the nightly's Linux runner no renderer
+    crashed up to contract depth 192. Raising V8's stack limit changes
+    nothing: it is the renderer's native stack.
+
+    | Host | DOM levels at contract depth 96 / 128 |
+    |---|---|
+    | element | 151 / crash |
+    | element in Angular | 153 / crash |
+
+    About 1.6 DOM levels per contract level plus 5 for the page, so contract
+    depth 96 (about 150 levels) passes and 128 (about 200) meets the limit. The
+    Angular host adds two levels; the ladder runs met it a step earlier.
+    Not a defect of this SDK or of Angular. The standard contract caps depth
+    at 24, and a headed browser holds 1,000+ levels. Desktop depth results
+    above 96 from the Windows laptop measure this limit, not the renderer.
 
 ## Phase 5 — Attacks
 
@@ -646,6 +664,7 @@ Follow-ups:
 - confirming the regression rule on CI's own runs;
 - publishing the dashboard;
 - ~~restricting link hosts in a contract~~ (done 2026-11-14: `linkSpec({ allowedHosts })`);
-- the desktop depth crash at 96 in the Angular host;
+- ~~the desktop depth crash at 96 in the Angular host~~ (found 2026-11-16: headless Chromium on Windows crashes past about 190 nested elements, with or without this SDK; see the phase 4 notes);
 - phone depth sitting on a frame boundary;
 - ~~SSE with bare carriage returns~~ (fixed 2026-11-14).
+- ~~one shared React root for the React connector~~ (measured, not doing, 2026-11-16): it would cut React's ~140 listeners per mounted component (6,164 for 43 in the soak; constant, not a leak), but spec 003's T-254 measured a shared root with portals at 70 ms against 14 ms for 300 nodes. Rendering speed is worth more than the listeners' memory.

@@ -223,3 +223,8 @@ them, each with a test that fails without the fix.
 4. Small local models only in the red-team; larger or hosted models may try
    different things.
 5. CI runners are noisy. Absolute figures come from one named machine.
+6. Playwright's headless Chromium on Windows crashes past about 190 nested
+   elements, with or without this SDK (a headed browser holds 1,000+; Linux
+   headless passed every step). On the Windows machine, desktop depth beyond
+   contract depth 96 measures that limit, not the renderer (found
+   2026-11-16).
