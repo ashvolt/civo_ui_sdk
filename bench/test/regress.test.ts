@@ -66,11 +66,21 @@ describe("the regression judgement (T-450, FR-440)", () => {
     expect(r.regressed).toBe(false);
   });
 
-  it("reports the calibration but does not scale by it (it measured noise, R6)", () => {
-    const r = compareSmoke(result(base, 100), result(scale(1.5), 150));
-    expect(r.speed).toBe(1.5);
-    expect(r.regressed).toBe(true);
-    expect(compareSmoke(result(base, 100), result(base, 300)).regressed).toBe(false);
+  it("fails only when the ratio exceeds the tolerance both as measured and for the machine's speed (R6, the CI runs)", () => {
+    // [measured ratio, calibration ratio, regressed?], from the runs that decided the rule.
+    const cases: [number, number, boolean][] = [
+      [0.994, 1.028, false], // PR #20
+      [1.282, 1.276, false], // main after #20: a slower runner, no rendering change
+      [1.051, 0.808, false], // PR #21: the calibration said faster, the renderer was not slower
+      [1.045, 1.015, false], // main after #21
+      [2.02, 0.799, true], // a 1.5x CPU throttle on the laptop
+      [1.5, 1.0, true], // a real 50% slowdown on a runner like main's
+    ];
+    for (const [measured, speed, regressed] of cases) {
+      const r = compareSmoke(result(base, 100), result(scale(measured), 100 * speed));
+      expect(r.regressed, `×${measured} at speed ×${speed}`).toBe(regressed);
+      expect(r.scaledRatio).toBeCloseTo(measured / speed, 2);
+    }
   });
 
   it("a step that breaks now and did not on main fails, whatever the time", () => {
@@ -89,6 +99,6 @@ describe("the regression judgement (T-450, FR-440)", () => {
     const md = reportMarkdown(compareSmoke(result(base), result(scale(1.5))));
     expect(md).toContain("regressed");
     expect(md).toContain("| nodes | 1000 | 400 | 600 | 1.5 |");
-    expect(md).toContain("not used to scale");
+    expect(md).toContain("Fails when both exceed ×1.2");
   });
 });

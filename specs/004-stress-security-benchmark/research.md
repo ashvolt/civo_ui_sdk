@@ -331,6 +331,29 @@ milliseconds there are not comparable between runs.
   The median is the rule. It was chosen after seeing these runs, so CI's own
   runs are its confirmation.
 
+**Found on CI (2026-11-15)**: the first four comparisons on GitHub's runners.
+
+| Run | Median ratio | Calibration (speed) | Ratio ÷ speed |
+|---|---|---|---|
+| PR #20 | 0.994 | 1.028 | 0.97 |
+| main after #20 (no rendering change) | **1.282**, failed | 1.276 | 1.00 |
+| PR #21 | 1.051 | 0.808 | **1.30** |
+| main after #21 | 1.045 | 1.015 | 1.03 |
+
+- Runners differ in speed by about 28%, and the measured ratio alone failed
+  main on a slower one.
+- On that run the calibration tracked the speed, but on PR #21 it did not;
+  divided alone, PR #21 would have failed.
+- So the check now fails only when the ratio exceeds 20% **both** as
+  measured and divided by the speed. That passes every CI run above and the
+  ten quiet laptop runs (measured 0.96–1.14, divided 1.43–2.13), and still
+  fails the 1.5× throttle (2.02 measured, 2.53 divided).
+- The cost: a regression of up to about 20% can hide on a runner that happens
+  to be faster.
+- An A/B run of `main` and the branch in the same job would remove runner
+  differences, at about twice the job's time. It is the next step if
+  this rule misfires.
+
 ---
 
 ## R7. Script-injection corpus

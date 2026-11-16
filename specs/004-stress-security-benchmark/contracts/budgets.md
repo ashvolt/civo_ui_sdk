@@ -49,7 +49,10 @@ times follow the delivery schedule, not the renderer, so a renderer twice as
 slow moves them little.
 
 The check fails if the median, over the steps, of each step's median against
-`main`'s exceeds the tolerance. Steps under 2 ms on `main` are not judged.
+`main`'s exceeds the tolerance, both as measured and divided by the machine's
+speed against `main`'s (a fixed CPU job). Steps under 2 ms on `main` are not
+judged. (Both since 2026-11-15: on GitHub's runners each alone failed a run
+that changed no rendering; research R6.)
 
 It also fails if a smoke step breaks a budget now and did not on `main`.
 

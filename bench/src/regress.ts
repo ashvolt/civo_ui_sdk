@@ -9,20 +9,30 @@ import type { ResultFile } from "./results.ts";
  *
  * Frame intervals and completion times on these steps follow the delivery
  * schedule, not the renderer, so the check reads main-thread busy time
- * (Chromium's TaskDuration around each run). One number decides: the median,
- * over the steps, of each step's median now against `main`'s, which must not
- * exceed the tolerance (20%). A slower renderer moves every step; noise moves
- * a few, or the whole run a little, and the median of the ratios absorbs
- * both. The total is reported beside it. A step that breaks a budget now and
- * did not on `main` fails the check as well.
+ * (Chromium's TaskDuration around each run). The ratio judged is the median,
+ * over the steps, of each step's median now against `main`'s. A slower
+ * renderer moves every step; noise moves a few, or the whole run a little,
+ * and the median absorbs both. The total is reported beside it.
  *
- * Measured on one laptop (research R6): over ten quiet runs against one
- * baseline, the median ratio stayed within 0.96–1.14 (the total within
- * 0.94–1.21, one run over 20%); a 1.5× CPU throttle gave 2.02.
+ * The check fails when that ratio exceeds the tolerance (20%) both as
+ * measured and divided by the machine's speed against `main`'s (a fixed CPU
+ * job, `calibrate`). Neither alone is enough (research R6):
  *
- * A fixed CPU job's time (`calibrate`) is recorded and reported, not used to
- * scale: beside those runs it varied 0.5–2.4× with no relation to the busy
- * time.
+ * - On GitHub's runners, a run on a slower machine measured ×1.28 with the
+ *   calibration ×1.28 (a code change that touched no rendering): the raw
+ *   ratio alone failed it.
+ * - Another run measured ×1.05 with the calibration ×0.81: dividing alone
+ *   (×1.30) would have failed it.
+ * - On one laptop the calibration varied 0.5–2.4× beside quiet runs whose
+ *   ratio stayed within 0.96–1.14.
+ *
+ * Both rules agree on every run seen: those, and a 1.5× CPU throttle
+ * (×2.02, ×2.53 divided), which fails. The cost: a regression of up to about
+ * 20% can hide on a runner that happens to be faster; the nightly run
+ * measures every renderer in full.
+ *
+ * A step that breaks a budget now and did not on `main` fails the check as
+ * well.
  */
 
 /**
@@ -91,6 +101,8 @@ export interface RegressionReport {
   ratio: number;
   /** The median over the steps of now ÷ main: judged. */
   medianRatio: number;
+  /** `medianRatio` ÷ `speed`: judged too; the check fails only when both exceed the tolerance. */
+  scaledRatio: number;
   steps: StepComparison[];
   missing: string[];
   regressed: boolean;
@@ -130,8 +142,12 @@ export function compareSmoke(base: ResultFile, now: ResultFile, renderer = "ours
   const ratios = steps.filter((s) => s.before >= TOLERANCE.absoluteMs).map((s) => s.after / s.before).sort((a, b) => a - b);
   const medianRatio = ratios.length ? (ratios.length % 2 ? ratios[(ratios.length - 1) / 2]! : (ratios[ratios.length / 2 - 1]! + ratios[ratios.length / 2]!) / 2) : 1;
   if (!steps.length) reasons.push("no step in common with the baseline");
-  else if (medianRatio > 1 + TOLERANCE.relative) {
-    reasons.push(`main-thread time per step ×${round(medianRatio, 2)} main's (median over ${ratios.length} steps; tolerance 20%)`);
+  else {
+    const limit = 1 + TOLERANCE.relative;
+    const scaled = medianRatio / speed;
+    if (medianRatio > limit && scaled > limit) {
+      reasons.push(`main-thread time per step ×${round(medianRatio, 2)} main's, ×${round(scaled, 2)} for this machine's speed (median over ${ratios.length} steps; tolerance 20%)`);
+    }
   }
   return {
     baseline: { commit: base.environment.commit, ...(cb ? { calibrationMs: cb } : {}) },
@@ -141,6 +157,7 @@ export function compareSmoke(base: ResultFile, now: ResultFile, renderer = "ours
     busyAfter,
     ratio: busyBefore > 0 ? round(busyAfter / busyBefore, 3) : 1,
     medianRatio: round(medianRatio, 3),
+    scaledRatio: round(medianRatio / speed, 3),
     steps,
     missing,
     regressed: reasons.length > 0,
@@ -153,7 +170,7 @@ export function reportMarkdown(r: RegressionReport): string {
   const lines = [
     `### Bench smoke: ${r.regressed ? "regressed" : "within tolerance"}`,
     "",
-    `Main-thread time per step: ×${r.medianRatio} main's, the median over the steps (fails above ×1.2). In total ${r.busyAfter} ms against ${r.busyBefore} ms (×${r.ratio}). For reference, this machine took ×${r.speed} main's time on a fixed CPU job (not used to scale).`,
+    `Main-thread time per step: ×${r.medianRatio} main's, the median over the steps; ×${r.scaledRatio} for this machine's speed (it took ×${r.speed} main's time on a fixed CPU job). Fails when both exceed ×1.2. In total ${r.busyAfter} ms against ${r.busyBefore} ms (×${r.ratio}).`,
     ...(r.reasons.length ? ["", ...r.reasons.map((x) => `- **${x}**`)] : []),
     "",
     "| Workload | Step | main (ms) | now (ms) | ratio |",

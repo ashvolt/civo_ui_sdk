@@ -97,9 +97,9 @@ describe("what append saves (the T-159 measurement)", () => {
 describe("negotiating the protocol", () => {
   it("answers 2 only to a client whose Accept asks for it", () => {
     expect(negotiateProtocol(UI_STREAM_ACCEPT)).toBe(2);
-    expect(negotiateProtocol("text/event-stream; relax-ui-protocol=2")).toBe(2);
-    expect(negotiateProtocol('text/event-stream;relax-ui-protocol="3", */*')).toBe(2);
-    for (const accept of [null, undefined, "", "*/*", "text/event-stream", "text/event-stream; relax-ui-protocol=1", "x-relax-ui-protocol=2"]) {
+    expect(negotiateProtocol("text/event-stream; relax-ui-stream=2")).toBe(2);
+    expect(negotiateProtocol('text/event-stream;relax-ui-stream="3", */*')).toBe(2);
+    for (const accept of [null, undefined, "", "*/*", "text/event-stream", "text/event-stream; relax-ui-stream=1", "x-relax-ui-stream=2"]) {
       expect(negotiateProtocol(accept), String(accept)).toBe(1);
     }
   });

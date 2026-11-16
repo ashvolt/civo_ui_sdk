@@ -272,7 +272,7 @@ anything but a string throws, and the accumulator turns that into
 It is negotiated, because a protocol-1 client would apply an `append` as a
 `replace` and silently show only the new characters:
 
-- the browser's reader sends `Accept: text/event-stream; relax-ui-protocol=2`
+- the browser's reader sends `Accept: text/event-stream; relax-ui-stream=2`
   (`UI_STREAM_ACCEPT`). `Accept` is CORS-safelisted, so a cross-origin route
   need not allow a new header;
 - the route adapters answer in protocol 2 only to such a request

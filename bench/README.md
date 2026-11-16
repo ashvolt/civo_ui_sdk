@@ -29,22 +29,26 @@ each under ten minutes):
 On those steps, frame intervals and completion time follow the delivery
 schedule, not the renderer, so the regression check reads **main-thread busy
 time** (Chromium's `TaskDuration` around each run). Each step's median is
-divided by `main`'s, and the median of those ratios must stay within the
-budgets contract's tolerance: 20%. A slower renderer moves every step. Noise
-moves a few steps, or the whole run a little. The total is reported too.
+divided by `main`'s, and the median of those ratios is judged. A slower
+renderer moves every step; noise moves a few steps, or the whole run a little.
+The total is reported too.
 
-A step that breaks a budget now, but did not on `main`, also fails. Each
-machine's time for a fixed CPU job is reported, but does not scale the result:
-next to ten quiet runs it varied far more than the busy time did.
+The check fails when that ratio exceeds the budgets contract's tolerance (20%)
+**both** as measured and divided by the machine's speed against `main`'s (its
+time for a fixed CPU job). Neither alone held up:
 
-On one laptop, against one baseline:
+| Run | Measured | Speed | Divided | Either alone would say |
+|---|---|---|---|---|
+| main, a slower GitHub runner, no rendering change | 1.28 | 1.28 | 1.00 | measured: fail (wrong) |
+| a PR on a runner the job thought faster | 1.05 | 0.81 | 1.30 | divided: fail (wrong) |
+| two other CI runs | 0.99, 1.05 | 1.03, 1.02 | 0.97, 1.03 | pass |
+| ten quiet runs on a laptop | 0.96–1.14 | 0.49–0.76 | 1.43–2.13 | divided: fail (wrong) |
+| `--slowdown 1.5` on the laptop | 2.02 | 0.80 | 2.53 | fail (right) |
 
-| Runs | Median ratio |
-|---|---|
-| Ten quiet runs | 0.96 to 1.14; none failed |
-| `--slowdown 1.5` | 2.02; failed |
-
-Judging the total instead would have failed one of the ten quiet runs (1.21). `--slowdown 1.5` throttles the CPU; it is how the check is shown to
+Requiring both fails only the last. The cost: a regression of up to about 20%
+can hide on a runner that happens to be faster, and the nightly run measures
+every renderer in full. A step that breaks a budget now, but did not on `main`,
+also fails. `--slowdown 1.5` throttles the CPU; it is how the check is shown to
 catch a 50% slowdown.
 
 ```bash
