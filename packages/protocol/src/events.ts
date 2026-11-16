@@ -40,15 +40,15 @@ export type UIStreamProtocol = 1 | 2;
  * cross-origin route that allows only `Content-Type` keeps working. A custom
  * header would have to be added to every such server's allowed headers.
  */
-export const UI_STREAM_ACCEPT = `text/event-stream; relax-ui-protocol=${UI_STREAM_PROTOCOL_VERSION}`;
+export const UI_STREAM_ACCEPT = `text/event-stream; relax-ui-stream=${UI_STREAM_PROTOCOL_VERSION}`;
 
 /**
  * The protocol to answer a request in, from its `Accept` header. No
- * `relax-ui-protocol` parameter, or one this package does not know, is
+ * `relax-ui-stream` parameter, or one this package does not know, is
  * protocol 1, which every client reads.
  */
 export function negotiateProtocol(accept: string | null | undefined): UIStreamProtocol {
-  const asked = /(?:^|[;,\s])relax-ui-protocol\s*=\s*"?(\d+)/i.exec(accept ?? "")?.[1];
+  const asked = /(?:^|[;,\s])relax-ui-stream\s*=\s*"?(\d+)/i.exec(accept ?? "")?.[1];
   return asked !== undefined && Number(asked) >= 2 ? 2 : 1;
 }
 

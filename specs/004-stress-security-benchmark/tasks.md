@@ -564,9 +564,8 @@ apps, the red-team (T-444), and the contenders with the disclosure gate
 - [x] **T-450** CI job "Bench smoke": short ladders against the stored `main`
   result within tolerance, plus the attack suites; under 10 minutes. Test: a
   deliberate 50% slowdown fails it; noise does not, over ten runs.
-- [ ] **T-451** Nightly workflow: everything, both profiles, results uploaded
-  and committed by a bot pull request. (Written; checked off after its first
-  run on `main`.)
+- [x] **T-451** Nightly workflow: everything, both profiles, results uploaded
+  and committed by a bot pull request. First run 2026-11-15: all 30 jobs passed; 4,380 attack cases, none executed in this SDK; 240 ladders; three soaks passed; results pull request #22 opened by the bot.
 - [x] **T-452** The dashboard: a static page built from the results. It shows
   break points, ladder curves, desktop against phone, soak trends and attack
   outcomes, and each figure links to its workload and its reproduce command.
@@ -642,7 +641,7 @@ apps, the red-team (T-444), and the contenders with the disclosure gate
 
 ## Outstanding
 
-T-451's first nightly run on `main`. Follow-ups:
+Follow-ups:
 - a full ladder run twice on one machine (plan Verification, "Reproducible");
 - confirming the regression rule on CI's own runs;
 - publishing the dashboard;

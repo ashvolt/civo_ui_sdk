@@ -220,7 +220,7 @@ Each defect below was **reproduced first** against the pre-change code.
   - `append` extends a string; applied to anything else it is
     `stream_malformed`.
   - The browser's reader asks for protocol 2 in `Accept`
-    (`text/event-stream; relax-ui-protocol=2`). `Accept` is CORS-safelisted,
+    (`text/event-stream; relax-ui-stream=2`). `Accept` is CORS-safelisted,
     so a cross-origin route needs no new allowed header.
   - The route adapters answer protocol 2 only to such a request, and say so in
     `meta.protocol`; every other client gets protocol 1, unchanged.
